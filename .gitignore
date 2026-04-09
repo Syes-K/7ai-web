@@ -12,6 +12,7 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+/data/
 
 # Logs & debug
 npm-debug.log*

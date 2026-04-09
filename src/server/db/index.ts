@@ -1,7 +1,5 @@
 /**
- * 数据层占位（TypeORM + SQLite）：
- * - 0.0.1 不初始化 DataSource、不建表、不做任何读写。
- * - 后续版本在此集中导出 AppDataSource 与实体注册，再供 Route Handlers / Server Actions 使用。
+ * 数据层入口：TypeORM DataSource 与实体。
+ * 0.0.2 起使用 SQLite 持久化，见 `data-source.ts`。
  */
-
-export {};
+export { getDataSource } from "./data-source";

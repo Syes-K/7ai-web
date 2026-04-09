@@ -1,13 +1,44 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { EmptyStateCard } from "@/components/placeholders/EmptyStateCard";
 import { ConsoleShellPlaceholder } from "@/components/placeholders/ConsoleShellPlaceholder";
 import { NavPlaceholder } from "@/components/placeholders/NavPlaceholder";
 
 /**
- * 控制台整页：客户端渲染（由 page 中 dynamic(ssr:false) 挂载），无业务逻辑。
+ * 控制台整页：CSR；校验会话（防过期 Cookie 仍通过 middleware）。
  */
 export default function ConsoleView() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch("/api/auth/me");
+      if (cancelled) {
+        return;
+      }
+      if (res.status === 401) {
+        router.replace("/login?redirect=/console");
+        return;
+      }
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500">
+        验证会话…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <NavPlaceholder />

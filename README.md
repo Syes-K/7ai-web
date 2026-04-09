@@ -1,6 +1,9 @@
 # 7ai-web
 
-基于 Next.js App Router 的 Web 应用。当前 `0.0.1` 为四页面静态占位（首页 / 登录 / 对话 / 控制台），不含业务逻辑与接口。
+基于 Next.js App Router 的 Web 应用。
+
+- `0.0.1`：四页面静态占位。
+- `0.0.2`：邮箱登录/注册、图形验证码、会话 Cookie；SQLite + TypeORM 持久化。详见 `iterations/0.0.2/backend/implementation-notes.md`。
 
 ## 开发
 

@@ -1,25 +1,25 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export const metadata: Metadata = {
-  title: "登录 | 7ai-web",
-  description: "使用邮箱登录",
+  title: "注册 | 7ai-web",
+  description: "注册账号",
 };
 
 /**
- * 登录页：赛博科技黑风格，提交走 /api/auth/login
+ * 注册页：邮箱必填，手机号可选
  */
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
-    <AuthShell title="登录" subtitle="使用邮箱与密码登录">
+    <AuthShell title="注册账号">
       <Suspense
         fallback={
           <p className="text-center text-sm text-[#9AA3B2]">加载中…</p>
         }
       >
-        <LoginForm />
+        <RegisterForm />
       </Suspense>
     </AuthShell>
   );
