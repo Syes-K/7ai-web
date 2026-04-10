@@ -28,5 +28,7 @@ export enum ErrorCode {
   /** 触发频控 */
   RATE_LIMITED = "RATE_LIMITED",
   UNAUTHORIZED = "UNAUTHORIZED",
+  /** 已登录但无权访问该资源（如非管理员访问管理端） */
+  FORBIDDEN = "FORBIDDEN",
   INTERNAL_ERROR = "INTERNAL_ERROR",
 }

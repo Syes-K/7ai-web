@@ -55,10 +55,22 @@ export function middleware(request: NextRequest) {
 
   const sid = request.cookies.get(SESSION_COOKIE)?.value;
   if (!sid) {
+    // 管理端 API 保持 JSON 错误体，便于前端与脚本处理（页面路由仍走登录重定向）。
+    if (pathname.startsWith("/api/admin")) {
+      return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    }
     const login = new URL("/login", request.url);
     login.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(login);
   }
+
+  // 供 admin layout 在未登录（会话失效）时带回跳路径；仅页面路由需要。
+  if (pathname.startsWith("/admin")) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-admin-login-redirect", `${pathname}${search}`);
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   return NextResponse.next();
 }
 
@@ -70,6 +82,7 @@ export const config = {
     "/console/:path*",
     "/admin",
     "/admin/:path*",
+    "/api/admin/:path*",
     "/api/auth/:path*",
   ],
 };
