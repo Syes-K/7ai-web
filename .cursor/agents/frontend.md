@@ -15,7 +15,7 @@ model: inherit
   - 自测说明（如何运行、如何验证主要 AC）
   - 偏差与假设（与设计/需求不一致处及原因，若有）
 - **完成时**：实现覆盖设计中的主要状态与交互，与后端接口按文档对接，主要 AC 可验证；向用户汇报阶段 4 完成、代码与文档路径及自测要点；可安排验收（如 verifier 或人工走查）。本阶段完成后同样以**人工确认**为准；若需修改：需求变更 → product；体验/交互变更 → design；接口/逻辑变更 → backend；实现问题 → 本 agent。
-- **产物路径**（全流程须带 `{version}`）：**代码**写在项目既定源码目录（如 `src/`、`app/`），遵循现有工程结构。**文档**写入 **`iterations/{version}/frontend/`**，并**同步**至 **`docs/frontend/`**，如 `implementation-notes.md`、`test-checklist.md`、`deviations.md`；可按功能拆分为 `implementation-notes-{功能名}.md` 等。非全流程时可只写 `docs/frontend/`。
+- **产物路径**（全流程须带 `{version}`）：**代码**写在项目既定源码目录（如 `src/`、`app/`），遵循现有工程结构。**文档**写入 **`iterations/{version}/frontend/`**，如 `implementation-notes.md`、`test-checklist.md`、`deviations.md`；可按功能拆分为 `implementation-notes-{功能名}.md` 等。
 - 详见 [WORKFLOW.md](WORKFLOW.md)。
 
 ## 职责
@@ -34,9 +34,16 @@ model: inherit
 
 ## UI 库：Ant Design 与 Pro Components（antd / antd-pro）
 
-### 范围：后台管理内均可使用
+### 范围与硬性约定：控制台与管理后台
 
-在 **后台管理**（当前路由以 **`/console`** 为入口的配置、日志及后续管理页等受控管理界面）中，**`antd` 与 `@ant-design/pro-components`（业界常称 antd-pro 组件层）均可按需使用**，无「仅某几个页面才能用」的限制：列表、筛选、表单、抽屉/弹窗、描述、步骤、统计等，只要属于管理端能力，均可选用 antd / Pro Components 实现，并与设计说明对齐。
+凡属于 **控制台**（如 **`/console`**）与 **管理后台**（如未来 **`/admin`** 或独立管理路由树）的页面与功能，**默认且优先**采用 **`antd` + `@ant-design/pro-components`（antd-pro / Pro Components）** 的组件与**开发风格**实现，包括但不限于：
+
+- **布局与导航**：`ProLayout` / `PageContainer`、面包屑、标签页等与 Ant Design Pro 常见后台形态一致的组织方式（按项目现有 `layout` 与 Provider 挂载点衔接）。
+- **列表与检索**：`ProTable`、`QueryFilter`、分页与 `request`/`params` 数据流；列定义、工具栏、密度与列设置等按 Pro 惯例。
+- **表单与弹层**：`ProForm`、`ModalForm`、`DrawerForm`、`StepsForm` 等；校验、提交与 loading 反馈与 antd 表单体系一致。
+- **静态反馈**：`message` / `notification` / `Modal` 通过 **`App.useApp()`** 或等价受控方式调用，避免破坏 SSR/客户端边界。
+
+在上述场景下，**不要**用 Tailwind 从零搭一套平行「后台 UI」，除非设计明确要求例外（须写入 `deviations.md`）。列表、筛选、表单、抽屉/弹窗、描述、步骤、统计等管理端能力均可按需选用，并与设计说明对齐。
 
 注意：此处「antd-pro」指 **Pro Components**（`ProTable`、`QueryFilter`、`ProForm*` 等），**不是**必须用 Umi 搭建的整套 Ant Design Pro 脚手架项目。
 
@@ -44,22 +51,23 @@ model: inherit
 
 - **常用包**：`antd`、`@ant-design/pro-components`、`@ant-design/icons`；日期/时间与 Pro 表单一致时使用 **`dayjs`**（可 `dayjs.locale('zh-cn')`）。
 - **样式与 SSR**：在后台管理子树的 **`layout.tsx`** 中用 **`@ant-design/nextjs-registry`** 的 **`AntdRegistry`** 包裹子节点，避免 App Router 下样式错乱或闪烁；若未来管理路由拆多层 layout，可在更贴近叶子的 layout 挂载，避免给非管理页带上 antd。
-- **中文与主题**：在同一子树用 **`ConfigProvider`**，`import zhCN from 'antd/locale/zh_CN'`，设置 **`locale={zhCN}`**。当前参考：`src/app/console/ConsoleAntdProvider.tsx`。
+- **中文与主题**：在同一子树用 **`ConfigProvider`**，`import zhCN from 'antd/locale/zh_CN'`，设置 **`locale={zhCN}`**。
 - **静态 API（message / modal / notification）**：在客户端页面或布局中包裹 **`antd` 的 `<App>`**，在子组件内使用 **`App.useApp()`** 取得 `message` 等；勿在 Server Component 中调用。
 
 ### 后台管理中常见用法（示例，非穷尽）
 
-- **列表 + 检索 + 分页**：**`ProTable`** + **`QueryFilter`** 或内嵌 **`ProForm*`**；需「提交后再查」时可用 ref 保存已提交条件 + 变更 `params` 触发 `request`（参见 `src/components/console/LogViewerApp.tsx`）。
+- **列表 + 检索 + 分页**：**`ProTable`** + **`QueryFilter`** 或内嵌 **`ProForm*`**；需「提交后再查」时可用 ref 保存已提交条件 + 变更 `params` 触发 `request`。
 - **CRUD / 配置**：**`ProForm`**、**`ModalForm`**、**`DrawerForm`**、**`StepsForm`** 等与 API 文档对接。
 - **非后台管理**（如首页 **C 端对话**、营销落地页等）：仍以现有 **Tailwind** 与项目组件为主；**不要**仅为非管理场景扩大 antd 包裹范围或全局引入。
 
 ### 实现与文档要求
 
-- 新增或调整 antd/Pro 依赖时，在 **`package.json`** 中声明，并在 **`iterations/{version}/frontend/`** 与 **`docs/frontend/`** 的实现说明中写明：Provider 挂载范围（如整段 `/console` 的 `layout` 或未来独立 `/admin` 的 `layout`）、是否使用 `<App>`、主要使用的 Pro 组件。
+- 新增或调整 antd/Pro 依赖时，在 **`package.json`** 中声明，并在 **`iterations/{version}/frontend/`** 的实现说明中写明：Provider 挂载范围（如整段 `/console` 的 `layout` 或未来独立 `/admin` 的 `layout`）、是否使用 `<App>`、主要使用的 Pro 组件。
 - 与 **设计说明** 中的表格列、筛选字段、状态文案保持一致；偏差写入 **`deviations.md`**（或等价实现说明章节）。
 
 ## 协作约定
 
+- **控制台与管理后台**：实现与迭代时统一按上节 **antd + Pro Components** 的组件选型与开发风格；新增路由若归类为「后台类」，同样适用。
 - 需求或设计不完整时，先列出假设与待确认项再实现。
 - 实现中发现的逻辑/体验问题，简要记录并给出建议。
 - 使用项目既有技术栈与规范；新技术或库需说明理由与影响。
