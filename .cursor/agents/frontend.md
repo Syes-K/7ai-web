@@ -40,12 +40,26 @@ model: inherit
 
 - **布局与导航**：`ProLayout` / `PageContainer`、面包屑、标签页等与 Ant Design Pro 常见后台形态一致的组织方式（按项目现有 `layout` 与 Provider 挂载点衔接）。
 - **列表与检索**：`ProTable`、`QueryFilter`、分页与 `request`/`params` 数据流；列定义、工具栏、密度与列设置等按 Pro 惯例。
-- **表单与弹层**：`ProForm`、`ModalForm`、`DrawerForm`、`StepsForm` 等；校验、提交与 loading 反馈与 antd 表单体系一致。
+- **表单与弹层**：以 **ProForm 体系**为主（见下节「表单：ProForm 使用规范」）；校验、提交与 loading 反馈与 antd 表单体系一致。
 - **静态反馈**：`message` / `notification` / `Modal` 通过 **`App.useApp()`** 或等价受控方式调用，避免破坏 SSR/客户端边界。
 
 在上述场景下，**不要**用 Tailwind 从零搭一套平行「后台 UI」，除非设计明确要求例外（须写入 `deviations.md`）。列表、筛选、表单、抽屉/弹窗、描述、步骤、统计等管理端能力均可按需选用，并与设计说明对齐。
 
 注意：此处「antd-pro」指 **Pro Components**（`ProTable`、`QueryFilter`、`ProForm*` 等），**不是**必须用 Umi 搭建的整套 Ant Design Pro 脚手架项目。
+
+### 表单：ProForm 使用规范（控制台 / 管理后台）
+
+凡 **控制台**、**管理后台** 路由内的 **数据录入、配置、新建/编辑**，**默认**采用 **ProForm 家族**，与 API 文档字段对齐；避免在后台页用纯 `Form` + 大量手写 `Form.Item` 搭一套平行形态（除非字段极简且团队已有约定，例外须写入 `deviations.md`）。
+
+- **表单项**：优先使用 `@ant-design/pro-components` 提供的 **`ProForm*` 组件**（如 `ProFormText`、`ProFormTextArea`、`ProFormDigit`、`ProFormSelect`、`ProFormSwitch`、`ProFormDatePicker`、`ProFormCheckbox` 等），以统一占位、只读、转换与布局；确需自定义时再嵌 `ProFormItem` + 自定义 `children`。
+- **容器形态**：
+  - **页面内整页表单**：`ProForm`（可配合 `StepsForm` 做多步向导）。
+  - **弹窗 / 侧栏提交**：`ModalForm`、`DrawerForm`（提交、关闭、重置行为与 Pro 惯例一致）。
+  - **表格工具栏 / 行内编辑**：与 **`ProTable`** 的 `toolBarRender`、可编辑列等组合时，仍优先 Pro 提供的表单能力或 `formRef`，避免与页面其它表单实例冲突。
+- **数据流**：新建用 `initialValues` 或默认值；编辑/详情用 **`request`** 拉取后注入表单，或 `initialValues` + `key` 强制重挂载；提交在 **`onFinish`** 中调用接口，`async` 时组件会处理提交 loading（勿重复造轮子）。
+- **校验与反馈**：字段级规则写在各 `ProForm*` 的 **`rules`**；提交失败用 `message.error`（经 **`App.useApp()`**）；成功提示、`ModalForm`/`DrawerForm` 关闭与列表刷新在 **`onFinish`** 成功后串联。
+- **命令式**：需要 **`resetFields` / `setFieldsValue` / `submit`** 时使用 **`formRef`**（`FormInstance`），类型与 antd `Form` 一致。
+- **与筛选区区分**：列表页的 **QueryFilter / 搜索区** 仍用 Pro 的查询表单约定；与「编辑业务实体」的 ProForm 职责分开，避免混在同一 `Form` 实例上。
 
 ### 依赖与注册（Next.js App Router）
 
@@ -57,7 +71,7 @@ model: inherit
 ### 后台管理中常见用法（示例，非穷尽）
 
 - **列表 + 检索 + 分页**：**`ProTable`** + **`QueryFilter`** 或内嵌 **`ProForm*`**；需「提交后再查」时可用 ref 保存已提交条件 + 变更 `params` 触发 `request`。
-- **CRUD / 配置**：**`ProForm`**、**`ModalForm`**、**`DrawerForm`**、**`StepsForm`** 等与 API 文档对接。
+- **CRUD / 配置**：按「表单：ProForm 使用规范」选用 **`ProForm`**、**`ModalForm`**、**`DrawerForm`**、**`StepsForm`** 等与 API 文档对接。
 - **非后台管理**（如首页 **C 端对话**、营销落地页等）：仍以现有 **Tailwind** 与项目组件为主；**不要**仅为非管理场景扩大 antd 包裹范围或全局引入。
 
 ### 实现与文档要求
