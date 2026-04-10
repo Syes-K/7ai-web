@@ -68,6 +68,8 @@ export const config = {
     "/chat/:path*",
     "/console",
     "/console/:path*",
+    "/admin",
+    "/admin/:path*",
     "/api/auth/:path*",
   ],
 };

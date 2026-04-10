@@ -1,7 +1,15 @@
 /**
- * 登录/注册成功后的 redirect：仅允许本站 path 且落在白名单。
+ * 登录/注册成功后的 redirect：仅允许本站 path 且落在白名单（含 `/admin/**` 管理后台）。
  */
-const ALLOWED_PATHS = new Set(["/", "/chat", "/console"]);
+const ALLOWED_EXACT = new Set(["/", "/chat", "/console", "/admin"]);
+
+function isAllowedRedirectPath(pathOnly: string): boolean {
+  if (ALLOWED_EXACT.has(pathOnly)) return true;
+  if (pathOnly.startsWith("/admin/")) {
+    return !pathOnly.includes("..");
+  }
+  return false;
+}
 
 export function safeRedirectUrl(
   redirectParam: string | null | undefined,
@@ -24,7 +32,7 @@ export function safeRedirectUrl(
       return `${base.origin}/`;
     }
     const pathOnly = pathPart.split("?")[0] ?? "/";
-    if (!ALLOWED_PATHS.has(pathOnly)) {
+    if (!isAllowedRedirectPath(pathOnly)) {
       return `${base.origin}/`;
     }
     return `${base.origin}${pathPart.startsWith("/") ? pathPart : `/${pathPart}`}`;
