@@ -16,7 +16,7 @@ model: inherit
   - 设计说明（布局、断点、动效、可访问性）
   - 与需求的对应关系（故事/AC 引用）
 - **完成时**：将上述整理成「设计说明」文档并写入产物路径；向用户汇报阶段 2 完成、产出路径与要点，**等待人工确认**；仅在用户确认通过后，由父 agent 以「需求文档 + 设计说明」为上下文调用 **backend** subagent 进入阶段 3。
-- **产物路径**（全流程须带 `{version}`）：**主路径** **`iterations/{version}/design/`**，并**同步**至 **`docs/design/`**。单功能可用 `design-spec.md` 或 `spec.md`；多功能用 `spec-{功能名}.md`、`flows-{功能名}.md`。与需求的对应关系写在同一份设计说明内或引用 `iterations/{version}/product/`（或 `docs/product/`）下文件。非全流程时可只写 `docs/design/`。
+- **产物路径**（全流程须带 `{version}`）：文档写入 **`iterations/{version}/design/`**。单功能可用 `design-spec.md` 或 `spec.md`；多功能用 `spec-{功能名}.md`、`flows-{功能名}.md`。与需求的对应关系写在同一份设计说明内或引用 `iterations/{version}/product/` 下文件。
 - 详见 [WORKFLOW.md](WORKFLOW.md)。
 
 ## 职责

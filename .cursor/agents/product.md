@@ -16,7 +16,7 @@ model: inherit
   - 用户故事（含 AC）
   - 待设计项清单（需设计介入的页面/流程/组件）
 - **完成时**：将上述整理成「需求与故事」文档并写入产物路径；向用户汇报阶段 1 完成、产出路径与要点，**等待人工确认**；仅在用户确认通过后，由父 agent 以该文档为上下文调用 **design** subagent 进入阶段 2。
-- **产物路径**（全流程须带 `{version}`，如 `0.0.1`）：文档**主路径** **`iterations/{version}/product/`**，并**同步相同内容**至 **`docs/product/`**。单功能可用 `requirements.md` 或 `prd.md`；多功能用 `prd-{功能名}.md`、`user-stories-{功能名}.md`。待设计项可写在 PRD 内或单独 `design-handoff.md`。若用户仅做单点需求、未走版本化迭代，可只写 `docs/product/`，但全流程默认按 `iterations/` + `docs` 双写。
+- **产物路径**（全流程须带 `{version}`，如 `0.0.1`）：文档写入 **`iterations/{version}/product/`**。单功能可用 `requirements.md` 或 `prd.md`；多功能用 `prd-{功能名}.md`、`user-stories-{功能名}.md`。待设计项可写在 PRD 内或单独 `design-handoff.md`。
 - 详见 [WORKFLOW.md](WORKFLOW.md)。
 
 ## 职责
