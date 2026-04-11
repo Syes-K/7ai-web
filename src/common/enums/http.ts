@@ -6,7 +6,9 @@ export enum HttpStatus {
   UNAUTHORIZED = 401,
   FORBIDDEN = 403,
   NOT_FOUND = 404,
+  UNPROCESSABLE_ENTITY = 422,
   TOO_MANY_REQUESTS = 429,
+  BAD_GATEWAY = 502,
   INTERNAL_SERVER_ERROR = 500,
 }
 
@@ -33,5 +35,9 @@ export enum ErrorCode {
   FORBIDDEN = "FORBIDDEN",
   /** 目标资源不存在（如管理端按 id 操作用户未找到） */
   USER_NOT_FOUND = "USER_NOT_FOUND",
+  /** 会话不存在或无权访问（统一 404） */
+  CONVERSATION_NOT_FOUND = "CONVERSATION_NOT_FOUND",
+  /** 大模型调用失败或不可用 */
+  MODEL_ERROR = "MODEL_ERROR",
   INTERNAL_ERROR = "INTERNAL_ERROR",
 }

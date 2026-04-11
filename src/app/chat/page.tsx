@@ -1,17 +1,15 @@
-import { ChatShellPlaceholder } from "@/components/placeholders/ChatShellPlaceholder";
-import { EmptyStateCard } from "@/components/placeholders/EmptyStateCard";
-import { PageShell } from "@/components/placeholders/PageShell";
+import { userDisplayLabel } from "@/common/utils/user-display-label";
+import { ChatWorkspace } from "@/components/chat/ChatWorkspace";
+import { getCurrentUser } from "@/server/auth/session-user";
+import { redirect } from "next/navigation";
 
 /**
- * 对话页：默认 RSC，服务端渲染静态占位。
+ * 对话页：客户端工作台（会话列表、消息、新建/清空）；布局鉴权见 layout。
  */
-export default function ChatPage() {
-  return (
-    <PageShell title="对话">
-      <ChatShellPlaceholder />
-      <EmptyStateCard>
-        对话页占位中：消息交互与模型调用将在后续版本提供。
-      </EmptyStateCard>
-    </PageShell>
-  );
+export default async function ChatPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login?redirect=/chat");
+  }
+  return <ChatWorkspace userLabel={userDisplayLabel(user)} />;
 }

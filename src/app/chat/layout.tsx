@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/session-user";
 
 /**
- * 对话区：除 middleware 外再做服务端会话校验，避免过期 Cookie。
+ * 对话区：服务端会话校验；界面为纯 Tailwind 客户端组件。
  */
 export default async function ChatLayout({
   children,

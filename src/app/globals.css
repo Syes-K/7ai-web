@@ -13,3 +13,49 @@ body {
   color: var(--foreground);
   background: #ffffff;
 }
+
+/* 对话页：细滚动条（青色系），与侧栏/消息区独立滚动配合 */
+@layer utilities {
+  .chat-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34, 211, 238, 0.38) rgba(24, 24, 27, 0.5);
+    overscroll-behavior: contain;
+  }
+  .chat-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .chat-scroll::-webkit-scrollbar-track {
+    background: rgba(24, 24, 27, 0.55);
+    border-radius: 4px;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb {
+    background: rgba(34, 211, 238, 0.35);
+    border-radius: 4px;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 211, 238, 0.55);
+  }
+
+  /** Toast：自上方落入（与 left-1/2 居中共用 translateX(-50%)） */
+  .chat-toast-enter {
+    animation: chat-toast-drop 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes chat-toast-drop {
+    from {
+      opacity: 0;
+      transform: translate3d(-50%, -18px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-toast-enter {
+      animation: none;
+    }
+  }
+}

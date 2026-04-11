@@ -24,3 +24,27 @@ export const LOGIN_FAIL_MAX_ATTEMPTS = 5;
 
 /** 登录失败锁定时长（毫秒）：30 分钟 */
 export const LOGIN_FAIL_LOCK_MS = 30 * 60 * 1000;
+
+/** 会话列表默认条数 */
+export const CHAT_CONVERSATION_LIST_DEFAULT_LIMIT = 20;
+/** 会话列表单次最大条数 */
+export const CHAT_CONVERSATION_LIST_MAX_LIMIT = 50;
+
+/** 消息列表默认条数（单页） */
+export const CHAT_MESSAGE_LIST_DEFAULT_LIMIT = 50;
+/** 消息列表单次最大条数 */
+export const CHAT_MESSAGE_LIST_MAX_LIMIT = 200;
+
+/** 单条用户消息最大字符数（按 Unicode 码点计） */
+export const CHAT_USER_MESSAGE_MAX_LENGTH = 16_000;
+
+/** 由首条用户消息生成标题时的截断长度（码点） */
+export const CHAT_TITLE_FROM_USER_MAX_CHARS = 32;
+
+/** 新建或无用户消息时的默认会话标题 */
+export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
+
+/** 对话 LLM：默认提供商键（与 `MODEL_PROVIDER_BASE_URL` 一致） */
+export const CHAT_LLM_DEFAULT_PROVIDER = "ALYUN";
+/** 对话 LLM：默认模型名（可通过环境变量覆盖） */
+export const CHAT_LLM_DEFAULT_MODEL = "qwen-turbo-latest";
