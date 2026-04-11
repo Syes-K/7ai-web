@@ -68,3 +68,38 @@ export function recordLoginFailure(email: string, ip: string): number {
 export function clearLoginFailures(email: string, ip: string) {
   failBuckets.delete(lockKey(email, ip));
 }
+
+const EMAIL_PREFIX = (email: string) => `${email.trim().toLowerCase()}|`;
+
+/**
+ * 按邮箱聚合登录失败锁状态（跨 IP），供管理端列表只读展示。
+ * 注意：锁存在进程内 Map，多实例部署下仅反映本进程视角。
+ */
+export function getLoginFailureAggregateForEmail(email: string): {
+  locked: boolean;
+  remainingMsMax: number;
+} {
+  const prefix = EMAIL_PREFIX(email);
+  const ts = now();
+  let remainingMsMax = 0;
+  let locked = false;
+
+  for (const [key, bucket] of failBuckets) {
+    if (!key.startsWith(prefix)) {
+      continue;
+    }
+    if (bucket.lockUntil <= 0) {
+      continue;
+    }
+    const remain = bucket.lockUntil - ts;
+    if (remain > 0) {
+      locked = true;
+      if (remain > remainingMsMax) {
+        remainingMsMax = remain;
+      }
+    }
+  }
+
+  return { locked, remainingMsMax };
+}
+

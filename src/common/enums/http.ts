@@ -5,6 +5,7 @@ export enum HttpStatus {
   BAD_REQUEST = 400,
   UNAUTHORIZED = 401,
   FORBIDDEN = 403,
+  NOT_FOUND = 404,
   TOO_MANY_REQUESTS = 429,
   INTERNAL_SERVER_ERROR = 500,
 }
@@ -30,5 +31,7 @@ export enum ErrorCode {
   UNAUTHORIZED = "UNAUTHORIZED",
   /** 已登录但无权访问该资源（如非管理员访问管理端） */
   FORBIDDEN = "FORBIDDEN",
+  /** 目标资源不存在（如管理端按 id 操作用户未找到） */
+  USER_NOT_FOUND = "USER_NOT_FOUND",
   INTERNAL_ERROR = "INTERNAL_ERROR",
 }
