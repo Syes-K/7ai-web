@@ -1,5 +1,6 @@
 import { DEFAULT_PROMPT_CONFIG } from "@/common/constants/defautPromptConfig";
 import type {
+  PromptConfigApiItem,
   PromptConfigFileState,
   PromptConfigFragment,
   PromptConfigKey,
@@ -83,9 +84,10 @@ export function mergePromptConfigFromFile(fileRaw: string | null): {
 
 export function mergedToApiItems(
   merged: Record<PromptConfigKey, PromptConfigFragment>,
-): Array<PromptConfigFragment & { key: PromptConfigKey }> {
+): PromptConfigApiItem[] {
   return getAuthoritativePromptKeys().map((k) => ({
     key: k,
     ...merged[k],
+    params: [...(DEFAULT_PROMPT_CONFIG[k].params ?? [])],
   }));
 }

@@ -37,7 +37,7 @@
 | --- | --- | --- |
 | `name` | string | 表单项标签来源 |
 | `desc` | string | Tooltip / 说明文案 |
-| `value` | string | 提示词正文（可含占位符如 `{{content}}`，原样存储） |
+| `value` | string | 提示词**模版**正文（可含占位符 **`{参数名}`**，与代码中 `DEFAULT_PROMPT_CONFIG[key].params[].name` 一致；原样存储） |
 
 **文件示例**（演示结构，内容可省略）：
 
@@ -46,20 +46,26 @@
   "summarySystemPrefix": {
     "name": "摘要注入前缀",
     "desc": "……",
-    "value": "……\n\n{{content}}"
+    "value": "……\n\n{content}"
   }
 }
 ```
 
-### 3.3 与 TypeScript 类型的对齐说明
+### 3.3 参数声明（仅代码常量，不在 JSON 文件）
 
-| 概念 | TypeScript 侧（建议 3B 在 `@/common/types` 或域内类型文件中定义） |
+- **`DEFAULT_PROMPT_CONFIG` 每项可含 `params: { name, type, description }[]`**，用于说明该模版允许的占位符。
+- **磁盘文件 `promptConfig.json` 不存储 `params`**；**GET `/api/admin/prompt-config`** 的 `items[]` 在合并后的 `name`/`desc`/`value` 之外，**附加**来自常量的 **`params`**，供 UI 展示 Tag/Tooltip 及与 `{参数名}` 校验一致。
+
+### 3.4 与 TypeScript 类型的对齐说明
+
+| 概念 | TypeScript 侧 |
 | --- | --- |
 | 权威 key 列表 | `keyof typeof DEFAULT_PROMPT_CONFIG` 或显式 `PromptConfigKey` 与常量同步 |
-| 单项形状 | `PromptConfigFragment = { name: string; desc: string; value: string }` |
-| 完整常量类型 | `typeof DEFAULT_PROMPT_CONFIG` |
+| 单项形状（合并/文件） | `PromptConfigFragment = { name: string; desc: string; value: string }` |
+| 参数定义 | `PromptParamDef`（见 `@/common/types/prompt-param-def.ts`） |
+| 完整常量类型 | `DEFAULT_PROMPT_CONFIG` 每项含 `params` |
 | 文件顶层类型 | `Record<PromptConfigKey, PromptConfigFragment>`（写入时保证键齐全） |
-| API 单项（含 key） | `{ key: PromptConfigKey } & PromptConfigFragment` 或等价结构 |
+| API 单项（含 key + params） | `PromptConfigApiItem`：`PromptConfigFragment & { key; params: PromptParamDef[] }` |
 
 **约束**：运行时 **不得** 在服务端手写与常量漂移的 key 列表；应以 `DEFAULT_PROMPT_CONFIG` 为单一数据源迭代 key。
 
@@ -167,3 +173,4 @@ for k in authoritativeKeys:
 | 日期 | 版本 | 说明 |
 | --- | --- | --- |
 | 2026-04-10 | 0.0.4 | 3A：文件模型、类型对齐、合并与坏文件策略 |
+| 2026-04-11 | 0.0.4 | 同步实现：`params` 仅常量、API 返回、`{参数}` 占位符；节号调整（原 3.3→3.4） |

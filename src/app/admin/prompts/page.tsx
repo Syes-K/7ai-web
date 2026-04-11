@@ -9,11 +9,13 @@ import {
   Form,
   Space,
   Spin,
+  Tag,
   Tooltip,
   Typography,
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_PROMPT_CONFIG } from "@/common/constants/defautPromptConfig";
+import { validatePromptTemplate } from "@/common/prompt/validatePromptTemplate";
 import type {
   PromptConfigApiItem,
   PromptConfigFileState,
@@ -27,15 +29,28 @@ function itemsFromDefaultConstants(): PromptConfigApiItem[] {
   return (Object.keys(DEFAULT_PROMPT_CONFIG) as PromptConfigKey[]).map(
     (key) => {
       const f = DEFAULT_PROMPT_CONFIG[key];
-      return { key, name: f.name, desc: f.desc, value: f.value };
+      return {
+        key,
+        name: f.name,
+        desc: f.desc,
+        value: f.value,
+        params: [...(f.params ?? [])],
+      };
     },
   );
 }
 
-/** required：非空；whitespace：不能只填空格（与后端 trim 非空一致） */
-const valueRules = [
-  { required: true, whitespace: true, message: "请输入提示词正文" },
-];
+function templateValueRules(item: PromptConfigApiItem) {
+  return [
+    { required: true, whitespace: true, message: "请输入模版正文" },
+    {
+      validator: async (_: unknown, v: string) => {
+        const r = validatePromptTemplate(v ?? "", item.params);
+        if (!r.valid) throw new Error(r.message);
+      },
+    },
+  ];
+}
 
 export default function AdminPromptsPage() {
   const { message, modal } = App.useApp();
@@ -162,7 +177,7 @@ export default function AdminPromptsPage() {
         modal.confirm({
           title: "确认保存",
           content:
-            "将把当前表单中的提示词写入服务器上。是否继续？",
+            "将把当前表单中的提示词模版写入服务器。是否继续？",
           okText: "确认保存",
           cancelText: "取消",
           onOk: () => savePrompts(fields as PromptFormValues),
@@ -174,7 +189,7 @@ export default function AdminPromptsPage() {
   };
 
   return (
-    <PageContainer ghost title="提示词管理">
+    <PageContainer ghost title="提示词模版">
       <div style={{ maxWidth: 960 }}>
         {fileState === "invalid_json" && (
           <Alert
@@ -231,11 +246,27 @@ export default function AdminPromptsPage() {
                   </span>
                 }
                 extra={
-                  <Typography.Text type="secondary" className="text-xs">
-                    配置 key：{item.key}
-                  </Typography.Text>
+                  <div className="flex flex-col gap-2">
+                    {item.params.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <Typography.Text type="secondary" className="text-xs">
+                          支持参数：
+                        </Typography.Text>
+                        {item.params.map((p) => (
+                          <Tooltip key={p.name} title={p.description}>
+                            <Tag className="m-0 cursor-default border-cyan-500/40 text-cyan-100/90">
+                              {`${p.name}`}
+                            </Tag>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    ) : null}
+                    <Typography.Text type="secondary" className="text-xs">
+                      配置 key：{item.key}
+                    </Typography.Text>
+                  </div>
                 }
-                rules={valueRules}
+                rules={templateValueRules(item)}
                 fieldProps={{
                   autoSize: { minRows: 6, maxRows: 20 },
                 }}

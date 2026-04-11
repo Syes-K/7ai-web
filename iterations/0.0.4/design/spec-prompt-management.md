@@ -1,4 +1,4 @@
-# 设计说明：提示词管理（`/admin/prompts`）
+# 设计说明：提示词模版（`/admin/prompts`）
 
 ## 文档信息
 
@@ -14,7 +14,7 @@
 ## 与壳层一致性（硬约束）
 
 - **布局**：页面仍为 admin 子路由，外层 **ProLayout** 不变；内容区使用 **`PageContainer`**，`ghost` 是否与占位页一致由前端与壳统一（建议与现页一致 `ghost`，减少内容区双层卡片感）。
-- **标题**：`title="提示词管理"`，与侧栏「提示词管理」及 `spec-admin-console.md` §6.2 一致。
+- **标题**：`title="提示词模版"`，与侧栏「提示词模版」及 `spec-admin-console.md` §6.2 一致（侧栏文案已随产品同步为「提示词模版」）。
 - **主题**：继承 admin **ConfigProvider 深色 token**，表单、按钮、Alert、Tooltip、Input 均走 antd 深色变量，**不使用**浅色 `EmptyStateCard` 作为主容器。
 - **响应式 / 无障碍**：遵循壳文档 §6、§7、§8：窄屏内容区全宽、可横向滚动兜底；表单控件可 Tab 聚焦、可见焦点环；说明文案与 `lang="zh-CN"` 一致。
 
@@ -43,10 +43,10 @@ flowchart LR
 
 | 区域（自上而下） | 内容 | 说明 |
 | --- | --- | --- |
-| **PageContainer 标题区** | 标题「提示词管理」 | 可选 `subTitle`：一句「查看与编辑运行时提示词模板（与 `data/promptConfig.json` 合并）」；**非必须**，避免与 PRD 冲突时可省略 |
+| **PageContainer 标题区** | 标题「提示词模版」 | 可选 `subTitle`：一句「查看与编辑运行时提示词模版（与 `data/promptConfig.json` 合并）」；**非必须** |
 | **全局告警区（条件）** | `Alert` | 仅在「JSON 无法解析」等**整文件级**问题时展示（见 §3）；与 US-3 一致 |
 | **表单主体** | 按 **权威 key 列表**（与 `DEFAULT_PROMPT_CONFIG` 的 key 顺序一致）**纵向排列** | **单列布局**：每个 key 一块表单项组，便于长文案扫描；key 数量少时无需 Tabs/折叠分组 |
-| **每项结构** | 标签行 + `value` 编辑区 + 可选辅助行 | 见 §2.1 |
+| **每项结构** | 标签行 + `value` 编辑区 + **`extra`：参数 Tag 行 + 配置 key** | 见 §2.1；`extra` 与正文区间距约 **8px**（如 `mt-2`） |
 | **页脚操作区** | 主按钮「保存」+ 可选「重置为当前已加载值」 | 见 **D4** |
 | **页尾说明区（可选）** | 占位符简短说明 | 对应 **D6** |
 
@@ -70,8 +70,9 @@ flowchart LR
 | --- | --- | --- |
 | **标签** | 展示合并后的 `name` | `Form.Item` 的 `label` |
 | **说明（desc）** | 标签右侧 **问号图标**，**点击 / 聚焦 / hover** 出 **Tooltip**（见 **D2**） | `Tooltip` + `QuestionCircleOutlined` |
-| **配置 key（可选展示）** | 次要信息：`camelCase` key，便于对照代码与文档 | 标签行尾或 `Form.Item` 下方 `Typography.Text type="secondary"` 小号字 |
-| **value** | 多行编辑，占位符原样 | `Input.TextArea` |
+| **支持参数（来自常量 `params`）** | 在 `Form.Item` 的 **`extra`** 区：文案「支持参数：」+ 每个参数 **`Tag`**，**`Tooltip` 内容为参数 `description`**（`type` 可含在描述中或后续增强） | `Tag` + `Tooltip`；Tag 文案展示参数名（与 `{name}` 占位一致） |
+| **配置 key（可选展示）** | 次要信息：`camelCase` key | `extra` 区底部 `Typography.Text type="secondary"` 小号字 |
+| **value** | 多行编辑；占位符仅 **`{参数名}`**（与 `params[].name` 一致） | `Input.TextArea` |
 
 **可编辑字段（与 PRD §5 待确认对齐的设计默认）**：
 
@@ -119,7 +120,7 @@ flowchart LR
 | **JSON 文件无法解析**（整文件坏） | 顶部 **`Alert` `type="warning"` 或 `error"`**（按后端最终策略），文案示例：「配置文件无法解析，已使用内置默认提示词。保存将按当前表单生成合法配置（若允许写回）。」 | 表单仍展示 **合并降级结果**（与 PRD US-3 AC1 倾向一致：**提示错误 + 各 key 回退默认**） |
 | **某 key 字段缺失 / 类型非法** | **单项不崩溃**；缺失字段用默认补齐，**不打断整表**（F1） | 可选：在对应项下 `Form.Item` `help` 灰色提示「部分字段已用默认值填充」（**非必须**，避免噪讯时可省略） |
 | **网络错误 / 5xx** | `message.error` + 简短原因；表单 **保留用户已编辑内容** | 提供「重试」可二次拉取（按钮或 `Result` 次要操作） |
-| **保存校验失败**（空 value 等） | **字段级 `validateStatus` + `help`**；同时可 `notification` 汇总 | 与 US-2 AC2 一致 |
+| **保存校验失败**（空 value、**模版占位符非法或未声明参数** 等） | **字段级 `validateStatus` + `help`**；与后端 `VALIDATION_ERROR` + `details` 一致 | 与 US-2 AC2 一致 |
 | **权限不足 / 401** | 与壳一致跳转登录；**403** 用 `Result` 403 或 Alert「无权保存」 | 只读展示可由后端决定；设计预留 **保存按钮 disabled + Tooltip「无权限」** |
 | **磁盘写入失败** | `message.error` / `Modal.error` 明确「保存失败，请稍后重试或联系运维」 | 不清空表单 |
 
@@ -151,7 +152,7 @@ flowchart LR
 | 页面容器 | `@ant-design/pro-components` **`PageContainer`** |
 | 表单 | **`Form`**（antd）；若团队统一 ProForm 亦可，但本期字段为固定 key，**原生 Form + map** 足够 |
 | 多行编辑 | **`Input.TextArea`** |
-| 说明展示 | **`Tooltip`** + **`Typography`** |
+| 说明展示 | **`Tooltip`** + **`Typography`**；参数行 **`Tag`** + **`Tooltip`** |
 | 全局告警 | **`Alert`** |
 | 加载 | **`Spin`** |
 | 成功/失败轻反馈 | **`message` / `notification`** |
@@ -176,9 +177,8 @@ flowchart LR
 
 ### 3.5 占位符说明（**D6**）
 
-- **推荐默认**：在表单下方增加 **`Alert type="info"` `showIcon`** 或 **`Collapse` 默认折叠**「占位符说明」，文案示例：「正文支持占位符，需与业务约定一致；当前示例：`{{content}}`（摘要内容注入点）。」  
-- 内容以后端/产品最终占位符列表为准；若仅 `{{content}}` 可写死。  
-- **若产品改确认**：可下放到每项 `extra` 或取消整块说明。
+- **已实现**：每项 `extra` 内以 **Tag + Tooltip** 展示常量声明的参数列表；正文占位符语法为 **`{参数名}`**（与 Tag 一致），保存时前后端校验非法 `{` 与未声明参数名。
+- **不再依赖**页脚单独 `Alert` 写死 `{{content}}` 示例；若未来 key 增多，仍可在页脚增加通用说明链接。
 
 ---
 
@@ -206,7 +206,7 @@ flowchart LR
 | **US-1** | §1 流程、§1.2 IA、§2.1 标签/desc/value 展示、§2.6 无「无文件」空态 |
 | **US-1 AC1** | key 集合与顺序绑定常量展示（界面不展示动态增删） |
 | **US-1 AC2～AC3** | 合并结果即表单初值（加载成功态）；不依赖用户理解文件是否存在 |
-| **US-1 AC4** | `name`→label，`desc`→Tooltip，`value`→TextArea |
+| **US-1 AC4** | `name`→label，`desc`→Tooltip，`value`→TextArea；`params`→`extra` 区 Tag + Tooltip |
 | **US-2** | §2.1、§2.3、§2.8；占位符不转义为前端约束（不引入会剥离字符的富文本） |
 | **US-2 AC1** | `Input.TextArea`，纯文本 |
 | **US-2 AC2** | §2.7 校验展示 |
@@ -224,7 +224,7 @@ flowchart LR
 | **D3** | §2.1 次要展示 key |
 | **D4** | §2.3 整表保存、按钮位置、loading |
 | **D5** | §2.7 分场景 Alert / message / Result |
-| **D6** | §3.5 底部说明 |
+| **D6** | §3.5 每项 `extra` Tag/Tooltip（已替代仅底部 Alert 示例） |
 
 ### 5.3 功能范围（PRD §2）
 
@@ -250,3 +250,4 @@ flowchart LR
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | 0.0.4 | 2026-04-10 | 初稿：流程、状态、D1–D6、§5 待确认默认值、US 追溯 |
+| 0.0.4 | 2026-04-11 | 同步实现：标题「提示词模版」、`extra` 参数 Tag/Tooltip、`{参数}` 校验、间距 |

@@ -22,7 +22,7 @@ export const adminMenuRoutes: MenuDataItem[] = [
   },
   {
     path: "/admin/prompts",
-    name: "提示词管理",
+    name: "提示词模版",
     key: "prompts",
     icon: <CommentOutlined />,
   },

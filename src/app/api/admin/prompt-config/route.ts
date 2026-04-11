@@ -11,6 +11,8 @@ import {
   readPromptConfigFile,
   writePromptConfigAtomic,
 } from "@/server/prompt-config/io";
+import { validatePromptTemplate } from "@/common/prompt/validatePromptTemplate";
+import { DEFAULT_PROMPT_CONFIG } from "@/common/constants/defautPromptConfig";
 import type { PromptConfigKey } from "@/common/types";
 
 export const runtime = "nodejs";
@@ -130,6 +132,12 @@ export const PUT = withAdminApi(async (_user, request, _ctx) => {
         HttpStatus.BAD_REQUEST,
         [{ field: k, message: "value 不能为空" }],
       );
+    }
+    const tmpl = validatePromptTemplate(v, DEFAULT_PROMPT_CONFIG[k].params ?? []);
+    if (!tmpl.valid) {
+      return jsonError(ErrorCode.VALIDATION_ERROR, tmpl.message, HttpStatus.BAD_REQUEST, [
+        { field: k, message: tmpl.message },
+      ]);
     }
   }
 

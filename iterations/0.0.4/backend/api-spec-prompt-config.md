@@ -46,7 +46,7 @@
 
 ### 4.1 语义
 
-- 以 **`DEFAULT_PROMPT_CONFIG` 的 key 集合与源码定义顺序**为权威列表，逐项产出合并后的 `{ name, desc, value }`（合并规则见 `data-models.md`）。
+- 以 **`DEFAULT_PROMPT_CONFIG` 的 key 集合与源码定义顺序**为权威列表，逐项产出合并后的 `{ key, name, desc, value, params }`（合并规则见 `data-models.md`）。其中 **`params` 始终来自代码常量**，不由磁盘 JSON 覆盖。
 - **文件不存在**：视为合法成功，合并结果全部为默认（**不**要求顶栏告警）。
 - **文件存在但整文件无法解析为 JSON**：合并结果对各 key **回退为默认**；响应携带 **`fileState: "invalid_json"`**，供前端展示设计稿中的 **Alert + 仍展示表单**。
 - **文件可解析但某 key 片段非法或缺字段**：该 key 在字段维度用默认补齐（**不**因单项失败导致整接口 5xx）；可选在扩展字段中携带 per-key 提示（本期可省略，由设计「非必须」项覆盖）。
@@ -65,12 +65,21 @@
       "key": "summarySystemPrefix",
       "name": "摘要注入前缀",
       "desc": "……",
-      "value": "……"
+      "value": "……",
+      "params": [
+        {
+          "name": "content",
+          "type": "string",
+          "description": "摘要内容"
+        }
+      ]
     }
   ],
   "fileState": "ok"
 }
 ```
+
+**`params`**：与 `DEFAULT_PROMPT_CONFIG` 中该项的 `params` 一致；用于管理端展示与**模版占位符校验**（正文仅允许出现 `{参数名}`，且 `参数名` 须在此列表中）。
 
 **`fileState` 枚举**：
 
@@ -142,6 +151,7 @@
 | 结构符合方案 A/B | 400 |
 | 每个权威 key 恰好出现一次 | 400 |
 | 每项 `value` 为 string，且 **trim 后非空**（与 PRD「value 非空等业务规则可按实现约定」— 本期建议非空） | 400，可附字段级信息 |
+| **模版占位符**：`value` 中仅允许形如 `{paramName}` 的占位（`paramName` 为 ASCII 标识符）；去除合法占位后若仍含 `{`，或出现**未在** `DEFAULT_PROMPT_CONFIG[key].params` 中声明的参数名 → **400**，`details` 可指向该配置 key | 400 |
 | 禁止额外 key | 400 |
 
 ### 5.4 成功响应
@@ -197,8 +207,8 @@
 
 | 能力 | 契约要点 |
 | --- | --- |
-| 合并读取 | 权威 key = 常量；按 key 将文件片段与默认做字段级合并；缺 key 用整项默认；坏文件 = 全默认 + `fileState: invalid_json` |
-| 整表保存 | 客户端提交全部 key 的 `value`；服务端写回完整 JSON 对象；写后再次读取应与 GET 一致（在无异步外部修改前提下） |
+| 合并读取 | 权威 key = 常量；按 key 将文件片段与默认做字段级合并；缺 key 用整项默认；坏文件 = 全默认 + `fileState: invalid_json`；**响应 `items[]` 含 `params`（仅来自常量）** |
+| 整表保存 | 客户端提交全部 key 的 `value`；服务端写回完整 JSON 对象；**保存前校验 `{参数}` 占位符**；写后再次读取应与 GET 一致（在无异步外部修改前提下） |
 | 鉴权 | Handler 内会话校验，与 `/api/auth/me` 同源逻辑；401 与页面 middleware 重定向并存（API 客户端不会收到 302 时） |
 
 ---
@@ -208,3 +218,4 @@
 | 日期 | 版本 | 说明 |
 | --- | --- | --- |
 | 2026-04-10 | 0.0.4 | 3A：初稿，对齐 PRD/设计与现有 auth 模式 |
+| 2026-04-11 | 0.0.4 | 同步实现：`items[].params`、PUT 模版占位符校验 |

@@ -20,7 +20,8 @@
 | Route Handler | `src/app/api/admin/prompt-config/route.ts` | `GET`、`PUT` 导出；`runtime = "nodejs"` |
 | 合并与校验纯逻辑 | `src/server/prompt-config/merge.ts`（或 `src/server/admin/prompt-config/`） | 便于单测与对话/其他模块复用 |
 | 路径解析与读写 | 同上目录 `io.ts` 或与 merge 同文件 | 集中 `fs` 与 `path`，避免 Handler 臃肿 |
-| 类型 | `@/common/types` 中新增 `prompt-config.ts`（示例名） | 经 `index.ts` 聚合导出，符合项目约定 |
+| 类型 | `@/common/types` 中 `prompt-config.ts`、`prompt-param-def.ts` 等 | 经 `index.ts` 聚合导出，符合项目约定 |
+| 模版校验（可选共用） | `@/common/prompt/validatePromptTemplate.ts` | PUT 与前端表单规则一致 |
 | 错误响应 | 复用 `@/server/http/json-response` 的 `jsonError` | 与现有 API 一致 |
 
 **枚举/错误码**：优先复用 `ErrorCode`、`HttpStatus`；若需 `PROMPT_CONFIG_READ_ERROR` 等，在 `@/common/enums` 扩展并在本文档与 `api-spec-prompt-config.md` 同步。
@@ -77,6 +78,7 @@
 - 损坏 JSON → `GET` 200，`fileState: invalid_json`，`PUT` 合法 body 后文件恢复、`GET` 正常。
 - 未登录 → 401。
 - `PUT` 缺 key、空 value、多余 key → 400。
+- `PUT` 模版正文含非法 `{` 或未声明 `{参数}` → 400（与 `validatePromptTemplate` 一致）。
 - 原子写：可人工在写入过程中杀进程，确认不易长期留下比坏文件更糟的状态（尽量只剩旧文件或完整新文件）。
 
 ---
@@ -86,3 +88,4 @@
 | 日期 | 版本 | 说明 |
 | --- | --- | --- |
 | 2026-04-10 | 0.0.4 | 3A：实现计划与风险点，无代码 |
+| 2026-04-11 | 0.0.4 | 同步：模版校验模块与自测项 |
