@@ -57,6 +57,7 @@ model: inherit
 - **类型建模约束**：跨文件复用的 `interface` / `type` 统一定义在 **`@/common/types`**（或 `@/common` 下按域拆分）并集中导出；仅文件内私有且不复用的临时类型可就地定义，避免重复与漂移。
 - **工具函数约束**：通用工具类函数统一放在 **`@/common/utils`**（按能力分文件/分目录）集中管理；仅当函数强依赖 Node/数据库/请求上下文等服务端能力时，才允许放在 `server/*` 并在注释中说明原因。
 - **common 公用性约束（强调）**：`@/common/*` 仅承载**跨业务域、跨模块稳定复用**的内容；若某实现明显绑定单一业务（如 auth 验证码绘制、auth 专属加密细节），应放入对应领域目录（如 `server/auth/*`），禁止为“统一而统一”将低复用实现塞入 `common`。
+- **请求用户上下文（`getRequestUserContext`）**：Next.js 无 Koa 式全局 `ctx`，在 Route Handler / RSC 中需要「当前登录用户 + 用户级偏好指针」时，应 **`await getRequestUserContext()`**（`@/server/auth/request-user-context`），得到 `{ user, preferredModelConfigId }`；未登录为 `null`。与「账号与偏好」页聚合展示相关的完整结构（含 `preferenceStale`、默认模型摘要等）仍由 `getConsoleProfileResponse` 等专用函数组装。**不要**在多处重复 `getCurrentUser()` 后再零散读取 `user.preferredModelConfigId`；`getCurrentUser` 仅作底层会话解析，新代码默认走 `getRequestUserContext`。调用对话模型解析（如 `getChatRuntimeModel` / `invokeAssistantReply`）时，若上层已加载 `User`，应传入可选参数复用实体，避免同一请求内重复查 `User` 表。
 - **导出入口约束**：`@/common/enums`、`@/common/types`、`@/common/utils`、`@/common/constants` 下统一通过各自 **`index.ts`** 聚合导出；业务代码优先从目录入口导入（如 `@/common/utils`），避免深层路径直引导致引用分裂。
 - 需求或设计不完整时，先列出假设与待确认项再实现。
 - 接口变更时在 **`iterations/{version}/backend/`** 更新 API 文档（全流程场景）。

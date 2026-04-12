@@ -5,7 +5,8 @@ import { User } from "../db/entities/User";
 import { SESSION_COOKIE } from "@/common/constants";
 
 /**
- * 从 Cookie 解析当前登录用户；供 RSC / Route Handler 使用。
+ * 从 Cookie 解析当前登录用户（底层实现）。
+ * 业务路由若需同时拿到「用户 + 偏好指针」，请优先使用 `./request-user-context` 中的 `getRequestUserContext`。
  */
 export async function getCurrentUser(): Promise<User | null> {
   const cookieStore = await cookies();

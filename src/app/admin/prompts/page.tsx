@@ -287,6 +287,7 @@ export default function AdminPromptsPage() {
               </Button>
               <Button
                 type="primary"
+                ghost
                 onClick={openSaveConfirm}
                 loading={saving}
                 disabled={loading}

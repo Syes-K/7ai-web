@@ -8,7 +8,7 @@ import {
 } from "@/common/constants";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
-import { getCurrentUser } from "@/server/auth/session-user";
+import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
 import { getDataSource } from "@/server/db/data-source";
 import { Conversation } from "@/server/db/entities/Conversation";
@@ -33,10 +33,11 @@ function parseLimit(raw: string | null): number | null {
  * GET /api/chat/conversations — 分页列出当前用户会话（updatedAt DESC）
  */
 export async function GET(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { searchParams } = new URL(req.url);
   const limit = parseLimit(searchParams.get("limit"));
@@ -138,10 +139,11 @@ type PostBody = { title?: string | null };
  * POST /api/chat/conversations — 创建会话
  */
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   let body: PostBody = {};
   try {

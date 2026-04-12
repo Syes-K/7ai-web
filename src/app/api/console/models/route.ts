@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid";
 import {
   CONSOLE_MODEL_LIST_DEFAULT_PAGE,
   CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE,
   CONSOLE_MODEL_LIST_MAX_PAGE_SIZE,
   CONSOLE_MODEL_NAME_MAX_LENGTH,
+  type ModelConfigTag,
 } from "@/common/constants";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
-import { getCurrentUser } from "@/server/auth/session-user";
+import { ModelConfigVisibility } from "@/common/enums";
+import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { getDataSource } from "@/server/db/data-source";
 import { UserModelConfig } from "@/server/db/entities/UserModelConfig";
 import { encryptApiKey } from "@/server/model-config/api-key-crypto";
 import { parseModelProvider } from "@/server/model-config/parse-provider";
+import { createUserModelConfigRow } from "@/server/model-config/create-model-config";
+import { parseModelConfigTags } from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
 
 export const runtime = "nodejs";
@@ -43,10 +46,11 @@ function parsePageSize(s: string | null): number | null {
  * GET：分页列出当前用户的模型配置。
  */
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const url = new URL(request.url);
   const page = parsePage(
@@ -64,13 +68,19 @@ export async function GET(request: Request) {
 
   const ds = await getDataSource();
   const repo = ds.getRepository(UserModelConfig);
-  const total = await repo.count({ where: { userId: user.id } });
-  const rows = await repo.find({
-    where: { userId: user.id },
-    order: { updatedAt: "DESC", id: "DESC" },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+  const qb = repo
+    .createQueryBuilder("c")
+    .where("(c.visibility = :pub OR c.userId = :uid)", {
+      pub: ModelConfigVisibility.Public,
+      uid: user.id,
+    });
+  const total = await qb.clone().getCount();
+  const rows = await qb
+    .orderBy("c.updatedAt", "DESC")
+    .addOrderBy("c.id", "DESC")
+    .skip((page - 1) * pageSize)
+    .take(pageSize)
+    .getMany();
 
   const items = rows.map((row) => userModelConfigToListItem(row));
 
@@ -84,16 +94,18 @@ type PostBody = {
   provider?: unknown;
   modelName?: unknown;
   apiKey?: unknown;
+  tags?: unknown;
 };
 
 /**
  * POST：新建模型配置。
  */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   let body: PostBody;
   try {
@@ -105,7 +117,10 @@ export async function POST(request: Request) {
   const details: JsonErrorDetail[] = [];
   const provider = parseModelProvider(body.provider);
   if (!provider) {
-    details.push({ field: "provider", message: "须为 ALYUN、GLM、DEEPSEEK 之一" });
+    details.push({
+      field: "provider",
+      message: "须为 ALYUN、GLM、DEEPSEEK、KIMI、SILICONFLOW 之一",
+    });
   }
 
   const modelNameRaw = typeof body.modelName === "string" ? body.modelName.trim() : "";
@@ -121,6 +136,16 @@ export async function POST(request: Request) {
   const apiKeyRaw = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
   if (!apiKeyRaw) {
     details.push({ field: "apiKey", message: "不能为空" });
+  }
+
+  let tagsToSave: ModelConfigTag[] = [];
+  if (body.tags !== undefined) {
+    const parsed = parseModelConfigTags(body.tags);
+    if (!parsed.ok) {
+      details.push({ field: "tags", message: parsed.message });
+    } else {
+      tagsToSave = parsed.tags;
+    }
   }
 
   if (details.length > 0) {
@@ -150,7 +175,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const row = repoNewRow(user.id, provider!, modelNameRaw, cipher);
+  const row = createUserModelConfigRow(
+    user.id,
+    provider!,
+    modelNameRaw,
+    cipher,
+    ModelConfigVisibility.Private,
+    tagsToSave,
+  );
   try {
     const ds = await getDataSource();
     await ds.getRepository(UserModelConfig).save(row);
@@ -176,19 +208,4 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
   );
-}
-
-function repoNewRow(
-  userId: string,
-  provider: string,
-  modelName: string,
-  apiKeyCipher: string,
-): UserModelConfig {
-  const row = new UserModelConfig();
-  row.id = uuidv4();
-  row.userId = userId;
-  row.provider = provider;
-  row.modelName = modelName;
-  row.apiKeyCipher = apiKeyCipher;
-  return row;
 }

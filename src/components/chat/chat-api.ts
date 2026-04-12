@@ -122,6 +122,66 @@ export type MessageStreamHandlers = {
   onError: (message: string, code?: string) => void;
 };
 
+function dispatchSseFrame(frame: string, handlers: MessageStreamHandlers): void {
+  let eventName = "";
+  const dataParts: string[] = [];
+  for (const line of frame.split("\n")) {
+    const normalized = line.replace(/\r$/, "");
+    if (normalized.startsWith("event:")) {
+      eventName = normalized.slice(6).trim();
+    } else if (normalized.startsWith("data:")) {
+      dataParts.push(normalized.slice(5).trimStart());
+    }
+  }
+  const dataStr = dataParts.join("\n");
+  if (!dataStr) {
+    return;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(dataStr) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+
+  switch (eventName) {
+    case "user_message":
+      handlers.onUserMessage(data as MessageRow);
+      break;
+    case "assistant_delta": {
+      const t = (data as { text?: string }).text;
+      if (typeof t === "string" && t.length > 0) {
+        handlers.onDelta(t);
+      }
+      break;
+    }
+    case "assistant_done":
+      handlers.onDone(data as StreamAssistantDonePayload);
+      break;
+    case "error": {
+      const err = data as { code?: string; message?: string };
+      handlers.onError(err.message ?? "未知错误", err.code);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/** 从 buffer 中切出完整 SSE 帧（以空行分隔），返回未处理完的尾部 */
+function drainSseFrames(buffer: string, handlers: MessageStreamHandlers): string {
+  let rest = buffer;
+  let sep: number;
+  while ((sep = rest.indexOf("\n\n")) !== -1) {
+    const frame = rest.slice(0, sep);
+    rest = rest.slice(sep + 2);
+    if (frame.trim()) {
+      dispatchSseFrame(frame, handlers);
+    }
+  }
+  return rest;
+}
+
 /**
  * POST 流式对话：解析 SSE（event + data JSON），失败时按 JSON 错误体抛出。
  */
@@ -167,58 +227,17 @@ export async function sendMessageStream(
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) {
-      break;
+    if (value) {
+      buffer += decoder.decode(value, { stream: true });
     }
-    buffer += decoder.decode(value, { stream: true });
-
-    let sep: number;
-    while ((sep = buffer.indexOf("\n\n")) !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-
-      let eventName = "";
-      const dataParts: string[] = [];
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) {
-          eventName = line.slice(6).trim();
-        } else if (line.startsWith("data:")) {
-          dataParts.push(line.slice(5).trimStart());
-        }
+    buffer = drainSseFrames(buffer, handlers);
+    if (done) {
+      buffer += decoder.decode(new Uint8Array(), { stream: false });
+      buffer = drainSseFrames(buffer, handlers);
+      if (buffer.trim()) {
+        dispatchSseFrame(buffer.trim(), handlers);
       }
-      const dataStr = dataParts.join("\n");
-      if (!dataStr) {
-        continue;
-      }
-      let data: unknown;
-      try {
-        data = JSON.parse(dataStr) as Record<string, unknown>;
-      } catch {
-        continue;
-      }
-
-      switch (eventName) {
-        case "user_message":
-          handlers.onUserMessage(data as MessageRow);
-          break;
-        case "assistant_delta": {
-          const t = (data as { text?: string }).text;
-          if (typeof t === "string" && t.length > 0) {
-            handlers.onDelta(t);
-          }
-          break;
-        }
-        case "assistant_done":
-          handlers.onDone(data as StreamAssistantDonePayload);
-          break;
-        case "error": {
-          const err = data as { code?: string; message?: string };
-          handlers.onError(err.message ?? "未知错误", err.code);
-          break;
-        }
-        default:
-          break;
-      }
+      break;
     }
   }
 }

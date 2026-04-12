@@ -5,4 +5,8 @@ export enum ModelProvider {
   ALYUN = "ALYUN",
   GLM = "GLM",
   DEEPSEEK = "DEEPSEEK",
+  /** 月之暗面（Moonshot，OpenAI 兼容接口）；键与 `MODEL_PROVIDER_BASE_URL.KIMI` 一致 */
+  KIMI = "KIMI",
+  /** 硅基流动（SiliconFlow，OpenAI 兼容接口）；键与 `MODEL_PROVIDER_BASE_URL.SILICONFLOW` 一致 */
+  SILICONFLOW = "SILICONFLOW",
 }

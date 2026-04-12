@@ -1,5 +1,7 @@
 import type { ModelConfigListItem } from "@/common/types";
+import { ModelConfigVisibility } from "@/common/enums";
 import type { UserModelConfig } from "@/server/db/entities/UserModelConfig";
+import { normalizeStoredModelTags } from "./parse-model-tags";
 import { decryptApiKey } from "./api-key-crypto";
 import { maskApiKey } from "./mask-api-key";
 
@@ -14,11 +16,18 @@ export function userModelConfigToListItem(row: UserModelConfig): ModelConfigList
   } catch {
     // 密文损坏或密钥轮换后无法解密：统一占位，避免泄露片段
   }
+  const vis =
+    (row.visibility ?? ModelConfigVisibility.Private) === ModelConfigVisibility.Public
+      ? "public"
+      : "private";
+  const tags = normalizeStoredModelTags(row.tags);
   return {
     id: row.id,
     provider: row.provider,
     modelName: row.modelName,
     apiKeyMasked,
+    visibility: vis,
+    tags,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

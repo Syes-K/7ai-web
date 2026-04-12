@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
-import { getCurrentUser } from "@/server/auth/session-user";
+import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { findOwnedConversation } from "@/server/chat/conversation-access";
 import { getDataSource } from "@/server/db/data-source";
 import { Conversation } from "@/server/db/entities/Conversation";
@@ -15,10 +15,11 @@ type RouteParams = { params: Promise<{ conversationId: string }> };
  * GET /api/chat/conversations/:conversationId — 会话详情
  */
 export async function GET(_req: Request, ctx: RouteParams) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { conversationId } = await ctx.params;
   const ds = await getDataSource();
@@ -48,10 +49,11 @@ export async function GET(_req: Request, ctx: RouteParams) {
  * DELETE /api/chat/conversations/:conversationId — 删除整条会话及其消息
  */
 export async function DELETE(_req: Request, ctx: RouteParams) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { conversationId } = await ctx.params;
   const ds = await getDataSource();

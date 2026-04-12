@@ -44,11 +44,6 @@ export const CHAT_TITLE_FROM_USER_MAX_CHARS = 32;
 /** 新建或无用户消息时的默认会话标题 */
 export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
 
-/** 对话 LLM：默认提供商键（与 `MODEL_PROVIDER_BASE_URL` 一致） */
-export const CHAT_LLM_DEFAULT_PROVIDER = "ALYUN";
-/** 对话 LLM：默认模型名（可通过环境变量覆盖） */
-export const CHAT_LLM_DEFAULT_MODEL = "qwen-turbo-latest";
-
 /** 控制台模型列表默认页码 */
 export const CONSOLE_MODEL_LIST_DEFAULT_PAGE = 1;
 /** 控制台模型列表默认每页条数（与管理端用户列表对齐） */
@@ -58,3 +53,20 @@ export const CONSOLE_MODEL_LIST_MAX_PAGE_SIZE = 100;
 
 /** 模型名称最大长度（与实体 `modelName` 列一致） */
 export const CONSOLE_MODEL_NAME_MAX_LENGTH = 255;
+
+/** 模型配置可选标签（仅允许下列值，可多选；可不选） */
+export const MODEL_CONFIG_TAG_OPTIONS = [
+  "免费",
+  "文本",
+  "视频",
+  "声音",
+  "嵌入",
+  "对话",
+] as const;
+
+export type ModelConfigTag = (typeof MODEL_CONFIG_TAG_OPTIONS)[number];
+
+/** 用于校验 / 过滤标签是否属于 {@link MODEL_CONFIG_TAG_OPTIONS} */
+export const MODEL_CONFIG_TAG_OPTION_SET: ReadonlySet<string> = new Set(
+  MODEL_CONFIG_TAG_OPTIONS,
+);

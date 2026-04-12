@@ -5,6 +5,8 @@ export const MODEL_PROVIDER_OPTIONS: { label: string; value: ModelProvider }[] =
   { label: "阿里云百炼", value: ModelProvider.ALYUN },
   { label: "智谱", value: ModelProvider.GLM },
   { label: "深度求索", value: ModelProvider.DEEPSEEK },
+  { label: "月之暗面", value: ModelProvider.KIMI },
+  { label: "硅基流动", value: ModelProvider.SILICONFLOW },
 ];
 
 export function providerTagProps(
@@ -14,6 +16,8 @@ export function providerTagProps(
     [ModelProvider.ALYUN]: { color: "blue", label: "阿里云百炼" },
     [ModelProvider.GLM]: { color: "purple", label: "智谱" },
     [ModelProvider.DEEPSEEK]: { color: "green", label: "深度求索" },
+    [ModelProvider.KIMI]: { color: "orange", label: "月之暗面" },
+    [ModelProvider.SILICONFLOW]: { color: "cyan", label: "硅基流动" },
   };
   return map[key] ?? null;
 }

@@ -8,7 +8,7 @@ import {
 } from "@/common/constants";
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
-import { getCurrentUser } from "@/server/auth/session-user";
+import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { invokeAssistantReply, streamAssistantReply } from "@/server/chat/assistant";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
 import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
@@ -63,10 +63,11 @@ async function nextSortOrder(ds: DataSource, conversationId: string): Promise<nu
  * GET /api/chat/conversations/:conversationId/messages
  */
 export async function GET(req: Request, ctx: RouteParams) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { conversationId } = await ctx.params;
   const ds = await getDataSource();
@@ -124,10 +125,11 @@ type PostBody = { content?: unknown; stream?: unknown };
  * POST /api/chat/conversations/:conversationId/messages
  */
 export async function POST(req: Request, ctx: RouteParams) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { conversationId } = await ctx.params;
 
@@ -221,7 +223,7 @@ export async function POST(req: Request, ctx: RouteParams) {
           send("user_message", messageDto(userMsg));
 
           let full = "";
-          for await (const delta of streamAssistantReply(history)) {
+          for await (const delta of streamAssistantReply(history, user.id, { user })) {
             full += delta;
             send("assistant_delta", { text: delta });
           }
@@ -267,7 +269,7 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   let assistantText: string;
   try {
-    assistantText = await invokeAssistantReply(history);
+    assistantText = await invokeAssistantReply(history, user.id, { user });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "模型调用失败";
     return jsonError(ErrorCode.MODEL_ERROR, msg, HttpStatus.BAD_GATEWAY);
@@ -305,10 +307,11 @@ export async function POST(req: Request, ctx: RouteParams) {
  * DELETE /api/chat/conversations/:conversationId/messages — 清空该会话下全部消息
  */
 export async function DELETE(_req: Request, ctx: RouteParams) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { conversationId } = await ctx.params;
   const ds = await getDataSource();

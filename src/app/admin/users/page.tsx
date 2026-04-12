@@ -129,11 +129,10 @@ export default function AdminUsersPage() {
       const isDisable = next === UserStatus.Disabled;
       modal.confirm({
         title: isDisable ? "停用用户账号？" : "启用用户账号？",
-        content: `将对「${label}」执行「${isDisable ? "停用" : "启用"}」。${
-          isDisable
+        content: `将对「${label}」执行「${isDisable ? "停用" : "启用"}」。${isDisable
             ? "停用后该用户将无法登录系统（具体以系统策略为准）。"
             : ""
-        }`,
+          }`,
         okText: `确认${isDisable ? "停用" : "启用"}`,
         cancelText: "取消",
         okButtonProps: { danger: isDisable },
@@ -362,7 +361,7 @@ export default function AdminUsersPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onPressEnter={() => applySearch()}
             />
-            <Button type="primary" onClick={() => applySearch()}>
+            <Button type="primary" ghost onClick={() => applySearch()}>
               搜索
             </Button>
           </Space.Compact>
@@ -379,7 +378,7 @@ export default function AdminUsersPage() {
             message="用户列表加载失败"
             description={listError}
             action={
-              <Button size="small" type="primary" onClick={() => refresh()}>
+              <Button size="small" type="primary" ghost onClick={() => refresh()}>
                 重试
               </Button>
             }
@@ -425,7 +424,7 @@ export default function AdminUsersPage() {
           <Button key="close" onClick={closePwdModal}>
             关闭
           </Button>,
-          <Button key="copy" type="primary" onClick={() => void copyAndClose()}>
+          <Button key="copy" type="primary" ghost onClick={() => void copyAndClose()}>
             复制密码并关闭
           </Button>,
         ]}

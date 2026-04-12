@@ -2,7 +2,7 @@ import type { NextResponse } from "next/server";
 import type { User } from "../db/entities/User";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
-import { getCurrentUser } from "./session-user";
+import { getRequestUserContext } from "./request-user-context";
 
 /**
  * 管理员白名单：环境变量 `ADMIN_USER`，逗号分隔邮箱（忽略首尾空格，比较时忽略大小写）。
@@ -26,8 +26,8 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 /** 当前会话用户是否为管理员（未登录为 false）。 */
 export async function isAdmin(): Promise<boolean> {
-  const user = await getCurrentUser();
-  return isAdminEmail(user?.email);
+  const reqCtx = await getRequestUserContext();
+  return isAdminEmail(reqCtx?.user.email);
 }
 
 export type AdminGateResult =
@@ -39,7 +39,8 @@ export type AdminGateResult =
  * 路由层请优先使用 {@link withAdminApi} 包装，避免每个 Method 重复调用本函数。
  */
 export async function requireAdminApi(): Promise<AdminGateResult> {
-  const user = await getCurrentUser();
+  const reqCtx = await getRequestUserContext();
+  const user = reqCtx?.user;
   if (!user) {
     return {
       ok: false,
@@ -63,7 +64,8 @@ export async function requireAdminApi(): Promise<AdminGateResult> {
  * 管理后台页面（RSC layout）：区分未登录与已登录非管理员。
  */
 export async function gateAdminPageAccess(): Promise<"ok" | "login" | "forbidden"> {
-  const user = await getCurrentUser();
+  const reqCtx = await getRequestUserContext();
+  const user = reqCtx?.user;
   if (!user) {
     return "login";
   }

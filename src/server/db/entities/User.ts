@@ -29,6 +29,14 @@ export class User {
   @Column({ type: "varchar", length: 32, default: "active" })
   status!: string;
 
+  /** 控制台默认使用的对话（Chat）模型配置（`user_model_configs.id`），可空 */
+  @Column({ type: "varchar", length: 36, nullable: true })
+  preferredModelConfigId!: string | null;
+
+  /** 控制台默认使用的向量（Embedding）模型配置（`user_model_configs.id`），可空 */
+  @Column({ type: "varchar", length: 36, nullable: true })
+  preferredVectorModelConfigId!: string | null;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

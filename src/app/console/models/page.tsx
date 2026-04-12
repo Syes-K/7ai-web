@@ -18,13 +18,16 @@ import {
   Popconfirm,
   Select,
   Space,
-  Spin,
   Tag,
   Tooltip,
 } from "antd";
 import dayjs from "dayjs";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE } from "@/common/constants";
+import {
+  CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE,
+  MODEL_CONFIG_TAG_OPTIONS,
+  type ModelConfigTag,
+} from "@/common/constants";
 import { ModelProvider } from "@/common/enums";
 import type { ModelConfigListItem } from "@/common/types";
 import { MODEL_PROVIDER_OPTIONS, providerTagProps } from "./model-provider-ui";
@@ -45,6 +48,7 @@ export default function ConsoleModelsPage() {
     provider: ModelProvider;
     modelName: string;
     apiKey?: string;
+    tags?: ModelConfigTag[];
   }>();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -69,6 +73,7 @@ export default function ConsoleModelsPage() {
         provider: row.provider as ModelProvider,
         modelName: row.modelName,
         apiKey: undefined,
+        tags: row.tags?.length ? [...row.tags] : [],
       });
       setModalOpen(true);
     },
@@ -99,6 +104,7 @@ export default function ConsoleModelsPage() {
             provider: v.provider,
             modelName: v.modelName.trim(),
             apiKey: (v.apiKey ?? "").trim(),
+            tags: Array.isArray(v.tags) ? v.tags : [],
           }),
         });
         if (res.status === 401) {
@@ -117,9 +123,10 @@ export default function ConsoleModelsPage() {
       }
 
       if (!editing) return;
-      const body: Record<string, string> = {
+      const body: Record<string, string | string[]> = {
         provider: v.provider,
         modelName: v.modelName.trim(),
+        tags: Array.isArray(v.tags) ? v.tags : [],
       };
       const keyTrim = (v.apiKey ?? "").trim();
       if (keyTrim.length > 0) {
@@ -195,6 +202,34 @@ export default function ConsoleModelsPage() {
         ),
       },
       {
+        title: "类型",
+        dataIndex: "visibility",
+        width: 88,
+        render: (_, row) =>
+          row.visibility === "public" ? (
+            <Tag color="gold">公有</Tag>
+          ) : (
+            <Tag color="default">私有</Tag>
+          ),
+      },
+      {
+        title: "标签",
+        dataIndex: "tags",
+        width: 220,
+        render: (_, row) =>
+          row.tags.length > 0 ? (
+            <span className="flex flex-wrap gap-1">
+              {row.tags.map((t) => (
+                <Tag key={t} className="m-0">
+                  {t}
+                </Tag>
+              ))}
+            </span>
+          ) : (
+            <span className="text-white/35">—</span>
+          ),
+      },
+      {
         title: "Provider",
         dataIndex: "provider",
         width: 130,
@@ -231,6 +266,7 @@ export default function ConsoleModelsPage() {
         fixed: "right",
         render: (_, row) => {
           const busy = deletingId === row.id;
+          const isPublic = row.visibility === "public";
           return (
             <Space size="small">
               <Button
@@ -238,6 +274,8 @@ export default function ConsoleModelsPage() {
                 size="small"
                 className="px-0"
                 icon={<EditOutlined />}
+                disabled={isPublic}
+                title={isPublic ? "公有模型请在管理后台编辑" : undefined}
                 onClick={() => openEdit(row)}
               >
                 编辑
@@ -248,6 +286,7 @@ export default function ConsoleModelsPage() {
                 okText="删除"
                 cancelText="取消"
                 okButtonProps={{ danger: true, loading: busy }}
+                disabled={isPublic}
                 onConfirm={() => void handleDelete(row)}
               >
                 <Button
@@ -257,6 +296,8 @@ export default function ConsoleModelsPage() {
                   className="px-0"
                   icon={<DeleteOutlined />}
                   loading={busy}
+                  disabled={isPublic}
+                  title={isPublic ? "公有模型请在管理后台删除" : undefined}
                 >
                   删除
                 </Button>
@@ -272,13 +313,19 @@ export default function ConsoleModelsPage() {
   return (
     <PageContainer ghost title="模型管理">
       <div className="max-w-[1400px]">
+        <Alert
+          type="info"
+          showIcon
+          className="mb-4"
+          message="私有模型仅您本人可编辑删除；公有模型由管理后台维护，全站用户可在偏好中选用。"
+        />
         <ProTable<ModelConfigListItem>
           actionRef={actionRef}
           rowKey="id"
           search={false}
           options={false}
           columns={columns}
-          scroll={{ x: 720 }}
+          scroll={{ x: 1040 }}
           pagination={{
             defaultPageSize: CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE,
             showSizeChanger: true,
@@ -323,6 +370,7 @@ export default function ConsoleModelsPage() {
             <Button
               key="create"
               type="primary"
+              ghost
               icon={<PlusOutlined />}
               onClick={openCreate}
             >
@@ -376,6 +424,22 @@ export default function ConsoleModelsPage() {
               rules={[{ required: true, message: "请输入模型名称" }]}
             >
               <Input placeholder="例如 qwen-turbo-latest" maxLength={255} showCount />
+            </Form.Item>
+            <Form.Item
+              name="tags"
+              label="标签"
+              extra="可选，可多选；不选表示无标签"
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="选择标签"
+                className="w-full"
+                options={MODEL_CONFIG_TAG_OPTIONS.map((v) => ({
+                  label: v,
+                  value: v,
+                }))}
+              />
             </Form.Item>
             <Form.Item
               name="apiKey"

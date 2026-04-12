@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  AppstoreOutlined,
-  LogoutOutlined,
-  MessageOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
 import { App, Avatar, ConfigProvider, Dropdown } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -16,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { IconConfig, IconEmptyState } from "@/components/ui/icons";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
 import { adminMenuRoutes } from "./admin-menu";
 import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
@@ -144,7 +140,7 @@ export default function AdminShell({
               href="/chat"
               className={`${headerActionLinkClass} text-cyan-400/90 hover:text-cyan-300`}
             >
-              <MessageOutlined />
+              <IconEmptyState className="h-4 w-4 shrink-0 text-current" />
               对话
             </Link>,
             <Link
@@ -152,7 +148,7 @@ export default function AdminShell({
               href="/console"
               className={`${headerActionLinkClass} text-white/80 hover:text-white`}
             >
-              <AppstoreOutlined />
+              <IconConfig className="h-4 w-4 shrink-0 text-current" />
               控制台
             </Link>,
             <Dropdown

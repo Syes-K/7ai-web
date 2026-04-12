@@ -1,4 +1,5 @@
 import {
+  CloudServerOutlined,
   CommentOutlined,
   FileSearchOutlined,
   RobotOutlined,
@@ -19,6 +20,12 @@ export const adminMenuRoutes: MenuDataItem[] = [
     name: "用户管理",
     key: "users",
     icon: <TeamOutlined />,
+  },
+  {
+    path: "/admin/models",
+    name: "模型管理",
+    key: "models",
+    icon: <CloudServerOutlined />,
   },
   {
     path: "/admin/prompts",

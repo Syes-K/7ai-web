@@ -53,7 +53,7 @@
 
 ## 4. 与 `getModel` / 环境变量密钥的并存说明（假设）
 
-当前 `src/server/llm/model.ts` 中 `getModel` **固定使用** `process.env.OPENAI_API_KEY`，与「按模型配置存储多把 Key」尚未打通。
+当前 `src/server/llm/model.ts` 中 `getModel` **固定使用** `process.env.CHAT_LLM_API_KEY`，与「按模型配置存储多把 Key」尚未打通。
 
 **本迭代（3B）假设**：
 

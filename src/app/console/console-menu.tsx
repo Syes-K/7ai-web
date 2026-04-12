@@ -2,7 +2,6 @@ import {
   ApiOutlined,
   BookOutlined,
   RobotOutlined,
-  SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import type { MenuDataItem } from "@ant-design/pro-components";
@@ -10,15 +9,9 @@ import type { MenuDataItem } from "@ant-design/pro-components";
 export const consoleMenuRoutes: MenuDataItem[] = [
   {
     path: "/console/profile",
-    name: "个人信息",
+    name: "账号与偏好",
     key: "profile",
     icon: <UserOutlined />,
-  },
-  {
-    path: "/console/settings",
-    name: "用户配置",
-    key: "settings",
-    icon: <SettingOutlined />,
   },
   {
     path: "/console/models",

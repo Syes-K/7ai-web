@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
-import { CONSOLE_MODEL_NAME_MAX_LENGTH } from "@/common/constants";
+import { CONSOLE_MODEL_NAME_MAX_LENGTH, type ModelConfigTag } from "@/common/constants";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
-import { getCurrentUser } from "@/server/auth/session-user";
+import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { getDataSource } from "@/server/db/data-source";
+import { User } from "@/server/db/entities/User";
 import { UserModelConfig } from "@/server/db/entities/UserModelConfig";
+import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
 import { encryptApiKey } from "@/server/model-config/api-key-crypto";
 import { parseModelProvider } from "@/server/model-config/parse-provider";
+import {
+  normalizeStoredModelTags,
+  parseModelConfigTags,
+} from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
 
 export const runtime = "nodejs";
@@ -15,31 +21,29 @@ type PatchBody = {
   provider?: unknown;
   modelName?: unknown;
   apiKey?: unknown;
+  tags?: unknown;
 };
 
-async function findOwned(userId: string, id: string): Promise<UserModelConfig | null> {
-  const ds = await getDataSource();
-  return ds.getRepository(UserModelConfig).findOne({ where: { id, userId } });
-}
-
 /**
- * GET：单条详情（仅掩码密钥）。
+ * GET：单条详情（仅掩码密钥）；含本人私有与全站公有。
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
     return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
   }
 
-  const row = await findOwned(user.id, id);
+  const ds = await getDataSource();
+  const row = await findModelConfigUsableByUser(ds, id, user.id);
   if (!row) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
@@ -60,10 +64,11 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
@@ -92,11 +97,15 @@ export async function PATCH(
   let nextProvider = row.provider;
   let nextModelName = row.modelName;
   let nextCipher = row.apiKeyCipher;
+  let nextTags: ModelConfigTag[] = normalizeStoredModelTags(row.tags);
 
   if (body.provider !== undefined) {
     const p = parseModelProvider(body.provider);
     if (!p) {
-      details.push({ field: "provider", message: "须为 ALYUN、GLM、DEEPSEEK 之一" });
+      details.push({
+        field: "provider",
+        message: "须为 ALYUN、GLM、DEEPSEEK、KIMI、SILICONFLOW 之一",
+      });
     } else {
       nextProvider = p;
     }
@@ -143,6 +152,15 @@ export async function PATCH(
     }
   }
 
+  if ("tags" in body) {
+    const parsed = parseModelConfigTags(body.tags);
+    if (!parsed.ok) {
+      details.push({ field: "tags", message: parsed.message });
+    } else {
+      nextTags = parsed.tags;
+    }
+  }
+
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
@@ -155,6 +173,7 @@ export async function PATCH(
   row.provider = nextProvider;
   row.modelName = nextModelName;
   row.apiKeyCipher = nextCipher;
+  row.tags = nextTags;
   await repo.save(row);
 
   return NextResponse.json(
@@ -170,10 +189,11 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const reqCtx = await getRequestUserContext();
+  if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
   }
+  const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
@@ -181,15 +201,28 @@ export async function DELETE(
   }
 
   const ds = await getDataSource();
-  const repo = ds.getRepository(UserModelConfig);
-  const res = await repo.delete({ id, userId: user.id });
-  if ((res.affected ?? 0) === 0) {
+  const cfgRepo = ds.getRepository(UserModelConfig);
+  const row = await cfgRepo.findOne({ where: { id, userId: user.id } });
+  if (!row) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
       "模型配置不存在",
       HttpStatus.NOT_FOUND,
     );
   }
+
+  await ds.transaction(async (em) => {
+    await em.remove(row);
+    const uRepo = em.getRepository(User);
+    await uRepo.update(
+      { id: user.id, preferredModelConfigId: id },
+      { preferredModelConfigId: null },
+    );
+    await uRepo.update(
+      { id: user.id, preferredVectorModelConfigId: id },
+      { preferredVectorModelConfigId: null },
+    );
+  });
 
   return new NextResponse(null, { status: HttpStatus.NO_CONTENT });
 }

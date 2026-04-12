@@ -5,7 +5,7 @@
 | 项 | 状态 | 说明 |
 |----|------|------|
 | Provider 三键 | 已对齐 | `MODEL_PROVIDER_BASE_URL` 使用 `ALYUN`（非 `ALIYUN`），API 与 PRD 附录一致。 |
-| `getModel` 与多密钥 | **缺口** | 当前 `getModel` 仍用单一 `OPENAI_API_KEY`，未读库；本迭代控制台仅 CRUD，对话选用策略属后续（见 `implementation-plan.md` §4）。 |
+| `getModel` 与多密钥 | **缺口** | 当前 `getModel` 仍用单一 `CHAT_LLM_API_KEY`，未读库；本迭代控制台仅 CRUD，对话选用策略属后续（见 `implementation-plan.md` §4）。 |
 | 控制台专用 API 目录 | **缺口** | 仓库中尚无 `src/app/api/console/`，3B 将**新增**该段路由；与 `/api/admin/*`、`/api/chat/*` 并列。 |
 | `ErrorCode` 模型配置相关 | **缺口** | 需 3B 新增专用码或统一资源不存在策略，避免临时字符串。 |
 

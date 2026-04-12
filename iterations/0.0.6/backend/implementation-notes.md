@@ -17,7 +17,7 @@
 
 | 变量 | 说明 |
 | --- | --- |
-| `OPENAI_API_KEY` | 兼容 OpenAI 的 API Key（与各厂商 base URL 配合） |
+| `CHAT_LLM_API_KEY` | 对话默认 API Key（与各厂商 base URL 配合） |
 | `CHAT_LLM_PROVIDER` | 可选，默认 `DEEPSEEK`（键与 `src/server/llm/model.ts` 中 `MODEL_PROVIDER_BASE_URL` 一致） |
 | `CHAT_LLM_MODEL` | 可选，默认 `deepseek-chat` |
 | `SQLITE_PATH` | 可选，数据库文件路径 |

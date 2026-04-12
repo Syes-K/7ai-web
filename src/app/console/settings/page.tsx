@@ -1,15 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { PageContainer } from "@ant-design/pro-components";
-import { ProModulePlaceholder } from "@/components/pro-layout/ProModulePlaceholder";
-
-export default function ConsoleSettingsPage() {
-  return (
-    <PageContainer ghost title="用户配置">
-      <ProModulePlaceholder
-        description="偏好与个性化设置开发中。"
-        emptyDescription="本模块开发中，后续将在此提供控制台能力。"
-      />
-    </PageContainer>
-  );
+/** 与 `next.config` 重定向一致；保留本文件以防仅客户端路由时仍可落到 canonical。 */
+export default function ConsoleSettingsRedirectPage() {
+  redirect("/console/profile");
 }
