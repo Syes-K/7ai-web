@@ -18,7 +18,7 @@ import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
 import { adminMenuRoutes } from "./admin-menu";
-import { adminTheme } from "./admin-theme";
+import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
 
 dayjs.locale("zh-cn");
 
@@ -96,7 +96,7 @@ export default function AdminShell({
   const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
-    <ConfigProvider locale={zhCN} theme={adminTheme}>
+    <ConfigProvider locale={zhCN} theme={shellDarkTheme}>
       <App>
         <a
           href="#admin-main"

@@ -1,8 +1,10 @@
 import type { ThemeConfig } from "antd";
 import { theme } from "antd";
 
-/** 管理后台深色 token，与设计 spec §5 对齐 */
-export const adminTheme: ThemeConfig = {
+/**
+ * 控制台 / 管理后台共用的 ProLayout 深色主题（antd token），与产品深色壳设计一致。
+ */
+export const shellDarkTheme: ThemeConfig = {
   algorithm: theme.darkAlgorithm,
   token: {
     colorBgLayout: "#0a0a0f",

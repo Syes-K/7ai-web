@@ -1,6 +1,7 @@
 /** 统一 HTTP 状态码，避免魔法数字散落。 */
 export enum HttpStatus {
   OK = 200,
+  NO_CONTENT = 204,
   CREATED = 201,
   BAD_REQUEST = 400,
   UNAUTHORIZED = 401,
@@ -37,6 +38,8 @@ export enum ErrorCode {
   USER_NOT_FOUND = "USER_NOT_FOUND",
   /** 会话不存在或无权访问（统一 404） */
   CONVERSATION_NOT_FOUND = "CONVERSATION_NOT_FOUND",
+  /** 控制台模型配置不存在或无权访问（统一 404，避免枚举他人资源） */
+  MODEL_CONFIG_NOT_FOUND = "MODEL_CONFIG_NOT_FOUND",
   /** 大模型调用失败或不可用 */
   MODEL_ERROR = "MODEL_ERROR",
   INTERNAL_ERROR = "INTERNAL_ERROR",

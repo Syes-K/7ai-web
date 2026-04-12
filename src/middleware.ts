@@ -55,8 +55,8 @@ export function middleware(request: NextRequest) {
 
   const sid = request.cookies.get(SESSION_COOKIE)?.value;
   if (!sid) {
-    // 管理端 API 保持 JSON 错误体，便于前端与脚本处理（页面路由仍走登录重定向）。
-    if (pathname.startsWith("/api/admin")) {
+    // 管理端 / 控制台 API 保持 JSON 错误体，便于前端与脚本处理（页面路由仍走登录重定向）。
+    if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/console")) {
       return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
     }
     const login = new URL("/login", request.url);
@@ -83,6 +83,7 @@ export const config = {
     "/admin",
     "/admin/:path*",
     "/api/admin/:path*",
+    "/api/console/:path*",
     "/api/auth/:path*",
   ],
 };

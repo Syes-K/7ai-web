@@ -17,7 +17,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
-import { adminTheme } from "@/app/admin/admin-theme";
+import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
 import { consoleMenuRoutes } from "./console-menu";
 import { ConsoleForbiddenNotice } from "./ConsoleForbiddenNotice";
 
@@ -97,7 +97,7 @@ export default function ConsoleShell({
   const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
-    <ConfigProvider locale={zhCN} theme={adminTheme}>
+    <ConfigProvider locale={zhCN} theme={shellDarkTheme}>
       <App>
         <a
           href="#console-main"
@@ -147,14 +147,6 @@ export default function ConsoleShell({
             >
               <MessageOutlined />
               对话
-            </Link>,
-            <Link
-              key="admin"
-              href="/admin/config"
-              className={`${headerActionLinkClass} text-white/80 hover:text-white`}
-            >
-              <SettingOutlined />
-              管理后台
             </Link>,
             <Dropdown
               key="user"

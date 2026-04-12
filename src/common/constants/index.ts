@@ -48,3 +48,13 @@ export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
 export const CHAT_LLM_DEFAULT_PROVIDER = "ALYUN";
 /** 对话 LLM：默认模型名（可通过环境变量覆盖） */
 export const CHAT_LLM_DEFAULT_MODEL = "qwen-turbo-latest";
+
+/** 控制台模型列表默认页码 */
+export const CONSOLE_MODEL_LIST_DEFAULT_PAGE = 1;
+/** 控制台模型列表默认每页条数（与管理端用户列表对齐） */
+export const CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE = 20;
+/** 控制台模型列表单页最大条数 */
+export const CONSOLE_MODEL_LIST_MAX_PAGE_SIZE = 100;
+
+/** 模型名称最大长度（与实体 `modelName` 列一致） */
+export const CONSOLE_MODEL_NAME_MAX_LENGTH = 255;

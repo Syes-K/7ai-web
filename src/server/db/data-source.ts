@@ -7,6 +7,7 @@ import { Conversation } from "./entities/Conversation";
 import { Message } from "./entities/Message";
 import { Session } from "./entities/Session";
 import { User } from "./entities/User";
+import { UserModelConfig } from "./entities/UserModelConfig";
 
 let dataSource: DataSource | null = null;
 
@@ -26,7 +27,14 @@ export async function getDataSource(): Promise<DataSource> {
   dataSource = new DataSource({
     type: "better-sqlite3",
     database: dbFile,
-    entities: [User, Session, CaptchaChallenge, Conversation, Message],
+    entities: [
+      User,
+      Session,
+      CaptchaChallenge,
+      Conversation,
+      Message,
+      UserModelConfig,
+    ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",
   });
