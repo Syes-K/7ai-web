@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 type AuthShellProps = {
   title: string;
@@ -25,12 +26,7 @@ export function AuthShell({ title, subtitle, children }: AuthShellProps) {
 
       <header className="relative z-10 border-b border-white/[0.08] px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-lg items-center justify-between">
-          <Link
-            href="/"
-            className="text-lg font-semibold tracking-wide text-[#E8EAEF] transition hover:text-[#00E5FF]"
-          >
-            7ai-web
-          </Link>
+          <BrandMark className="text-sm" />
           <Link
             href="/"
             className="text-sm text-[#9AA3B2] hover:text-[#00E5FF]"

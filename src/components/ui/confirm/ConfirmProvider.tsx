@@ -105,7 +105,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <div className="mt-6 flex justify-end gap-2">
             <button
               type="button"
-              className="rounded-lg border border-zinc-600 bg-zinc-900/90 px-4 py-2 font-mono text-sm text-zinc-200 transition hover:bg-zinc-800"
+              className="rounded-lg border border-zinc-600 bg-zinc-900/90 px-4 py-2 font-mono text-sm text-zinc-200 transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:ring-offset-0"
               onClick={() => close(false)}
             >
               {pending.options.cancelText ?? "取消"}
@@ -113,10 +113,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <button
               ref={okRef}
               type="button"
-              className={`rounded-lg px-4 py-2 font-mono text-sm text-white shadow-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-950 ${
+              className={`rounded-lg px-4 py-2 font-mono text-sm text-white shadow-lg transition focus:outline-none focus-visible:ring-1 focus-visible:ring-offset-0 ${
                 pending.options.okDanger
-                  ? "border border-rose-500/40 bg-rose-600/85 hover:bg-rose-500/90 focus:ring-rose-400/60"
-                  : "border border-cyan-500/40 bg-cyan-600/80 hover:bg-cyan-500/85 focus:ring-cyan-400/50"
+                  ? "border border-rose-500/40 bg-rose-600/85 hover:bg-rose-500/90 focus-visible:ring-rose-300/35"
+                  : "border border-cyan-500/40 bg-cyan-600/80 hover:bg-cyan-500/85 focus-visible:ring-cyan-300/35"
               }`}
               onClick={() => close(true)}
             >

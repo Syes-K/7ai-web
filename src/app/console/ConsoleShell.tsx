@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  AppstoreOutlined,
   LogoutOutlined,
   MessageOutlined,
+  SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
@@ -13,29 +13,30 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
-import { adminMenuRoutes } from "./admin-menu";
-import { adminTheme } from "./admin-theme";
+import { adminTheme } from "@/app/admin/admin-theme";
+import { consoleMenuRoutes } from "./console-menu";
+import { ConsoleForbiddenNotice } from "./ConsoleForbiddenNotice";
 
 dayjs.locale("zh-cn");
 
 function loginRedirectTarget(): string {
   if (typeof window === "undefined") {
-    return "/admin";
+    return "/console/profile";
   }
   const { pathname, search } = window.location;
-  return `${pathname}${search}` || "/admin";
+  return `${pathname}${search}` || "/console/profile";
 }
 
 const headerActionLinkClass =
   "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
 
-const adminHeaderTitleText = "管理后台";
+const consoleHeaderTitleText = "控制台";
 
-export default function AdminShell({
+export default function ConsoleShell({
   children,
 }: {
   children: React.ReactNode;
@@ -78,7 +79,7 @@ export default function AdminShell({
   }, [router]);
 
   const onMenuHeaderClick = useCallback(() => {
-    router.push("/admin/config");
+    router.push("/console/profile");
   }, [router]);
 
   if (!ready || !user) {
@@ -99,13 +100,13 @@ export default function AdminShell({
     <ConfigProvider locale={zhCN} theme={adminTheme}>
       <App>
         <a
-          href="#admin-main"
+          href="#console-main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[9999] focus:rounded focus:bg-cyan-400 focus:px-3 focus:py-2 focus:text-black"
         >
           跳到主要内容
         </a>
         <ProLayout
-          title={adminHeaderTitleText}
+          title={consoleHeaderTitleText}
           logo={
             <BrandMark withLink={false} wordmarkClassName="!text-sm" />
           }
@@ -115,7 +116,7 @@ export default function AdminShell({
             ) : (
               <div className="flex min-w-0 items-center gap-3">
                 {logo}
-                <ProShellHeaderTitle>{adminHeaderTitleText}</ProShellHeaderTitle>
+                <ProShellHeaderTitle>{consoleHeaderTitleText}</ProShellHeaderTitle>
               </div>
             )
           }
@@ -126,8 +127,8 @@ export default function AdminShell({
           breakpoint="lg"
           splitMenus={false}
           route={{
-            path: "/admin",
-            routes: adminMenuRoutes,
+            path: "/console",
+            routes: consoleMenuRoutes,
           }}
           location={{ pathname }}
           collapsed={collapsed}
@@ -148,12 +149,12 @@ export default function AdminShell({
               对话
             </Link>,
             <Link
-              key="console"
-              href="/console"
+              key="admin"
+              href="/admin/config"
               className={`${headerActionLinkClass} text-white/80 hover:text-white`}
             >
-              <AppstoreOutlined />
-              控制台
+              <SettingOutlined />
+              管理后台
             </Link>,
             <Dropdown
               key="user"
@@ -193,7 +194,10 @@ export default function AdminShell({
             minHeight: "calc(100vh - 56px)",
           }}
         >
-          <main id="admin-main" tabIndex={-1}>
+          <main id="console-main" tabIndex={-1}>
+            <Suspense fallback={null}>
+              <ConsoleForbiddenNotice />
+            </Suspense>
             {children}
           </main>
         </ProLayout>
