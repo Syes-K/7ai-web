@@ -103,7 +103,14 @@ function MessageBubble({
 
 type Toast = { type: "ok" | "err"; text: string };
 
-export function ChatWorkspace({ userLabel }: { userLabel: string }) {
+export function ChatWorkspace({
+  userLabel,
+  freeTierAssistantHint = false,
+}: {
+  userLabel: string;
+  /** 服务端根据账号偏好判定：未选模型、或选用公有模型时为 true */
+  freeTierAssistantHint?: boolean;
+}) {
   /** 是否为桌面端 */
   const isDesktop = useIsLg();
 
@@ -606,6 +613,21 @@ export function ChatWorkspace({ userLabel }: { userLabel: string }) {
           </div>
 
           <div className="chat-composer shrink-0 border-t border-zinc-800/90 bg-zinc-950/90 p-3 sm:p-4">
+            {freeTierAssistantHint && (
+              <p
+                className="mb-2 font-sans text-[11px] leading-snug text-amber-400/90"
+                role="status"
+              >
+                当前为免费/共享接入，效果可能不稳定。可在
+                <Link
+                  href="/console/profile"
+                  className="mx-0.5 font-medium text-amber-300/95 underline decoration-amber-500/50 underline-offset-2 hover:text-amber-200"
+                >
+                  个人偏好
+                </Link>
+                绑定自有密钥与模型，获得更稳定、更高质量的回答。
+              </p>
+            )}
             <div className="relative">
               <textarea
                 value={inputValue}

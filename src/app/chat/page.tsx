@@ -1,6 +1,7 @@
 import { userDisplayLabel } from "@/common/utils/user-display-label";
 import { ChatWorkspace } from "@/components/chat/ChatWorkspace";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
+import { shouldShowFreeOrSharedChatModelHint } from "@/server/chat/chat-model-ui-hint";
 import { redirect } from "next/navigation";
 
 /**
@@ -12,5 +13,8 @@ export default async function ChatPage() {
     redirect("/login?redirect=/chat");
   }
   const { user } = reqCtx;
-  return <ChatWorkspace userLabel={userDisplayLabel(user)} />;
+  const freeTierAssistantHint = await shouldShowFreeOrSharedChatModelHint(user.id);
+  return (
+    <ChatWorkspace userLabel={userDisplayLabel(user)} freeTierAssistantHint={freeTierAssistantHint} />
+  );
 }
