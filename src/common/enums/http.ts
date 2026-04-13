@@ -40,6 +40,8 @@ export enum ErrorCode {
   CONVERSATION_NOT_FOUND = "CONVERSATION_NOT_FOUND",
   /** 控制台模型配置不存在或无权访问（统一 404，避免枚举他人资源） */
   MODEL_CONFIG_NOT_FOUND = "MODEL_CONFIG_NOT_FOUND",
+  /** 助手不存在或无权访问（统一 404） */
+  ASSISTANT_NOT_FOUND = "ASSISTANT_NOT_FOUND",
   /** 大模型调用失败或不可用 */
   MODEL_ERROR = "MODEL_ERROR",
   INTERNAL_ERROR = "INTERNAL_ERROR",

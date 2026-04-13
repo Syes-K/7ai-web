@@ -44,6 +44,26 @@ export const CHAT_TITLE_FROM_USER_MAX_CHARS = 32;
 /** 新建或无用户消息时的默认会话标题 */
 export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
 
+/** 控制台助手列表默认页码 */
+export const CONSOLE_ASSISTANT_LIST_DEFAULT_PAGE = 1;
+/** 控制台助手列表默认每页条数（与模型列表一致） */
+export const CONSOLE_ASSISTANT_LIST_DEFAULT_PAGE_SIZE = 20;
+/** 控制台助手列表单页最大条数 */
+export const CONSOLE_ASSISTANT_LIST_MAX_PAGE_SIZE = 100;
+
+/** 助手名称最大长度 */
+export const ASSISTANT_NAME_MAX_LENGTH = 64;
+/** 助手提示词最大长度 */
+export const ASSISTANT_PROMPT_MAX_LENGTH = 8000;
+/** 助手图标（emoji 文案）最大长度 */
+export const ASSISTANT_ICON_MAX_LENGTH = 16;
+/** 助手开场白最大长度 */
+export const ASSISTANT_OPENING_MESSAGE_MAX_LENGTH = 2000;
+/** 单个 tag 最大长度 */
+export const ASSISTANT_TAG_MAX_LENGTH = 32;
+/** 单条助手最多 tag 数 */
+export const ASSISTANT_TAGS_MAX_COUNT = 20;
+
 /** 控制台模型列表默认页码 */
 export const CONSOLE_MODEL_LIST_DEFAULT_PAGE = 1;
 /** 控制台模型列表默认每页条数（与管理端用户列表对齐） */

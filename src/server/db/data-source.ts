@@ -7,6 +7,7 @@ import { Conversation } from "./entities/Conversation";
 import { Message } from "./entities/Message";
 import { Session } from "./entities/Session";
 import { User } from "./entities/User";
+import { Assistant } from "./entities/Assistant";
 import { UserModelConfig } from "./entities/UserModelConfig";
 
 let dataSource: DataSource | null = null;
@@ -34,6 +35,7 @@ export async function getDataSource(): Promise<DataSource> {
       Conversation,
       Message,
       UserModelConfig,
+      Assistant,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",
