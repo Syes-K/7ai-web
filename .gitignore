@@ -1,4 +1,5 @@
 .specstory
+.vscode
 
 # Dependencies & build
 node_modules/
@@ -24,3 +25,5 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+tsconfig.tsbuildinfo
