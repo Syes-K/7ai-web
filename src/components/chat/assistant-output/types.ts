@@ -31,5 +31,6 @@ export function assistantPayloadFromContent(
   if (options?.preferMarkdown) {
     return { type: "markdown", body: content, streaming };
   }
-  return { type: "text", body: content, streaming };
+  return { type: "markdown", body: content, streaming };
+  // return { type: "text", body: content, streaming };
 }

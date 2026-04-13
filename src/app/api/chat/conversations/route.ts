@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { Brackets } from "typeorm";
+import { Brackets, In } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import {
+  CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE,
   CHAT_CONVERSATION_LIST_DEFAULT_LIMIT,
   CHAT_CONVERSATION_LIST_MAX_LIMIT,
   CHAT_DEFAULT_CONVERSATION_TITLE,
 } from "@/common/constants";
-import { ErrorCode, HttpStatus } from "@/common/enums";
+import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
+import { findReadableAssistant } from "@/server/assistant/readable-assistant";
+import { chatAssistantFields } from "@/server/chat/conversation-dto";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
 import { getDataSource } from "@/server/db/data-source";
+import { Assistant } from "@/server/db/entities/Assistant";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 
@@ -56,6 +60,7 @@ export async function GET(req: Request) {
   const ds = await getDataSource();
   const convRepo = ds.getRepository(Conversation);
   const msgRepo = ds.getRepository(Message);
+  const asstRepo = ds.getRepository(Assistant);
 
   const qb = convRepo
     .createQueryBuilder("c")
@@ -87,7 +92,7 @@ export async function GET(req: Request) {
 
   const ids = page.map((c) => c.id);
   const counts: Record<string, number> = {};
-  const previews: Record<string, string | null> = {};
+  const lastActivityAtMap: Record<string, string> = {};
 
   if (ids.length > 0) {
     const rawCounts = await msgRepo
@@ -101,25 +106,49 @@ export async function GET(req: Request) {
       counts[r.cid] = Number.parseInt(r.cnt, 10);
     }
 
-    await Promise.all(
-      ids.map(async (cid) => {
-        const last = await msgRepo.findOne({
-          where: { conversationId: cid },
-          order: { createdAt: "DESC", id: "DESC" },
-        });
-        previews[cid] = last ? last.content.slice(0, 120) : null;
-      }),
-    );
+    const rawLast = await msgRepo
+      .createQueryBuilder("m")
+      .select("m.conversationId", "cid")
+      .addSelect("MAX(m.createdAt)", "lastAt")
+      .where("m.conversationId IN (:...ids)", { ids })
+      .groupBy("m.conversationId")
+      .getRawMany<{ cid: string; lastAt: string }>();
+    for (const r of rawLast) {
+      lastActivityAtMap[r.cid] = new Date(r.lastAt).toISOString();
+    }
   }
 
-  const items = page.map((c) => ({
-    id: c.id,
-    title: c.title,
-    updatedAt: c.updatedAt.toISOString(),
-    createdAt: c.createdAt.toISOString(),
-    preview: previews[c.id] ?? null,
-    messageCount: counts[c.id] ?? 0,
-  }));
+  const boundAsstIds = [...new Set(page.map((c) => c.assistantId).filter(Boolean))] as string[];
+  const existingAsstIds = new Set<string>();
+  if (boundAsstIds.length > 0) {
+    const found = await asstRepo.find({
+      where: { id: In(boundAsstIds) },
+      select: ["id"],
+    });
+    for (const a of found) {
+      existingAsstIds.add(a.id);
+    }
+  }
+
+  const items = page.map((c) => {
+    const asstPayload = chatAssistantFields(
+      c,
+      c.assistantId ? existingAsstIds.has(c.assistantId) : true,
+    );
+    const lastActivityAt =
+      lastActivityAtMap[c.id] ?? c.createdAt.toISOString();
+    return {
+      id: c.id,
+      title: c.title,
+      updatedAt: c.updatedAt.toISOString(),
+      createdAt: c.createdAt.toISOString(),
+      /** PRD F8：侧栏不再展示预览；字段保留为 null 兼容旧客户端 */
+      preview: null as string | null,
+      messageCount: counts[c.id] ?? 0,
+      lastActivityAt,
+      ...asstPayload,
+    };
+  });
 
   let nextCursor: string | null = null;
   if (hasMore && page.length > 0) {
@@ -133,10 +162,21 @@ export async function GET(req: Request) {
   );
 }
 
-type PostBody = { title?: string | null };
+type PostBody = { title?: string | null; assistantId?: string | null };
+
+function parseAssistantId(raw: unknown): string | undefined {
+  if (raw === null || raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const t = raw.trim();
+  return t.length > 0 ? t : undefined;
+}
 
 /**
- * POST /api/chat/conversations — 创建会话
+ * POST /api/chat/conversations — 创建会话（可选绑定助手并注入首条开场消息）
  */
 export async function POST(req: Request) {
   const reqCtx = await getRequestUserContext();
@@ -160,12 +200,83 @@ export async function POST(req: Request) {
       ? body.title.trim().slice(0, 255)
       : CHAT_DEFAULT_CONVERSATION_TITLE;
 
+  const assistantId = parseAssistantId(body.assistantId);
+
   const ds = await getDataSource();
+
+  if (assistantId) {
+    const asst = await findReadableAssistant(ds, assistantId, user.id);
+    if (!asst) {
+      return jsonError(ErrorCode.ASSISTANT_NOT_FOUND, "助手不存在", HttpStatus.NOT_FOUND);
+    }
+
+    const openingRaw = asst.openingMessage?.trim() ?? "";
+    const openingContent =
+      openingRaw.length > 0 ? openingRaw : CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE;
+
+    const convId = uuidv4();
+    const msgId = uuidv4();
+
+    await ds.transaction(async (manager) => {
+      const convRepo = manager.getRepository(Conversation);
+      const msgRepo = manager.getRepository(Message);
+
+      const convRow = convRepo.create({
+        id: convId,
+        userId: user.id,
+        title,
+        assistantId: asst.id,
+        assistantName: asst.name,
+        assistantIcon: asst.icon,
+      });
+      await convRepo.save(convRow);
+
+      const msgRow = msgRepo.create({
+        id: msgId,
+        conversationId: convId,
+        userId: user.id,
+        role: MessageRole.Assistant,
+        content: openingContent,
+        sortOrder: 0,
+      });
+      await msgRepo.save(msgRow);
+    });
+
+    const convRepo = ds.getRepository(Conversation);
+    const conv = await convRepo.findOne({ where: { id: convId } });
+    if (!conv) {
+      return jsonError(ErrorCode.INTERNAL_ERROR, "创建会话失败", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    const asstFields = chatAssistantFields(conv, true);
+
+    return NextResponse.json(
+      {
+        conversation: {
+          id: conv.id,
+          title: conv.title,
+          createdAt: conv.createdAt.toISOString(),
+          updatedAt: conv.updatedAt.toISOString(),
+          messageCount: 1,
+          lastActivityAt: conv.updatedAt.toISOString(),
+          ...asstFields,
+        },
+      },
+      {
+        status: HttpStatus.CREATED,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      },
+    );
+  }
+
   const convRepo = ds.getRepository(Conversation);
   const conv = convRepo.create({
     id: uuidv4(),
     userId: user.id,
     title,
+    assistantId: null,
+    assistantName: null,
+    assistantIcon: null,
   });
   await convRepo.save(conv);
 
@@ -177,6 +288,8 @@ export async function POST(req: Request) {
         createdAt: conv.createdAt.toISOString(),
         updatedAt: conv.updatedAt.toISOString(),
         messageCount: 0,
+        lastActivityAt: conv.createdAt.toISOString(),
+        assistant: null,
       },
     },
     {

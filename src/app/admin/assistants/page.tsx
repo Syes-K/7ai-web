@@ -428,6 +428,7 @@ export default function AdminAssistantsPage() {
           onCancel={closeModal}
           onOk={() => void submitModal()}
           okText={modalMode === "create" ? "创建" : "保存"}
+          okButtonProps={{ ghost: true }}
           cancelText="取消"
           confirmLoading={submitting}
           width={640}
@@ -475,7 +476,7 @@ export default function AdminAssistantsPage() {
               ]}
             >
               <Input.TextArea
-                rows={4}
+                rows={2}
                 showCount
                 maxLength={ASSISTANT_OPENING_MESSAGE_MAX_LENGTH}
                 placeholder="可选"

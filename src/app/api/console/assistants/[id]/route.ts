@@ -13,6 +13,7 @@ import {
   normalizeStoredAssistantTags,
   parseAssistantTags,
 } from "@/server/assistant/parse-assistant-tags";
+import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
 
@@ -25,24 +26,6 @@ type PatchBody = {
   openingMessage?: unknown;
   tags?: unknown;
 };
-
-async function findReadableAssistant(
-  ds: Awaited<ReturnType<typeof getDataSource>>,
-  id: string,
-  userId: string,
-): Promise<Assistant | null> {
-  const row = await ds.getRepository(Assistant).findOne({ where: { id } });
-  if (!row) {
-    return null;
-  }
-  if (row.scope === AssistantScope.System) {
-    return row;
-  }
-  if (row.scope === AssistantScope.Personal && row.userId === userId) {
-    return row;
-  }
-  return null;
-}
 
 /**
  * GET：单条详情（系统助手或本人个人助手）。

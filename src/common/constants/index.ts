@@ -44,6 +44,9 @@ export const CHAT_TITLE_FROM_USER_MAX_CHARS = 32;
 /** 新建或无用户消息时的默认会话标题 */
 export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
 
+/** 绑定助手但开场白为空时，首条助手消息固定文案（与 design 0.1.2 §6.1 一致） */
+export const CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE = "你好，我是你的助手。需要什么帮助？";
+
 /** 控制台助手列表默认页码 */
 export const CONSOLE_ASSISTANT_LIST_DEFAULT_PAGE = 1;
 /** 控制台助手列表默认每页条数（与模型列表一致） */
@@ -81,6 +84,7 @@ export const MODEL_CONFIG_TAG_OPTIONS = [
   "视频",
   "声音",
   "嵌入",
+  "重排",
   "对话",
 ] as const;
 
@@ -90,3 +94,6 @@ export type ModelConfigTag = (typeof MODEL_CONFIG_TAG_OPTIONS)[number];
 export const MODEL_CONFIG_TAG_OPTION_SET: ReadonlySet<string> = new Set(
   MODEL_CONFIG_TAG_OPTIONS,
 );
+
+/** 默认系统提示词 */
+export const CHAT_SYSTEM_PROMPT = "你是一个有帮助的中文助手，回答简洁、准确。";

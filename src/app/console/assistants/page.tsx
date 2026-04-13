@@ -489,6 +489,7 @@ export default function ConsoleAssistantsPage() {
           onCancel={closeModal}
           onOk={modalMode === "view" ? undefined : () => void submitModal()}
           okText="保存"
+          okButtonProps={{ ghost: true }}
           cancelText="取消"
           confirmLoading={submitting}
           width={640}
@@ -496,7 +497,7 @@ export default function ConsoleAssistantsPage() {
           destroyOnClose
           footer={
             modalMode === "view" ? (
-              <Button type="primary" onClick={closeModal}>
+              <Button type="primary" ghost onClick={closeModal}>
                 关闭
               </Button>
             ) : undefined
@@ -548,7 +549,7 @@ export default function ConsoleAssistantsPage() {
               ]}
             >
               <Input.TextArea
-                rows={4}
+                rows={2}
                 showCount
                 maxLength={ASSISTANT_OPENING_MESSAGE_MAX_LENGTH}
                 placeholder="可选"

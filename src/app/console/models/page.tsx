@@ -405,6 +405,7 @@ export default function ConsoleModelsPage() {
           cancelText="取消"
           confirmLoading={submitting}
           onOk={() => void submitModal()}
+          okButtonProps={{ ghost: true }}
         >
           <Form form={form} layout="vertical" className="pt-1">
             <Form.Item

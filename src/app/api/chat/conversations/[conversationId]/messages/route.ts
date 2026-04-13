@@ -223,7 +223,10 @@ export async function POST(req: Request, ctx: RouteParams) {
           send("user_message", messageDto(userMsg));
 
           let full = "";
-          for await (const delta of streamAssistantReply(history, user.id, { user })) {
+          for await (const delta of streamAssistantReply(history, user.id, {
+            user,
+            assistantId: conv.assistantId,
+          })) {
             full += delta;
             send("assistant_delta", { text: delta });
           }
@@ -269,7 +272,10 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   let assistantText: string;
   try {
-    assistantText = await invokeAssistantReply(history, user.id, { user });
+    assistantText = await invokeAssistantReply(history, user.id, {
+      user,
+      assistantId: conv.assistantId,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "模型调用失败";
     return jsonError(ErrorCode.MODEL_ERROR, msg, HttpStatus.BAD_GATEWAY);

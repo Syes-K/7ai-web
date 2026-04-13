@@ -2,6 +2,8 @@
  * 对话页与 `/api/chat/*` 的 fetch 封装（携带 Cookie）。
  */
 
+import type { AssistantListItem } from "@/common/types";
+
 const JSON_HDR = { "Content-Type": "application/json; charset=utf-8" };
 
 export class ChatApiError extends Error {
@@ -30,13 +32,24 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+/** 与会话绑定的助手快照（API 字段 assistant） */
+export type ChatConversationAssistant = {
+  id: string;
+  name: string;
+  icon: string | null;
+};
+
 export type ConversationListItem = {
   id: string;
   title: string;
   updatedAt: string;
   createdAt: string;
+  /** 已废弃展示，服务端恒为 null */
   preview: string | null;
   messageCount: number;
+  lastActivityAt: string;
+  assistant: ChatConversationAssistant | null;
+  assistantUnavailable?: boolean;
 };
 
 export type ConversationListResponse = {
@@ -63,17 +76,48 @@ export type CreatedConversation = {
     createdAt: string;
     updatedAt: string;
     messageCount: number;
+    lastActivityAt: string;
+    assistant: ChatConversationAssistant | null;
+    assistantUnavailable?: boolean;
   };
 };
 
-export async function createConversation(title?: string | null): Promise<CreatedConversation> {
+export type CreateConversationOptions = {
+  title?: string | null;
+  /** 传入则绑定该助手并注入开场消息；省略为普通对话 */
+  assistantId?: string | null;
+};
+
+export async function createConversation(
+  options?: CreateConversationOptions | string | null,
+): Promise<CreatedConversation> {
+  const opts: CreateConversationOptions =
+    typeof options === "string" || options === null || options === undefined
+      ? { title: typeof options === "string" ? options : undefined }
+      : options;
+  const body: Record<string, unknown> = {};
+  if (opts.title != null) {
+    body.title = opts.title;
+  }
+  if (opts.assistantId != null && opts.assistantId !== undefined) {
+    body.assistantId = opts.assistantId;
+  }
   const res = await fetch("/api/chat/conversations", {
     method: "POST",
     credentials: "include",
     headers: JSON_HDR,
-    body: JSON.stringify(title != null ? { title } : {}),
+    body: JSON.stringify(body),
   });
   return parseResponse<CreatedConversation>(res);
+}
+
+/** 新建对话选助手：拉取与控制台一致的可见列表 */
+export async function fetchAssistantsForPicker(): Promise<AssistantListItem[]> {
+  const res = await fetch("/api/console/assistants?page=1&pageSize=100", {
+    credentials: "include",
+  });
+  const data = await parseResponse<{ items: AssistantListItem[] }>(res);
+  return data.items;
 }
 
 export type MessageRow = {

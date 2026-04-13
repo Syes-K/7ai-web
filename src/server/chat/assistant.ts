@@ -1,19 +1,30 @@
+/**
+ * 聊天业务与 LangChain Agent 之间的胶水层。
+ *
+ * 职责：将数据库中的会话 {@link Message} 转为 LangChain `BaseMessage` 序列；调用
+ * {@link getAssistantAgent} 做非流式 {@link invokeAssistantReply} 与流式
+ * {@link streamAssistantReply}（委托 {@link streamChatAssistantAgentText}）。
+ * 模型解析、系统提示、Agent 构建均在 `server/llm/assistant`，本文件不重复实现。
+ */
 import type { BaseMessage } from "@langchain/core/messages";
-import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { MessageRole } from "@/common/enums";
 import type { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
-import { getChatRuntimeModel } from "./llm-runtime";
+import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/llm/assistant";
 
 type AssistantRuntimeOptions = {
   /** 与 userId 对应且已加载的 User，可省去模型解析时再查一次 User */
   user?: User;
+  /**
+   * 会话绑定的助手 id；null/undefined 表示普通对话。
+   * 实际模型与系统提示由 {@link getAssistantAgent} 统一解析。
+   */
+  assistantId?: string | null;
 };
 
-const CHAT_SYSTEM_PROMPT = "你是一个有帮助的中文助手，回答简洁、准确。";
-
-function toLangChainMessages(history: Message[]): BaseMessage[] {
-  const out: BaseMessage[] = [new SystemMessage(CHAT_SYSTEM_PROMPT)];
+function historyToBaseMessages(history: Message[]): BaseMessage[] {
+  const out: BaseMessage[] = [];
   for (const m of history) {
     if (m.role === MessageRole.User) {
       out.push(new HumanMessage(m.content));
@@ -26,51 +37,62 @@ function toLangChainMessages(history: Message[]): BaseMessage[] {
   return out;
 }
 
+function aiMessageContentToString(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((p) =>
+        typeof p === "object" && p && "text" in p ? String((p as { text: string }).text) : "",
+      )
+      .join("");
+  }
+  return String(content ?? "");
+}
+
+function lastAssistantText(messages: BaseMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (AIMessage.isInstance(msg)) {
+      return aiMessageContentToString(msg.content);
+    }
+  }
+  return "";
+}
+
 /**
  * 基于已持久化的会话消息（含本轮用户消息）生成助手回复文本。
+ * 统一经 {@link getAssistantAgent}（LangChain `createAgent`）执行。
  */
 export async function invokeAssistantReply(
   historyOrdered: Message[],
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): Promise<string> {
-  const model = await getChatRuntimeModel(userId, { user: runtime?.user });
-  const res = await model.invoke(toLangChainMessages(historyOrdered));
-  const content = res.content;
-  if (typeof content === "string") {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content
-      .map((p) => (typeof p === "object" && p && "text" in p ? String((p as { text: string }).text) : ""))
-      .join("");
-  }
-  return String(content ?? "");
+  const agent = await getAssistantAgent({
+    userId,
+    user: runtime?.user,
+    assistantId: runtime?.assistantId,
+  });
+  const state = await agent.invoke({
+    messages: historyToBaseMessages(historyOrdered),
+  });
+  const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
+  return lastAssistantText(msgs);
 }
 
 /**
  * 流式生成助手回复；按片段产出文本增量（用于 SSE）。
+ * 与 {@link invokeAssistantReply} 使用同一套 Agent 配置。
  */
 export async function* streamAssistantReply(
   historyOrdered: Message[],
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): AsyncGenerator<string, void, undefined> {
-  const model = await getChatRuntimeModel(userId, { user: runtime?.user });
-  const stream = await model.stream(toLangChainMessages(historyOrdered));
-  for await (const chunk of stream) {
-    const c = chunk.content;
-    if (typeof c === "string" && c.length > 0) {
-      yield c;
-    } else if (Array.isArray(c)) {
-      const text = c
-        .map((p) =>
-          typeof p === "object" && p && "text" in p ? String((p as { text: string }).text) : "",
-        )
-        .join("");
-      if (text.length > 0) {
-        yield text;
-      }
-    }
-  }
+  yield* streamChatAssistantAgentText(
+    { userId, user: runtime?.user, assistantId: runtime?.assistantId },
+    { messages: historyToBaseMessages(historyOrdered) },
+  );
 }
