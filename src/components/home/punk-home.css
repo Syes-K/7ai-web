@@ -1,0 +1,142 @@
+/* 首页朋克/科幻风：动画与装饰层 */
+@keyframes punk-glitch-shift {
+  0%,
+  90%,
+  100% {
+    transform: translate(0);
+    opacity: 0.85;
+  }
+  92% {
+    transform: translate(-3px, 1px);
+    opacity: 1;
+  }
+  94% {
+    transform: translate(3px, -1px);
+    opacity: 0.9;
+  }
+  96% {
+    transform: translate(-2px, 0);
+  }
+}
+
+@keyframes punk-aurora {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1) translate(0, 0);
+  }
+  33% {
+    opacity: 0.55;
+    transform: scale(1.05) translate(2%, -1%);
+  }
+  66% {
+    opacity: 0.45;
+    transform: scale(0.98) translate(-1%, 2%);
+  }
+}
+
+@keyframes punk-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes punk-border-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(34, 211, 238, 0.15),
+      inset 0 0 30px rgba(232, 121, 249, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 35px rgba(232, 121, 249, 0.25),
+      inset 0 0 40px rgba(34, 211, 238, 0.08);
+  }
+}
+
+.punk-glitch-layer {
+  animation: punk-glitch-shift 4s ease-in-out infinite;
+}
+
+/** 与标题 `punk-glitch-shift` 同频：背景网格/光晕随故障轻微位移 */
+.punk-glitch-bg-sync {
+  animation: punk-glitch-shift 4s ease-in-out infinite;
+}
+
+/**
+ * 与标题同频的色闪（故障瞬间拉高整体霓虹感）
+ * 时间点与 punk-glitch-shift 的 90%→100% 段对齐
+ */
+@keyframes punk-glitch-bg-flash {
+  0%,
+  90%,
+  100% {
+    opacity: 0;
+  }
+  92% {
+    opacity: 0.08;
+  }
+  94% {
+    opacity: 0.07;
+  }
+  96% {
+    opacity: 0.04;
+  }
+}
+
+.punk-glitch-bg-flash-layer {
+  animation: punk-glitch-bg-flash 4s ease-in-out infinite;
+}
+
+.punk-aurora-blob {
+  animation: punk-aurora 14s ease-in-out infinite;
+}
+
+.punk-scan-sweep {
+  animation: punk-scan 8s linear infinite;
+}
+
+.punk-cta-glow {
+  animation: punk-border-glow 3s ease-in-out infinite;
+}
+
+/** PERSONAL · AI LEARNING 标签：呼吸（透明度） */
+@keyframes punk-tag-breathe {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.punk-tag-breathe {
+  transform-origin: center;
+  animation: punk-tag-breathe 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .punk-glitch-layer,
+  .punk-glitch-bg-sync,
+  .punk-glitch-bg-flash-layer,
+  .punk-aurora-blob,
+  .punk-scan-sweep,
+  .punk-cta-glow,
+  .punk-tag-breathe {
+    animation: none;
+  }
+
+  .punk-tag-breathe {
+    opacity: 1;
+    transform: none;
+  }
+
+  .punk-glitch-bg-flash-layer {
+    opacity: 0;
+  }
+}

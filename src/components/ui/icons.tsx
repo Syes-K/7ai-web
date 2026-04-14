@@ -144,6 +144,27 @@ export function IconConfig({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGEl
   );
 }
 
+/** 登录入口（门 / 箭头） */
+export function IconLogin({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      aria-hidden
+      {...rest}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H5a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+      />
+    </svg>
+  );
+}
+
 /** 标题行右侧「更多」⋯ */
 export function IconDots({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGElement>) {
   return (

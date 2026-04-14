@@ -95,7 +95,7 @@ function MessageBubble({
   return (
     <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[min(100%,720px)] rounded-xl border px-3 py-2.5 text-sm leading-relaxed shadow-lg ${isUser
+        className={`min-w-0 max-w-[min(100%,720px)] rounded-xl border px-3 py-2.5 text-sm leading-relaxed shadow-lg ${isUser
           ? "border-cyan-500/35 bg-cyan-500/10 text-cyan-50"
           : "border-fuchsia-500/25 bg-zinc-900/90 text-zinc-100 shadow-[0_0_24px_-4px_rgba(217,70,239,0.15)]"
           }`}
@@ -847,8 +847,8 @@ export function ChatWorkspace({
                   selectedId ? "输入消息 — Enter 发送，Shift+Enter 换行" : "请先新建或选择会话"
                 }
                 disabled={!selectedId}
-                rows={4}
-                className="min-h-[104px] w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 pb-12 pr-12 font-mono text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
+                rows={3}
+                className="min-h-[78px] w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 pb-12 pr-12 font-mono text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
                 aria-label="消息输入框"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {

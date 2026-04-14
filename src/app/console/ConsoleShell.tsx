@@ -1,16 +1,16 @@
 "use client";
 
-import { LogoutOutlined, SettingOutlined, UserOutlined } from "@ant-design/icons";
 import { ProLayout } from "@ant-design/pro-components";
-import { App, Avatar, ConfigProvider, Dropdown } from "antd";
+import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { UserAvatarMenu } from "@/components/user";
 import { IconEmptyState } from "@/components/ui/icons";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
 import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
@@ -69,15 +69,6 @@ export default function ConsoleShell({
     };
   }, [router]);
 
-  const handleLogout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    router.replace("/login");
-  }, [router]);
-
-  const onMenuHeaderClick = useCallback(() => {
-    router.push("/console/profile");
-  }, [router]);
-
   if (!ready || !user) {
     return (
       <div
@@ -90,7 +81,6 @@ export default function ConsoleShell({
   }
 
   const displayName = user.nickName?.trim() || user.email;
-  const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
     <ConfigProvider locale={zhCN} theme={shellDarkTheme}>
@@ -104,7 +94,7 @@ export default function ConsoleShell({
         <ProLayout
           title={consoleHeaderTitleText}
           logo={
-            <BrandMark withLink={false} wordmarkClassName="!text-sm" />
+            <BrandMark wordmarkClassName="!text-sm" />
           }
           headerTitleRender={(logo, _titleDom, props) =>
             props.collapsed ? (
@@ -129,7 +119,6 @@ export default function ConsoleShell({
           location={{ pathname }}
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          onMenuHeaderClick={onMenuHeaderClick}
           menuFooterRender={() => null}
           footerRender={false}
           menuItemRender={(item, dom) =>
@@ -144,37 +133,7 @@ export default function ConsoleShell({
               <IconEmptyState className="h-4 w-4 shrink-0 text-current" />
               对话
             </Link>,
-            <Dropdown
-              key="user"
-              menu={{
-                items: [
-                  {
-                    key: "logout",
-                    icon: <LogoutOutlined />,
-                    label: "退出登录",
-                    onClick: () => void handleLogout(),
-                  },
-                ],
-              }}
-              placement="bottomRight"
-            >
-              <button
-                type="button"
-                className={`${headerActionLinkClass} text-white/80`}
-                aria-label="用户菜单"
-              >
-                <Avatar
-                  size="small"
-                  style={{ backgroundColor: "rgba(34, 211, 238, 0.25)" }}
-                >
-                  {initial}
-                </Avatar>
-                <span className="hidden max-w-[120px] truncate sm:inline">
-                  {displayName}
-                </span>
-                <UserOutlined className="text-white/50 sm:hidden" />
-              </button>
-            </Dropdown>,
+            <UserAvatarMenu key="user" displayName={displayName} />,
           ]}
           contentStyle={{
             background: "#0a0a0f",
