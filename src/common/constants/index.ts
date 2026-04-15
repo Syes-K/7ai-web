@@ -97,3 +97,35 @@ export const MODEL_CONFIG_TAG_OPTION_SET: ReadonlySet<string> = new Set(
 
 /** 默认系统提示词 */
 export const CHAT_SYSTEM_PROMPT = "你是一个有帮助的中文助手，回答简洁、准确。";
+
+/** LangChain 摘要中间件调用标识（用于回调阶段识别摘要子调用）。 */
+export const LLM_SUMMARIZATION_TAG = "summarization";
+
+/** 对话摘要功能默认开关：开启。 */
+export const CONVERSATION_SUMMARY_ENABLED_DEFAULT = true;
+/** 对话摘要默认最大字符数。 */
+export const CONVERSATION_SUMMARY_MAX_CHARS_DEFAULT = 2000;
+/** 摘要触发默认模式。 */
+export const CONVERSATION_SUMMARY_MODE_DEFAULT: "tokens" | "messages" = "messages";
+/** token 模式：默认触发阈值。 */
+export const CONVERSATION_SUMMARY_TRIGGER_TOKENS_DEFAULT = 6000;
+/** token 模式：默认保留 token 预算。 */
+export const CONVERSATION_SUMMARY_KEEP_TOKENS_DEFAULT = 2000;
+/** messages 模式：默认触发条数。 */
+export const CONVERSATION_SUMMARY_TRIGGER_MESSAGES_DEFAULT = 30;
+/** messages 模式：默认保留条数。 */
+export const CONVERSATION_SUMMARY_KEEP_MESSAGES_DEFAULT = 12;
+/** 摘要后最少保留最近原文消息条数（确保近几轮细节不被立即折叠）。 */
+export const CONVERSATION_SUMMARY_MIN_RECENT_MESSAGES_DEFAULT = 6;
+/** 对话摘要最大字符数上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_MAX_CHARS_MAX = 32000;
+/** token 模式触发阈值上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_TRIGGER_TOKENS_MAX = 200000;
+/** token 模式保留 token 上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_KEEP_TOKENS_MAX = 100000;
+/** messages 模式触发条数上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_TRIGGER_MESSAGES_MAX = 1000;
+/** messages 模式保留条数上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_KEEP_MESSAGES_MAX = 500;
+/** 摘要后最少保留最近原文消息条数上限（管理端校验）。 */
+export const CONVERSATION_SUMMARY_MIN_RECENT_MESSAGES_MAX = 200;

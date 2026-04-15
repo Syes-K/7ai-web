@@ -10,6 +10,7 @@ import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { invokeAssistantReply, streamAssistantReply } from "@/server/chat/assistant";
+import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
 import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
 import { findOwnedConversation } from "@/server/chat/conversation-access";
@@ -207,6 +208,57 @@ export async function POST(req: Request, ctx: RouteParams) {
     where: { conversationId: conv.id },
     order: { sortOrder: "ASC" },
   });
+  let historyForModel = history;
+  let sourceMessagesForModel = history;
+  let summaryCutoffCandidate: number | null = null;
+  // 若会话已有落库摘要，则优先走“摘要 + 新增消息（不足则补齐最近最少条数）”输入，避免每轮都拿全量历史导致立刻再次触发摘要。
+  try {
+    const summaryCfg = await getConversationSummaryConfig();
+    const summaryText = conv.contextSummary?.trim();
+    const minRecentMessages = Math.max(1, summaryCfg.summaryMinRecentMessages);
+    if (summaryCfg.enabled && summaryText) {
+      const templates = await getSummaryPromptTemplates();
+      const cutoff = conv.contextSummaryCutoffSortOrder ?? -1;
+      const afterCutoff = history.filter((m) => m.sortOrder > cutoff);
+      // 优先使用“摘要后新增消息”；若不足最少条数则从全量尾部补齐最近消息。
+      const recent = afterCutoff.length >= minRecentMessages
+        ? afterCutoff
+        : history.slice(-minRecentMessages);
+      sourceMessagesForModel = recent;
+      const summaryInjected = {
+        // 仅用于模型输入，不写回数据库；role/content 是 historyToBaseMessages 需要的最小字段。
+        role: MessageRole.System,
+        content: `${templates.summarySystemPrefix}\n\n${summaryText}`,
+      } as Message;
+      historyForModel = [summaryInjected, ...recent];
+    }
+    // 若本轮再次触发摘要，新的 cutoff 至少要为“当前喂给模型的原文消息里，保留最近 minRecent 后的最后一条”。
+    const idx = sourceMessagesForModel.length - minRecentMessages - 1;
+    summaryCutoffCandidate = idx >= 0 ? sourceMessagesForModel[idx].sortOrder : null;
+  } catch {
+    // 摘要配置读取失败时回退到原行为（全量历史），不中断主对话流程。
+    historyForModel = history;
+    sourceMessagesForModel = history;
+    summaryCutoffCandidate = null;
+  }
+
+  const updateConversationSummary = async (summary: string) => {
+    const currentCutoff = conv.contextSummaryCutoffSortOrder;
+    const nextCutoffSortOrder =
+      summaryCutoffCandidate === null
+        ? currentCutoff ?? null
+        : currentCutoff == null
+          ? summaryCutoffCandidate
+          : Math.max(currentCutoff, summaryCutoffCandidate);
+    await convRepo.update(
+      { id: conv.id },
+      {
+        contextSummary: summary,
+        contextSummaryUpdatedAt: new Date(),
+        contextSummaryCutoffSortOrder: nextCutoffSortOrder,
+      },
+    );
+  };
 
   if (stream) {
     const encoder = new TextEncoder();
@@ -223,9 +275,12 @@ export async function POST(req: Request, ctx: RouteParams) {
           send("user_message", messageDto(userMsg));
 
           let full = "";
-          for await (const delta of streamAssistantReply(history, user.id, {
+          for await (const delta of streamAssistantReply(historyForModel, user.id, {
             user,
             assistantId: conv.assistantId,
+            onSummary: async (summary) => {
+              await updateConversationSummary(summary);
+            },
           })) {
             full += delta;
             send("assistant_delta", { text: delta });
@@ -272,9 +327,12 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   let assistantText: string;
   try {
-    assistantText = await invokeAssistantReply(history, user.id, {
+    assistantText = await invokeAssistantReply(historyForModel, user.id, {
       user,
       assistantId: conv.assistantId,
+      onSummary: async (summary) => {
+        await updateConversationSummary(summary);
+      },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "模型调用失败";
@@ -342,6 +400,9 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     {
       title: CHAT_DEFAULT_CONVERSATION_TITLE,
       updatedAt: new Date(),
+      contextSummary: null,
+      contextSummaryUpdatedAt: null,
+      contextSummaryCutoffSortOrder: null,
     },
   );
 

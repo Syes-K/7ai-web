@@ -1,4 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { LLM_SUMMARIZATION_TAG } from "@/common/constants";
 
 export const MODEL_PROVIDER_BASE_URL: Record<string, string> = {
     // 阿里云 百炼
@@ -22,6 +23,8 @@ export type GetModelOptions = {
     temperature?: number;
     /** 未传时使用 `CHAT_LLM_API_KEY`（如用户登记的模型密钥可显式传入） */
     apiKey?: string;
+    /** 模型调用标签（用于 callbacks 识别与日志过滤） */
+    tags?: string[];
 };
 
 /**
@@ -49,8 +52,20 @@ export function getModel(options: GetModelOptions = {}) {
         model,
         temperature,
         apiKey,
+        tags: options.tags ?? ["CHAT"],
         configuration: {
             baseURL: baseUrl,
         },
     });
+}
+
+/**
+ * 获取摘要子调用模型：在默认模型标签基础上追加 `summarization`。
+ */
+export function getSummarizationModel(options: GetModelOptions = {}) {
+    const baseTags = options.tags ?? [];
+    const tags = baseTags.includes(LLM_SUMMARIZATION_TAG)
+        ? baseTags
+        : [...baseTags, LLM_SUMMARIZATION_TAG];
+    return getModel({ ...options, tags });
 }

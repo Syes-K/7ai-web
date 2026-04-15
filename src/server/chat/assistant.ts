@@ -7,11 +7,12 @@
  * 模型解析、系统提示、Agent 构建均在 `server/llm/assistant`，本文件不重复实现。
  */
 import type { BaseMessage } from "@langchain/core/messages";
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { MessageRole } from "@/common/enums";
 import type { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
 import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/llm/assistant";
+import { LoggerCallbackHandler, SummarizationLlmCallbackHandler } from "@/server/llm/callback";
 
 type AssistantRuntimeOptions = {
   /** 与 userId 对应且已加载的 User，可省去模型解析时再查一次 User */
@@ -21,6 +22,8 @@ type AssistantRuntimeOptions = {
    * 实际模型与系统提示由 {@link getAssistantAgent} 统一解析。
    */
   assistantId?: string | null;
+  /** 摘要中间件产出新摘要时回调（用于落库会话摘要）。 */
+  onSummary?: (summary: string) => Promise<void> | void;
 };
 
 function historyToBaseMessages(history: Message[]): BaseMessage[] {
@@ -31,7 +34,7 @@ function historyToBaseMessages(history: Message[]): BaseMessage[] {
     } else if (m.role === MessageRole.Assistant) {
       out.push(new AIMessage(m.content));
     } else {
-      out.push(new HumanMessage(`[system]\n${m.content}`));
+      out.push(new SystemMessage(m.content));
     }
   }
   return out;
@@ -77,6 +80,11 @@ export async function invokeAssistantReply(
   });
   const state = await agent.invoke({
     messages: historyToBaseMessages(historyOrdered),
+  }, {
+    callbacks: [
+      // new LoggerCallbackHandler(),
+      new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+    ],
   });
   const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
   return lastAssistantText(msgs);
@@ -94,5 +102,9 @@ export async function* streamAssistantReply(
   yield* streamChatAssistantAgentText(
     { userId, user: runtime?.user, assistantId: runtime?.assistantId },
     { messages: historyToBaseMessages(historyOrdered) },
+    [
+      // new LoggerCallbackHandler(),
+      new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+    ],
   );
 }

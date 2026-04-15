@@ -7,13 +7,15 @@
  *
  * 流式输出见 {@link streamChatAssistantAgentText}（基于 LangGraph `streamEvents`）。
  */
-import { createAgent } from "langchain";
+import { createAgent, summarizationMiddleware } from "langchain";
 import { AIMessageChunk } from "@langchain/core/messages";
-import { CHAT_SYSTEM_PROMPT } from "@/common/constants";
+import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
+import { CHAT_SYSTEM_PROMPT, LLM_SUMMARIZATION_TAG } from "@/common/constants";
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
+import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
 import { getDataSource } from "@/server/db/data-source";
 import type { User } from "@/server/db/entities/User";
-import { getChatRuntimeModel } from "@/server/chat/llm-runtime";
+import { getChatRuntimeModel, getChatRuntimeSummarizationModel } from "@/server/chat/llm-runtime";
 
 export type GetChatAssistantAgentOptions = {
   userId: string;
@@ -48,18 +50,51 @@ export async function resolveChatAssistantSystemPrompt(
 export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
   const { userId, user, assistantId } = options;
   const model = await getChatRuntimeModel(userId, { user: user ?? undefined });
+  const summaryModel = await getChatRuntimeSummarizationModel(userId, { user: user ?? undefined });
   const systemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
+  const summaryCfg = await getConversationSummaryConfig();
+  const summaryTemplates = await getSummaryPromptTemplates();
+  // LangChain summarizationMiddleware 会对 summaryPrompt 执行 .replace("{messages}", 历史正文)，
+  // 模板中必须保留字面量 {messages}。此处仅替换 {maxChars}，不能用 PromptTemplate 一次 format 掉全部占位符。
+  const summaryPrompt = summaryTemplates.contextSummarySystem.replace(
+    /\{maxChars\}/g,
+    String(summaryCfg.maxChars),
+  );
+  // LangChain keepSchema：keep 必须且只能指定 fraction / tokens / messages 之一（不能同时传多个）。
+  // trigger 的 contextSizeSchema：至少指定其一；按单键传参即只按该维度判断。
+  const trigger =
+    summaryCfg.mode === "tokens"
+      ? { tokens: summaryCfg.summaryTriggerTokens }
+      : { messages: summaryCfg.summaryTriggerMessages };
+  const keep =
+    summaryCfg.mode === "tokens"
+      ? { tokens: summaryCfg.summaryKeepTokens }
+      : { messages: summaryCfg.summaryKeepMessages };
 
   return createAgent({
     model,
     systemPrompt,
     tools: [],
+    middleware: summaryCfg.enabled
+      ? [
+          summarizationMiddleware({
+            // 摘要专用模型由 llm/model.ts 构造，内置 summarization tag。
+            model: summaryModel,
+            trigger,
+            keep,
+            summaryPrefix: summaryTemplates.summarySystemPrefix,
+            summaryPrompt,
+          }),
+        ]
+      : [],
   });
 }
 
 type StreamEventV2 = {
   event?: string;
   data?: { chunk?: unknown };
+  tags?: string[];
+  metadata?: Record<string, unknown>;
 };
 
 function chunkToText(chunk: unknown): string {
@@ -90,12 +125,20 @@ export async function* streamChatAssistantAgentText(
   options: GetChatAssistantAgentOptions,
   /** LangGraph invoke 状态：`messages` 为 LangChain 消息列表 */
   state: { messages: import("@langchain/core/messages").BaseMessage[] },
+  callbacks?: BaseCallbackHandler[],
 ): AsyncGenerator<string, void, undefined> {
   const agent = await getAssistantAgent(options);
-  const eventStream = agent.streamEvents(state, { version: "v2" });
+  const eventStream = agent.streamEvents(state, { version: "v2", callbacks });
   for await (const raw of eventStream) {
     const ev = raw as StreamEventV2;
     if (ev.event !== "on_chat_model_stream" || !ev.data?.chunk) {
+      continue;
+    }
+    // 过滤摘要子调用的分词，避免把摘要文本拼进本轮助手最终回复。
+    if (
+      (Array.isArray(ev.tags) && ev.tags.includes(LLM_SUMMARIZATION_TAG)) ||
+      ev.metadata?.lc_source === LLM_SUMMARIZATION_TAG
+    ) {
       continue;
     }
     const text = chunkToText(ev.data.chunk);

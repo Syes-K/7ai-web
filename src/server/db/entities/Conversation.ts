@@ -38,6 +38,18 @@ export class Conversation {
   @Column({ type: "varchar", length: 16, nullable: true })
   assistantIcon!: string | null;
 
+  /** 会话滚动摘要（用于主模型上下文注入，不直接返回给前端）。 */
+  @Column({ type: "text", nullable: true })
+  contextSummary!: string | null;
+
+  /** 滚动摘要最后一次成功写入时间。 */
+  @Column({ type: "datetime", nullable: true })
+  contextSummaryUpdatedAt!: Date | null;
+
+  /** 当前滚动摘要已覆盖到的最后一条消息序号（sortOrder）。 */
+  @Column({ type: "integer", nullable: true })
+  contextSummaryCutoffSortOrder!: number | null;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

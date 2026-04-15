@@ -1,6 +1,6 @@
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
-import { getModel } from "@/server/llm/model";
+import { getModel, getSummarizationModel } from "@/server/llm/model";
 import { decryptApiKey } from "@/server/model-config/api-key-crypto";
 import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
 
@@ -40,5 +40,38 @@ export async function getChatRuntimeModel(userId: string, options?: GetChatRunti
   } catch {
     // 解密失败、provider 非法等与「用户配置」相关的错误均回退系统默认
     return getModel({ temperature: 0.7 });
+  }
+}
+
+/**
+ * 与 {@link getChatRuntimeModel} 相同配置来源，但返回用于摘要子调用的模型（附带 summarization tag）。
+ */
+export async function getChatRuntimeSummarizationModel(userId: string, options?: GetChatRuntimeModelOptions) {
+  const ds = await getDataSource();
+  const user =
+    options?.user && options.user.id === userId
+      ? options.user
+      : await ds.getRepository(User).findOne({ where: { id: userId } });
+  const prefId = user?.preferredModelConfigId ?? null;
+  if (!prefId) {
+    return getSummarizationModel({ temperature: 0.7 });
+  }
+
+  const cfg = await findModelConfigUsableByUser(ds, prefId, userId);
+  if (!cfg) {
+    return getSummarizationModel({ temperature: 0.7 });
+  }
+
+  try {
+    const plainKey = decryptApiKey(cfg.apiKeyCipher);
+    return getSummarizationModel({
+      model: cfg.modelName,
+      provider: cfg.provider,
+      temperature: 0.7,
+      apiKey: plainKey,
+    });
+  } catch {
+    // 解密失败、provider 非法等与「用户配置」相关的错误均回退系统默认
+    return getSummarizationModel({ temperature: 0.7 });
   }
 }
