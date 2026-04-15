@@ -61,6 +61,11 @@ model: inherit
 - **命令式**：需要 **`resetFields` / `setFieldsValue` / `submit`** 时使用 **`formRef`**（`FormInstance`），类型与 antd `Form` 一致。
 - **与筛选区区分**：列表页的 **QueryFilter / 搜索区** 仍用 Pro 的查询表单约定；与「编辑业务实体」的 ProForm 职责分开，避免混在同一 `Form` 实例上。
 
+### 按钮与表单操作区（控制台 / 管理后台）
+
+- **Primary + ghost**：凡 **主操作**使用 **`Button type="primary"`**（如保存、确定、提交），**默认同时设置 `ghost`**，与后台深色壳、顶栏主按钮风格一致。若某页为浅色背景且设计明确要求**实心**主按钮，在 **`deviations.md`**（或迭代前端实现说明）注明例外。
+- **表单底部按钮右对齐**：**`Form`**、**`ProForm`** 以及 **`ModalForm`** / **`DrawerForm`** / 带自定义 footer 的 **`Modal`** / **`Drawer`** 中，与表单配套的 **确认、取消、提交、重置** 等成组操作按钮，**默认在容器内右对齐**（例如外层 `style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}`，或 **`Space`/`Flex`** 设 `className="w-full justify-end"` 等等价写法）。**`ProForm`** 使用 **`submitter`** 时，用 **`render`** 将提交区包在右对齐布局中，或配置 **`submitter` 的布局属性**（以当前 `@ant-design/pro-components` 版本能力为准），避免操作区贴左与后台惯例不一致。
+
 ### 依赖与注册（Next.js App Router）
 
 - **常用包**：`antd`、`@ant-design/pro-components`、`@ant-design/icons`；日期/时间与 Pro 表单一致时使用 **`dayjs`**（可 `dayjs.locale('zh-cn')`）。
