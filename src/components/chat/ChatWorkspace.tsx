@@ -650,7 +650,7 @@ export function ChatWorkspace({
         }
       >
         <p id={newChatDescId} className="mt-3 text-sm leading-relaxed text-zinc-400">
-          可选助手并开始对话，或跳过进入普通对话（绑定后不可更换助手）。
+          选择一个助手并开始对话，或跳过进入普通对话。
         </p>
         {pickerError && (
           <div
