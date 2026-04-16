@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 /**
  * POST /api/auth/logout
  */
-export const POST = withApiWrapper(async () => {
+export const POST = withApiWrapper(async (req: Request) => {
   const cookieStore = await cookies();
   const sid = cookieStore.get(SESSION_COOKIE)?.value;
   await destroySession(sid);
@@ -23,7 +23,7 @@ export const POST = withApiWrapper(async () => {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Set-Cookie": clearSessionCookieHeader(),
+        "Set-Cookie": clearSessionCookieHeader(req),
       },
     },
   );

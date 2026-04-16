@@ -13,30 +13,47 @@ function isAllowedRedirectPath(pathOnly: string): boolean {
 
 export function safeRedirectUrl(
   redirectParam: string | null | undefined,
-  requestUrl: string,
+  request: Request | string,
 ): string {
-  const base = new URL(requestUrl);
+  const fallback = new URL(typeof request === "string" ? request : request.url);
+  let baseOrigin = fallback.origin;
+  if (typeof request !== "string") {
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const host = forwardedHost || request.headers.get("host")?.trim();
+    const forwardedProto = request.headers
+      .get("x-forwarded-proto")
+      ?.split(",")[0]
+      ?.trim()
+      .toLowerCase();
+    const proto =
+      forwardedProto && (forwardedProto === "http" || forwardedProto === "https")
+        ? forwardedProto
+        : fallback.protocol.replace(":", "");
+    if (host) {
+      baseOrigin = `${proto}://${host}`;
+    }
+  }
   if (!redirectParam || redirectParam.trim() === "") {
-    return `${base.origin}/`;
+    return `${baseOrigin}/`;
   }
   let pathPart = redirectParam.trim();
   try {
     if (pathPart.includes("://")) {
       const u = new URL(pathPart);
-      if (u.origin !== base.origin) {
-        return `${base.origin}/`;
+      if (u.origin !== baseOrigin) {
+        return `${baseOrigin}/`;
       }
       pathPart = u.pathname + u.search;
     }
     if (!pathPart.startsWith("/")) {
-      return `${base.origin}/`;
+      return `${baseOrigin}/`;
     }
     const pathOnly = pathPart.split("?")[0] ?? "/";
     if (!isAllowedRedirectPath(pathOnly)) {
-      return `${base.origin}/`;
+      return `${baseOrigin}/`;
     }
-    return `${base.origin}${pathPart.startsWith("/") ? pathPart : `/${pathPart}`}`;
+    return `${baseOrigin}${pathPart.startsWith("/") ? pathPart : `/${pathPart}`}`;
   } catch {
-    return `${base.origin}/`;
+    return `${baseOrigin}/`;
   }
 }

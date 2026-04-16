@@ -143,8 +143,8 @@ export const POST = withApiWrapper(async (req: Request) => {
   });
   await userRepo.save(user);
 
-  const setCookie = await createUserSession(user.id);
-  const redirectUrl = safeRedirectUrl(body.redirect ?? undefined, req.url);
+  const setCookie = await createUserSession(user.id, req);
+  const redirectUrl = safeRedirectUrl(body.redirect ?? undefined, req);
 
   return NextResponse.json(
     {

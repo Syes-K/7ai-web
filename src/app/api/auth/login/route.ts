@@ -123,8 +123,8 @@ export const POST = withApiWrapper(async (req: Request) => {
   }
   clearLoginFailures(email, ip);
 
-  const setCookie = await createUserSession(user.id);
-  const redirectUrl = safeRedirectUrl(body.redirect ?? undefined, req.url);
+  const setCookie = await createUserSession(user.id, req);
+  const redirectUrl = safeRedirectUrl(body.redirect ?? undefined, req);
 
   return NextResponse.json(
     {

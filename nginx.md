@@ -61,7 +61,7 @@ nginx -t && systemctl reload nginx
 
 ### 4.1 共用片段（`location`）
 
-后端为 **HTTP**（`next start`），`X-Forwarded-Proto` 在 HTTPS 的 server 里设为 `**https`**，便于 Next.js 识别原始协议。
+后端为 **HTTP**（`next start`），建议同时透传 `Host`、`X-Forwarded-Host`、`X-Forwarded-Proto`，便于应用侧还原用户真实访问入口（协议/主机名）。
 
 ### 4.2 仅 HTTP（80）— 内网或临时调试
 
@@ -74,6 +74,7 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -108,6 +109,7 @@ server {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
@@ -120,6 +122,7 @@ server {
 - `**proxy_pass**` 端口必须与 **Next.js** 的 `**PORT`**（如 8080）、PM2 环境一致。
 - **HTTPS** 需在安全组放行 **TCP 443**。
 - `**X-Forwarded-Proto https`**：告诉应用当前用户经 TLS 访问（与仅 HTTP 反代时用 `$scheme` 不同）。
+- `**X-Forwarded-Host`**：将用户原始 Host 透传给应用；若应用侧做重定向/生成绝对 URL，建议优先读取 `x-forwarded-host` + `x-forwarded-proto`，不要仅依赖 `request.url`。
 
 Let’s Encrypt 常见路径示例（**勿照抄，以 `certbot` 实际输出为准**）：
 
@@ -163,6 +166,7 @@ curl -Ik https://127.0.0.1
 | `systemctl reload nginx` → **not active**                                               | 服务未运行                                                                                          | `systemctl start nginx`                       |
 | 外网域名打不开，本机 `curl 127.0.0.1` 正常                                                          | 安全组未放行 80/443，或 DNS 未指到本机公网 IP                                                                 | 查安全组与解析                                       |
 | 502 Bad Gateway                                                                         | 后端 Next 未启动或端口与 `proxy_pass` 不一致                                                               | 检查 PM2、`PORT`、`proxy_pass`                    |
+| 服务端日志中 `request.url` 显示 `http://localhost:8080/...`，但浏览器实际访问公网域名/IP                        | 应用读取到的是反代后的内部监听地址；未基于 forwarded/host 还原外部 origin                                             | Nginx 透传 `Host`、`X-Forwarded-Host`、`X-Forwarded-Proto`；应用侧优先读取这些头计算 origin |
 | `.logs/common-error.*.log` 出现 `**Module did not self-register`**（`better_sqlite3.node`） | **原生模块与当前系统/Node 不一致**：例如在 macOS/Windows 上装好 `node_modules` 再整包拷到 Linux，或 ECS 上 Node 版本与编译时不一致 | 见下文 **6.1**                                   |
 
 
