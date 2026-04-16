@@ -17,6 +17,7 @@ import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,7 @@ function parseLimit(raw: string | null): number | null {
 /**
  * GET /api/chat/conversations — 分页列出当前用户会话（updatedAt DESC）
  */
-export async function GET(req: Request) {
+export const GET = withApiWrapper(async (req: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -160,7 +161,7 @@ export async function GET(req: Request) {
     { items, nextCursor },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 type PostBody = { title?: string | null; assistantId?: string | null };
 
@@ -178,7 +179,7 @@ function parseAssistantId(raw: unknown): string | undefined {
 /**
  * POST /api/chat/conversations — 创建会话（可选绑定助手并注入首条开场消息）
  */
-export async function POST(req: Request) {
+export const POST = withApiWrapper(async (req: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -297,4 +298,4 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
   );
-}
+});

@@ -8,6 +8,7 @@ import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ type RouteParams = { params: Promise<{ conversationId: string }> };
 /**
  * GET /api/chat/conversations/:conversationId — 会话详情
  */
-export async function GET(_req: Request, ctx: RouteParams) {
+export const GET = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -67,12 +68,12 @@ export async function GET(_req: Request, ctx: RouteParams) {
     },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * DELETE /api/chat/conversations/:conversationId — 删除整条会话及其消息
  */
-export async function DELETE(_req: Request, ctx: RouteParams) {
+export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -95,4 +96,4 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     { deleted: true, id: conv.id },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});

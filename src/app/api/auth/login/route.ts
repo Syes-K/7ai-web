@@ -13,6 +13,7 @@ import {
 import { toPublicUser } from "@/server/auth/user-dto";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -22,7 +23,7 @@ const GENERIC_LOGIN_FAIL = "邮箱或密码错误，请检查后重试";
 /**
  * POST /api/auth/login
  */
-export async function POST(req: Request) {
+export const POST = withApiWrapper(async (req: Request) => {
   const ip = clientIp(req);
 
   if (!allowRate(`login:${ip}`, 30, 60_000)) {
@@ -139,4 +140,4 @@ export async function POST(req: Request) {
       },
     },
   );
-}
+});

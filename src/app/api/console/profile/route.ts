@@ -3,13 +3,14 @@ import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { getConsoleProfileResponse } from "@/server/console-profile/get-console-profile";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
 /**
  * GET：聚合个人信息与默认模型偏好（供 /console/profile）。
  */
-export async function GET() {
+export const GET = withApiWrapper(async () => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -24,4 +25,4 @@ export async function GET() {
   } catch {
     return jsonError(ErrorCode.INTERNAL_ERROR, "加载失败", HttpStatus.INTERNAL_SERVER_ERROR);
   }
-}
+});

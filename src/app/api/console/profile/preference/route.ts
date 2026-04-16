@@ -6,6 +6,7 @@ import { getConsoleProfileResponse } from "@/server/console-profile/get-console-
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -48,7 +49,7 @@ async function applyModelPrefPointer(
 /**
  * PATCH：设置对话模型 / 向量模型默认偏好指针（可清空）；可只更新其中一项。
  */
-export async function PATCH(request: Request) {
+export const PATCH = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -108,4 +109,4 @@ export async function PATCH(request: Request) {
     { preference: payload.preference },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});

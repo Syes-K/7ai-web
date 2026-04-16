@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { userToAdminRow } from "@/server/user-admin/map-to-dto";
@@ -33,7 +34,7 @@ function parsePageSize(s: string | null): number | null {
 /**
  * GET：分页用户列表，可选关键字 `q`（匹配 email / nickName）。
  */
-export const GET = withAdminApi(async (_admin, request, _ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin, request, _ctx) => {
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), 1);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));

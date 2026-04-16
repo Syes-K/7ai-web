@@ -9,6 +9,7 @@ import {
 import { ErrorCode, HttpStatus, ModelConfigVisibility } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { UserModelConfig } from "@/server/db/entities/UserModelConfig";
@@ -52,7 +53,7 @@ type PostBody = {
 /**
  * GET：分页列出公有模型配置（管理后台）。
  */
-export const GET = withAdminApi(async (_admin, request, _ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin, request, _ctx) => {
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), CONSOLE_MODEL_LIST_DEFAULT_PAGE);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));
@@ -88,7 +89,7 @@ export const GET = withAdminApi(async (_admin, request, _ctx) => {
 /**
  * POST：新建公有模型（全站可选用；归属当前管理员 userId 便于审计）。
  */
-export const POST = withAdminApi(async (admin: User, request, _ctx) => {
+export const POST = withApiWrapper([withAdminApi], async (admin: User, request, _ctx) => {
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;

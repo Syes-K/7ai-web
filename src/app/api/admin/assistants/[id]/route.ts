@@ -9,6 +9,7 @@ import {
 import { AssistantScope, ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { assistantToListItem } from "@/server/assistant/assistant-dto";
 import {
   normalizeStoredAssistantTags,
@@ -38,7 +39,7 @@ async function findSystemById(id: string): Promise<Assistant | null> {
 /**
  * GET：系统助手详情。
  */
-export const GET = withAdminApi(async (_admin: User, _request: NextRequest, ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin: User, _request: NextRequest, ctx) => {
   const { id } = await ctx.params;
   const sid = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
   if (!sid) {
@@ -63,7 +64,7 @@ export const GET = withAdminApi(async (_admin: User, _request: NextRequest, ctx)
 /**
  * PATCH：更新系统助手。
  */
-export const PATCH = withAdminApi(async (_admin: User, request: NextRequest, ctx) => {
+export const PATCH = withApiWrapper([withAdminApi], async (_admin: User, request: NextRequest, ctx) => {
   const { id } = await ctx.params;
   const sid = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
   if (!sid) {
@@ -195,7 +196,7 @@ export const PATCH = withAdminApi(async (_admin: User, request: NextRequest, ctx
 /**
  * DELETE：删除系统助手。
  */
-export const DELETE = withAdminApi(async (_admin: User, _request: NextRequest, ctx) => {
+export const DELETE = withApiWrapper([withAdminApi], async (_admin: User, _request: NextRequest, ctx) => {
   const { id } = await ctx.params;
   const sid = typeof id === "string" ? id : Array.isArray(id) ? id[0] : "";
   if (!sid) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus, UserStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { userToAdminRow } from "@/server/user-admin/map-to-dto";
@@ -20,7 +21,7 @@ type PatchBody = {
 /**
  * PATCH：变更用户 status（启用/停用）。
  */
-export const PATCH = withAdminApi(async (admin, request, ctx) => {
+export const PATCH = withApiWrapper([withAdminApi], async (admin, request, ctx) => {
   const { id } = await ctx.params;
   const userId = Array.isArray(id) ? id[0] : id;
   if (!userId || typeof userId !== "string") {

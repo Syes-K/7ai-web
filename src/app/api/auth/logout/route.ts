@@ -4,6 +4,7 @@ import {
   clearSessionCookieHeader,
   destroySession,
 } from "@/server/auth/session-lifecycle";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
 /**
  * POST /api/auth/logout
  */
-export async function POST() {
+export const POST = withApiWrapper(async () => {
   const cookieStore = await cookies();
   const sid = cookieStore.get(SESSION_COOKIE)?.value;
   await destroySession(sid);
@@ -26,4 +27,4 @@ export async function POST() {
       },
     },
   );
-}
+});

@@ -5,6 +5,7 @@ import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ type PatchBody = {
 /**
  * PATCH：更新昵称、手机号；禁止修改邮箱。
  */
-export async function PATCH(request: Request) {
+export const PATCH = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -115,4 +116,4 @@ export async function PATCH(request: Request) {
     },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});

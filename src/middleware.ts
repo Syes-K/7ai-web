@@ -10,7 +10,6 @@ import {
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { allowRate, clientIp } from "@/common/utils/rate-limit";
 import { jsonError } from "@/server/http/json-response";
-import { logger } from "@/server/logs";
 
 const AUTH_API_PREFIX = "/api/auth/";
 
@@ -18,17 +17,7 @@ const AUTH_API_PREFIX = "/api/auth/";
  * 无会话 Cookie 时拦截受保护路由（完整校验在页面/API 层）。
  */
 export function middleware(request: NextRequest) {
-  const { pathname, search, origin, searchParams } = request.nextUrl;
-  const timestamp = Date.now();
-  logger.info("request.start", {
-    datetime: timestamp,
-    pathname: request.nextUrl.pathname,
-    search: request.nextUrl.search,
-    session: request.cookies.get(SESSION_COOKIE)?.value,
-    redirect: request.nextUrl.pathname.startsWith("/login"),
-    origin,
-    params: searchParams.toString(),
-  });
+  const { pathname, search } = request.nextUrl;
 
   let res: any;
 
@@ -85,16 +74,6 @@ export function middleware(request: NextRequest) {
   }
 
   res = NextResponse.next();
-  logger.info("request.end", {
-    datetime: Date.now(),
-    pathname: request.nextUrl.pathname,
-    search: request.nextUrl.search,
-    session: request.cookies.get(SESSION_COOKIE)?.value,
-    redirect: request.nextUrl.pathname.startsWith("/login"),
-    origin,
-    params: searchParams.toString(),
-    response: res,
-  });
   return res;
 }
 

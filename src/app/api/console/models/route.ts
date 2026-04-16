@@ -17,6 +17,7 @@ import { parseModelProvider } from "@/server/model-config/parse-provider";
 import { createUserModelConfigRow } from "@/server/model-config/create-model-config";
 import { parseModelConfigTags } from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -45,7 +46,7 @@ function parsePageSize(s: string | null): number | null {
 /**
  * GET：分页列出当前用户的模型配置。
  */
-export async function GET(request: Request) {
+export const GET = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
     { items, total, page, pageSize },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 type PostBody = {
   provider?: unknown;
@@ -100,7 +101,7 @@ type PostBody = {
 /**
  * POST：新建模型配置。
  */
-export async function POST(request: Request) {
+export const POST = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -208,4 +209,4 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
   );
-}
+});

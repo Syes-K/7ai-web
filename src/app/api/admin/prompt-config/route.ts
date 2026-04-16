@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import {
   getAuthoritativePromptKeys,
   mergePromptConfigFromFile,
@@ -22,7 +23,7 @@ export const runtime = "nodejs";
  * PUT：整表保存各 key 的 value，name/desc 取保存前合并结果，写回 `data/promptConfig.json`。
  */
 
-export const GET = withAdminApi(async (_user, _request, _ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_user, _request, _ctx) => {
   let raw: string | null;
   try {
     const r = await readPromptConfigFile();
@@ -58,7 +59,7 @@ type PutBody = {
   items?: unknown;
 };
 
-export const PUT = withAdminApi(async (_user, request, _ctx) => {
+export const PUT = withApiWrapper([withAdminApi], async (_user, request, _ctx) => {
   let body: PutBody;
   try {
     body = (await request.json()) as PutBody;

@@ -1,48 +1,11 @@
-export type LogMessage = {
-    event: string;
-    type: "info" | "error" | "warn" | "debug";
-    datetime: number;
-} & Record<string, unknown>;
+import { appendLogFileLine } from "./log-file-append";
+import { createLogger, type LogMessage } from "./log-handlers-base";
 
-export const logger = {
-    info: (event: string, message: Record<string, unknown>) => {
-        const logMessage: LogMessage = {
-            event,
-            type: "info",
-            datetime: Date.now(),
-            ...message,
-        };
-        loggerMessage(logMessage);
-    },
-    error: (event: string, message: Record<string, unknown>) => {
-        const logMessage: LogMessage = {
-            event,
-            type: "error",
-            datetime: Date.now(),
-            ...message,
-        };
-        loggerMessage(logMessage);
-    },
-    warn: (event: string, message: Record<string, unknown>) => {
-        const logMessage: LogMessage = {
-            event,
-            type: "warn",
-            datetime: Date.now(),
-            ...message,
-        };
-        loggerMessage(logMessage);
-    },
-    debug: (event: string, message: Record<string, unknown>) => {
-        const logMessage: LogMessage = {
-            event,
-            type: "debug",
-            datetime: Date.now(),
-            ...message,
-        };
-        loggerMessage(logMessage);
-    },
-}
+export type { LogMessage };
 
-function loggerMessage(message: LogMessage) {
-    console.log(`[${message.event}] =>${JSON.stringify(message)}`);
-}
+export const logger = createLogger((line) => {
+    console.log(line);
+    void appendLogFileLine(line).catch((err: unknown) => {
+        console.error("[logger] write file failed:", err);
+    });
+});

@@ -16,6 +16,7 @@ import {
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -30,10 +31,10 @@ type PatchBody = {
 /**
  * GET：单条详情（系统助手或本人个人助手）。
  */
-export async function GET(
+export const GET = withApiWrapper(async (
   _request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -59,15 +60,15 @@ export async function GET(
     { item: assistantToListItem(row) },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * PATCH：仅本人个人助手。
  */
-export async function PATCH(
+export const PATCH = withApiWrapper(async (
   request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -201,15 +202,15 @@ export async function PATCH(
     { item: assistantToListItem(row) },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * DELETE：仅本人个人助手。
  */
-export async function DELETE(
+export const DELETE = withApiWrapper(async (
   _request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -237,4 +238,4 @@ export async function DELETE(
   await repo.remove(row);
 
   return new NextResponse(null, { status: HttpStatus.NO_CONTENT });
-}
+});

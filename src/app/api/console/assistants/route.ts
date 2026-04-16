@@ -18,6 +18,7 @@ import {
 } from "@/server/assistant/parse-assistant-tags";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -65,7 +66,7 @@ type PostBody = {
 /**
  * GET：分页列出系统助手与当前用户个人助手。
  */
-export async function GET(request: Request) {
+export const GET = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -134,12 +135,12 @@ export async function GET(request: Request) {
     { items, total, page, pageSize },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * POST：新建个人助手。
  */
-export async function POST(request: Request) {
+export const POST = withApiWrapper(async (request: Request) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -271,4 +272,4 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
   );
-}
+});

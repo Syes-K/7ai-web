@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { hashPassword } from "@/server/auth/password";
@@ -19,7 +20,7 @@ function generateTemporaryPassword(): string {
 /**
  * POST：重置目标用户密码（方案 A：仅本响应返回明文临时密码）。
  */
-export const POST = withAdminApi(async (admin, request, ctx) => {
+export const POST = withApiWrapper([withAdminApi], async (admin, request, ctx) => {
   const ip = clientIp(request);
   if (!allowRate(`admin-reset-password:${ip}`, 30, 60_000)) {
     return jsonError(

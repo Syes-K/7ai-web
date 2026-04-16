@@ -12,6 +12,7 @@ import {
 } from "@/common/utils";
 import { CAPTCHA_TTL_MS } from "@/common/constants";
 import { jsonError } from "@/server/http/json-response";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export const runtime = "nodejs";
 /**
  * GET /api/auth/captcha — 签发图形验证码（JSON + Base64 SVG）
  */
-export async function GET(req: Request) {
+export const GET = withApiWrapper(async (req: Request) => {
   if (!allowRate(`captcha:${clientIp(req)}`, 60, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
@@ -49,4 +50,4 @@ export async function GET(req: Request) {
     { captchaId, imageBase64 },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});

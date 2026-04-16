@@ -17,6 +17,7 @@ import { verifyCaptchaChallenge } from "@/server/auth/verify-captcha";
 import { toPublicUser } from "@/server/auth/user-dto";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export const runtime = "nodejs";
 /**
  * POST /api/auth/register
  */
-export async function POST(req: Request) {
+export const POST = withApiWrapper(async (req: Request) => {
   if (!allowRate(`register:${clientIp(req)}`, 20, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
@@ -159,4 +160,4 @@ export async function POST(req: Request) {
       },
     },
   );
-}
+});

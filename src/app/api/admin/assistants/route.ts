@@ -12,6 +12,7 @@ import {
 import { AssistantScope, ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { createAssistantRow } from "@/server/assistant/create-assistant";
 import { assistantToListItem } from "@/server/assistant/assistant-dto";
 import { parseAssistantTags } from "@/server/assistant/parse-assistant-tags";
@@ -54,7 +55,7 @@ type PostBody = {
 /**
  * GET：分页列出系统助手。
  */
-export const GET = withAdminApi(async (_admin: User, request: NextRequest, _ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin: User, request: NextRequest, _ctx) => {
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), CONSOLE_ASSISTANT_LIST_DEFAULT_PAGE);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));
@@ -97,7 +98,7 @@ export const GET = withAdminApi(async (_admin: User, request: NextRequest, _ctx)
 /**
  * POST：新建系统助手。
  */
-export const POST = withAdminApi(async (_admin: User, request: NextRequest, _ctx) => {
+export const POST = withApiWrapper([withAdminApi], async (_admin: User, request: NextRequest, _ctx) => {
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;

@@ -11,6 +11,7 @@ import {
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import type { ConversationSummaryConfig } from "@/common/types";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { mergeConversationSummaryConfigFromFile } from "@/server/conversation-summary-config/merge";
 import {
@@ -20,7 +21,7 @@ import {
 
 export const runtime = "nodejs";
 
-export const GET = withAdminApi(async () => {
+export const GET = withApiWrapper([withAdminApi], async () => {
   let raw: string | null;
   try {
     const r = await readConversationSummaryConfigFile();
@@ -271,7 +272,7 @@ function validateConfig(input: unknown): { ok: true; value: ConversationSummaryC
   };
 }
 
-export const PUT = withAdminApi(async (_user, request) => {
+export const PUT = withApiWrapper([withAdminApi], async (_user, request) => {
   let body: PutBody;
   try {
     body = (await request.json()) as PutBody;

@@ -3,6 +3,7 @@ import { CONSOLE_MODEL_NAME_MAX_LENGTH, type ModelConfigTag } from "@/common/con
 import { ErrorCode, HttpStatus, ModelConfigVisibility } from "@/common/enums";
 import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { withAdminApi } from "@/server/auth/with-admin-api";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { UserModelConfig } from "@/server/db/entities/UserModelConfig";
@@ -33,7 +34,7 @@ async function findPublicById(id: string): Promise<UserModelConfig | null> {
 /**
  * GET：公有模型详情。
  */
-export const GET = withAdminApi(async (_admin, _request, ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin, _request, ctx) => {
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
     return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
@@ -56,7 +57,7 @@ export const GET = withAdminApi(async (_admin, _request, ctx) => {
 /**
  * PATCH：更新公有模型。
  */
-export const PATCH = withAdminApi(async (_admin, request, ctx) => {
+export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx) => {
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
     return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
@@ -171,7 +172,7 @@ export const PATCH = withAdminApi(async (_admin, request, ctx) => {
 /**
  * DELETE：删除公有模型，并清空全站用户对该 id 的偏好指针。
  */
-export const DELETE = withAdminApi(async (_admin, _request, ctx) => {
+export const DELETE = withApiWrapper([withAdminApi], async (_admin, _request, ctx) => {
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
     return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);

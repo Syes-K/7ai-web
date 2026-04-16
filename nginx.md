@@ -68,7 +68,7 @@ nginx -t && systemctl reload nginx
 ```nginx
 server {
     listen 80;
-    server_name 7ai.club www.7ai.culb;
+    server_name 7ai.club www.7ai.club;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -97,7 +97,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name 7ai.club www.7ai.culb;
+    server_name 7ai.club www.7ai.club;
 
     ssl_certificate     /etc/pki/nginx/fullchain.pem;
     ssl_certificate_key /etc/pki/nginx/privkey.pem;

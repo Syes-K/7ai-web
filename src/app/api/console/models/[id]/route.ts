@@ -14,6 +14,7 @@ import {
   parseModelConfigTags,
 } from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -27,10 +28,10 @@ type PatchBody = {
 /**
  * GET：单条详情（仅掩码密钥）；含本人私有与全站公有。
  */
-export async function GET(
+export const GET = withApiWrapper(async (
   _request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -55,15 +56,15 @@ export async function GET(
   return NextResponse.json(userModelConfigToListItem(row), {
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
-}
+});
 
 /**
  * PATCH：部分更新；`apiKey` 省略或 trim 后为空表示不修改密钥。
  */
-export async function PATCH(
+export const PATCH = withApiWrapper(async (
   request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -180,15 +181,15 @@ export async function PATCH(
     { item: userModelConfigToListItem(row) },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * DELETE：物理删除当前用户名下配置。
  */
-export async function DELETE(
+export const DELETE = withApiWrapper(async (
   _request: Request,
   context: { params: Promise<{ id: string }> },
-) {
+) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -225,4 +226,4 @@ export async function DELETE(
   });
 
   return new NextResponse(null, { status: HttpStatus.NO_CONTENT });
-}
+});

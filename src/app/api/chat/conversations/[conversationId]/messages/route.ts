@@ -17,6 +17,7 @@ import { findOwnedConversation } from "@/server/chat/conversation-access";
 import { getDataSource } from "@/server/db/data-source";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
+import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,7 @@ async function nextSortOrder(ds: DataSource, conversationId: string): Promise<nu
 /**
  * GET /api/chat/conversations/:conversationId/messages
  */
-export async function GET(req: Request, ctx: RouteParams) {
+export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -118,14 +119,14 @@ export async function GET(req: Request, ctx: RouteParams) {
     { items, nextCursor },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 type PostBody = { content?: unknown; stream?: unknown };
 
 /**
  * POST /api/chat/conversations/:conversationId/messages
  */
-export async function POST(req: Request, ctx: RouteParams) {
+export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -365,12 +366,12 @@ export async function POST(req: Request, ctx: RouteParams) {
     },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
 
 /**
  * DELETE /api/chat/conversations/:conversationId/messages — 清空该会话下全部消息
  */
-export async function DELETE(_req: Request, ctx: RouteParams) {
+export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
     return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
@@ -420,4 +421,4 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     },
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
-}
+});
