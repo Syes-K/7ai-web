@@ -67,6 +67,26 @@ export const ASSISTANT_TAG_MAX_LENGTH = 32;
 /** 单条助手最多 tag 数 */
 export const ASSISTANT_TAGS_MAX_COUNT = 20;
 
+/** 知识库名称最大长度 */
+export const KNOWLEDGE_BASE_NAME_MAX_LENGTH = 64;
+/** 知识库描述最大长度 */
+export const KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH = 500;
+/** 单个知识库 tag 最大长度 */
+export const KNOWLEDGE_BASE_TAG_MAX_LENGTH = 20;
+/** 单条知识库最多 tag 数 */
+export const KNOWLEDGE_BASE_TAGS_MAX_COUNT = 20;
+/** 单条知识库正文最大长度（按 Unicode 码点计） */
+export const KNOWLEDGE_BASE_CONTENT_MAX_LENGTH = 50_000;
+
+/** 检索默认 topK */
+export const KNOWLEDGE_BASE_SEARCH_TOPK_DEFAULT = 3;
+/** 检索默认阈值 */
+export const KNOWLEDGE_BASE_SEARCH_THRESHOLD_DEFAULT = 0.75;
+/** 分片默认 chunkSize */
+export const KNOWLEDGE_BASE_CHUNK_SIZE_DEFAULT = 1000;
+/** 分片默认 chunkOverlap */
+export const KNOWLEDGE_BASE_CHUNK_OVERLAP_DEFAULT = 200;
+
 /** 控制台模型列表默认页码 */
 export const CONSOLE_MODEL_LIST_DEFAULT_PAGE = 1;
 /** 控制台模型列表默认每页条数（与管理端用户列表对齐） */

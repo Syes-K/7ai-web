@@ -3,6 +3,7 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  StarFilled,
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
@@ -22,7 +23,7 @@ import {
   Tooltip,
 } from "antd";
 import dayjs from "dayjs";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE,
   MODEL_CONFIG_TAG_OPTIONS,
@@ -57,6 +58,33 @@ export default function ConsoleModelsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toolbarLoading, setToolbarLoading] = useState(false);
+  const [prefLoadingId, setPrefLoadingId] = useState<string | null>(null);
+  const [preferredVectorModelConfigId, setPreferredVectorModelConfigId] = useState<
+    string | null
+  >(null);
+
+  const loadVectorPreference = useCallback(async () => {
+    try {
+      const res = await fetch("/api/console/profile", { credentials: "include" });
+      if (res.status === 401) {
+        window.location.href = "/login?redirect=" + encodeURIComponent("/console/models");
+        return;
+      }
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        preference?: { preferredVectorModelConfigId?: string | null };
+      };
+      setPreferredVectorModelConfigId(
+        data?.preference?.preferredVectorModelConfigId ?? null,
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadVectorPreference();
+  }, [loadVectorPreference]);
 
   const openCreate = useCallback(() => {
     setModalMode("create");
@@ -186,7 +214,36 @@ export default function ConsoleModelsPage() {
     void actionRef.current?.reload?.().finally(() => {
       setToolbarLoading(false);
     });
-  }, []);
+    void loadVectorPreference();
+  }, [loadVectorPreference]);
+
+  const setVectorPreferred = useCallback(
+    async (row: ModelConfigListItem) => {
+      setPrefLoadingId(row.id);
+      try {
+        const res = await fetch("/api/console/profile/preference", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ preferredVectorModelConfigId: row.id }),
+        });
+        if (res.status === 401) {
+          window.location.href =
+            "/login?redirect=" + encodeURIComponent("/console/models");
+          return;
+        }
+        if (!res.ok) {
+          message.error(await parseApiError(res));
+          return;
+        }
+        setPreferredVectorModelConfigId(row.id);
+        message.success("已设为向量默认模型");
+      } finally {
+        setPrefLoadingId(null);
+      }
+    },
+    [message],
+  );
 
   const columns: ProColumns<ModelConfigListItem>[] = useMemo(
     () => [
@@ -260,15 +317,45 @@ export default function ConsoleModelsPage() {
         ),
       },
       {
+        title: "向量默认",
+        dataIndex: "vectorPreferred",
+        width: 120,
+        render: (_, row) =>
+          preferredVectorModelConfigId === row.id ? (
+            <Tag color="gold" icon={<StarFilled />}>
+              向量默认
+            </Tag>
+          ) : (
+            <span className="text-white/35">—</span>
+          ),
+      },
+      {
         title: "操作",
         valueType: "option",
-        width: 160,
+        width: 260,
         fixed: "right",
         render: (_, row) => {
           const busy = deletingId === row.id;
           const isPublic = row.visibility === "public";
+          const isVectorPreferred = preferredVectorModelConfigId === row.id;
+          const isEmbeddingCapable = row.tags.includes("嵌入");
           return (
             <Space size="small">
+              <Tooltip title={!isEmbeddingCapable ? "仅支持带“嵌入”标签的模型" : undefined}>
+                <span className={!isEmbeddingCapable ? "inline-block" : undefined}>
+                  <Button
+                    type="link"
+                    size="small"
+                    className="px-0"
+                    icon={<StarFilled />}
+                    loading={prefLoadingId === row.id}
+                    disabled={isVectorPreferred || !isEmbeddingCapable}
+                    onClick={() => void setVectorPreferred(row)}
+                  >
+                    {isVectorPreferred ? "已设默认" : "设为向量默认"}
+                  </Button>
+                </span>
+              </Tooltip>
               <Button
                 type="link"
                 size="small"
@@ -307,7 +394,14 @@ export default function ConsoleModelsPage() {
         },
       },
     ],
-    [deletingId, handleDelete, openEdit],
+    [
+      deletingId,
+      handleDelete,
+      openEdit,
+      prefLoadingId,
+      preferredVectorModelConfigId,
+      setVectorPreferred,
+    ],
   );
 
   return (

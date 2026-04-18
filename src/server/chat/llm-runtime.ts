@@ -1,5 +1,6 @@
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
+import type { GetModelOptions } from "@/server/llm/model";
 import { getModel, getSummarizationModel } from "@/server/llm/model";
 import { decryptApiKey } from "@/server/model-config/api-key-crypto";
 import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
@@ -7,6 +8,10 @@ import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-c
 type GetChatRuntimeModelOptions = {
   /** 若调用方已通过 {@link getRequestUserContext} 等加载 User，传入可避免重复查库 */
   user?: User | null;
+  /** 默认 0.7；意图识别等子调用可传 0 */
+  temperature?: number;
+  /** 传入则覆盖默认 CHAT 标签（如知识库意图子调用 `KB_INTENT`） */
+  tags?: string[];
 };
 
 /**
@@ -14,6 +19,12 @@ type GetChatRuntimeModelOptions = {
  * 未选择、记录不存在或解密失败时回退到环境变量 `CHAT_LLM_*`（含 `CHAT_LLM_API_KEY`）。
  */
 export async function getChatRuntimeModel(userId: string, options?: GetChatRuntimeModelOptions) {
+  const temperature = options?.temperature ?? 0.7;
+  const baseModelOpts = (): Pick<GetModelOptions, "temperature" | "tags"> => ({
+    temperature,
+    ...(options?.tags != null && options.tags.length > 0 ? { tags: options.tags } : {}),
+  });
+
   const ds = await getDataSource();
   const user =
     options?.user && options.user.id === userId
@@ -21,12 +32,12 @@ export async function getChatRuntimeModel(userId: string, options?: GetChatRunti
       : await ds.getRepository(User).findOne({ where: { id: userId } });
   const prefId = user?.preferredModelConfigId ?? null;
   if (!prefId) {
-    return getModel({ temperature: 0.7 });
+    return getModel(baseModelOpts());
   }
 
   const cfg = await findModelConfigUsableByUser(ds, prefId, userId);
   if (!cfg) {
-    return getModel({ temperature: 0.7 });
+    return getModel(baseModelOpts());
   }
 
   try {
@@ -34,12 +45,12 @@ export async function getChatRuntimeModel(userId: string, options?: GetChatRunti
     return getModel({
       model: cfg.modelName,
       provider: cfg.provider,
-      temperature: 0.7,
       apiKey: plainKey,
+      ...baseModelOpts(),
     });
   } catch {
     // 解密失败、provider 非法等与「用户配置」相关的错误均回退系统默认
-    return getModel({ temperature: 0.7 });
+    return getModel(baseModelOpts());
   }
 }
 

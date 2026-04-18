@@ -10,6 +10,8 @@ dist/
 # Env & local data
 .env
 .env.*
+!.env.example
+
 *.db
 *.sqlite
 *.sqlite3

@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:host": "next dev --hostname 127.0.0.1 --port 3000",
+    "dev:poll": "WATCHPACK_POLLING=true next dev --hostname 127.0.0.1 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -14,6 +16,7 @@
     "@ant-design/pro-components": "^2.8.10",
     "@langchain/langgraph": "^1.2.8",
     "@langchain/openai": "^1.4.4",
+    "@langchain/textsplitters": "^1.0.1",
     "antd": "^5.29.3",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.8.1",

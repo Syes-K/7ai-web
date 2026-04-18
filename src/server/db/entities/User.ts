@@ -37,6 +37,22 @@ export class User {
   @Column({ type: "varchar", length: 36, nullable: true })
   preferredVectorModelConfigId!: string | null;
 
+  /** 知识库检索默认 topK（未设置时回退到系统默认值） */
+  @Column({ type: "int", nullable: true })
+  preferredKnowledgeTopK!: number | null;
+
+  /** 知识库检索默认阈值（未设置时回退到系统默认值） */
+  @Column({ type: "float", nullable: true })
+  preferredKnowledgeThreshold!: number | null;
+
+  /** 知识库分片默认 chunkSize（未设置时回退到系统默认值） */
+  @Column({ type: "int", nullable: true })
+  preferredKnowledgeChunkSize!: number | null;
+
+  /** 知识库分片默认 chunkOverlap（未设置时回退到系统默认值） */
+  @Column({ type: "int", nullable: true })
+  preferredKnowledgeChunkOverlap!: number | null;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

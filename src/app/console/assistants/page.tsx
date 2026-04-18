@@ -13,6 +13,7 @@ import {
   App,
   Alert,
   Button,
+  Divider,
   Form,
   Input,
   Modal,
@@ -34,6 +35,7 @@ import {
 import type { AssistantListItem } from "@/common/types";
 
 const API_BASE = "/api/console/assistants";
+const KB_API_BASE = "/api/knowledge-bases";
 
 async function parseApiError(res: Response): Promise<string> {
   const j = (await res.json().catch(() => null)) as {
@@ -53,6 +55,7 @@ export default function ConsoleAssistantsPage() {
     icon?: string;
     openingMessage?: string;
     tags?: string[];
+    knowledgeBaseIds?: string[];
   }>();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,6 +64,10 @@ export default function ConsoleAssistantsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toolbarLoading, setToolbarLoading] = useState(false);
+  const [kbOptions, setKbOptions] = useState<{ label: string; value: string }[]>(
+    [],
+  );
+  const [kbLoading, setKbLoading] = useState(false);
 
   const [keyword, setKeyword] = useState("");
   const [keywordDraft, setKeywordDraft] = useState("");
@@ -68,13 +75,62 @@ export default function ConsoleAssistantsPage() {
     "all",
   );
 
+  const loadKnowledgeBaseOptions = useCallback(async () => {
+    setKbLoading(true);
+    try {
+      const res = await fetch(KB_API_BASE, { credentials: "include" });
+      if (res.status === 401) {
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent("/console/assistants");
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res));
+        return;
+      }
+      const data = (await res.json()) as {
+        items: Array<{ id: string; name: string }>;
+      };
+      setKbOptions(
+        (data.items ?? []).map((i) => ({ label: i.name, value: i.id })),
+      );
+    } finally {
+      setKbLoading(false);
+    }
+  }, [message]);
+
   const openCreate = useCallback(() => {
     setModalMode("create");
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ tags: [] });
+    form.setFieldsValue({ tags: [], knowledgeBaseIds: [] });
     setModalOpen(true);
-  }, [form]);
+    void loadKnowledgeBaseOptions();
+  }, [form, loadKnowledgeBaseOptions]);
+
+  const loadAssistantKnowledgeBases = useCallback(
+    async (assistantId: string) => {
+      const res = await fetch(`${API_BASE}/${assistantId}/knowledge-bases`, {
+        credentials: "include",
+      });
+      if (res.status === 401) {
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent("/console/assistants");
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res));
+        return;
+      }
+      const data = (await res.json()) as { knowledgeBaseIds: string[] };
+      form.setFieldsValue({
+        knowledgeBaseIds: Array.isArray(data.knowledgeBaseIds)
+          ? data.knowledgeBaseIds
+          : [],
+      });
+    },
+    [form, message],
+  );
 
   const openEdit = useCallback(
     (row: AssistantListItem) => {
@@ -86,10 +142,14 @@ export default function ConsoleAssistantsPage() {
         icon: row.icon ?? "",
         openingMessage: row.openingMessage ?? "",
         tags: row.tags?.length ? [...row.tags] : [],
+        knowledgeBaseIds: [],
       });
       setModalOpen(true);
+      // 仅个人助手支持配置
+      void loadKnowledgeBaseOptions();
+      void loadAssistantKnowledgeBases(row.id);
     },
-    [form],
+    [form, loadAssistantKnowledgeBases, loadKnowledgeBaseOptions],
   );
 
   const openView = useCallback(
@@ -128,6 +188,9 @@ export default function ConsoleAssistantsPage() {
     setSubmitting(true);
     try {
       const tags = Array.isArray(v.tags) ? v.tags : [];
+      const knowledgeBaseIds = Array.isArray(v.knowledgeBaseIds)
+        ? v.knowledgeBaseIds
+        : [];
       const iconTrim = (v.icon ?? "").trim();
       const openingTrim = (v.openingMessage ?? "").trim();
       const payload = {
@@ -154,6 +217,19 @@ export default function ConsoleAssistantsPage() {
           message.error(await parseApiError(res));
           return;
         }
+        const data = (await res.json()) as { item?: { id?: string } };
+        const assistantId = data?.item?.id;
+        if (assistantId && knowledgeBaseIds.length > 0) {
+          const relRes = await fetch(`${API_BASE}/${assistantId}/knowledge-bases`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ knowledgeBaseIds }),
+          });
+          if (!relRes.ok) {
+            message.warning("助手已创建，但知识库绑定保存失败");
+          }
+        }
         message.success("已创建");
         closeModal();
         await actionRef.current?.reload?.();
@@ -175,6 +251,16 @@ export default function ConsoleAssistantsPage() {
       if (!res.ok) {
         message.error(await parseApiError(res));
         return;
+      }
+      // 保存知识库绑定（仅个人助手有该配置）
+      const relRes = await fetch(`${API_BASE}/${editing.id}/knowledge-bases`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ knowledgeBaseIds }),
+      });
+      if (!relRes.ok) {
+        message.warning("助手已保存，但知识库绑定保存失败");
       }
       message.success("已保存");
       closeModal();
@@ -558,6 +644,28 @@ export default function ConsoleAssistantsPage() {
             <Form.Item name="tags" label="标签">
               <Select mode="tags" placeholder="输入后回车添加" style={{ width: "100%" }} />
             </Form.Item>
+
+            {modalMode !== "view" ? (
+              <>
+                <Divider className="my-3" />
+                <Form.Item
+                  name="knowledgeBaseIds"
+                  label="知识库（多选）"
+                  extra="为该助手配置可用知识库；对话时将按需检索这些知识库。"
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="请选择知识库"
+                    loading={kbLoading}
+                    options={kbOptions}
+                    optionFilterProp="label"
+                    showSearch
+                    maxTagCount="responsive"
+                  />
+                </Form.Item>
+              </>
+            ) : null}
           </Form>
         </Modal>
       </div>

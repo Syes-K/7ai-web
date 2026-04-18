@@ -9,6 +9,9 @@ import { Session } from "./entities/Session";
 import { User } from "./entities/User";
 import { Assistant } from "./entities/Assistant";
 import { UserModelConfig } from "./entities/UserModelConfig";
+import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
+import { KnowledgeBaseVectorChunk } from "@/server/db/entities/KnowledgeBaseVectorChunk";
+import { AssistantKnowledgeBase } from "@/server/db/entities/AssistantKnowledgeBase";
 
 let dataSource: DataSource | null = null;
 
@@ -36,6 +39,9 @@ export async function getDataSource(): Promise<DataSource> {
       Message,
       UserModelConfig,
       Assistant,
+      KnowledgeBase,
+      KnowledgeBaseVectorChunk,
+      AssistantKnowledgeBase,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",

@@ -1,0 +1,11 @@
+/**
+ * 主题样式在 `MarkdownRenderer.tsx` 中引入 `github-dark.min.css`。
+ * 避免 `code.hljs` 与容器 `pre` 背景叠加导致视觉发灰。
+ */
+.markdown-renderer pre code.hljs {
+  display: block;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}

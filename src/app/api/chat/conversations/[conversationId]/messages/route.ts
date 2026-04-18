@@ -14,6 +14,7 @@ import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/serve
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
 import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
 import { findOwnedConversation } from "@/server/chat/conversation-access";
+import { buildKnowledgeInjectionForChat } from "@/server/knowledge-base/injection";
 import { getDataSource } from "@/server/db/data-source";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
@@ -241,6 +242,38 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     historyForModel = history;
     sourceMessagesForModel = history;
     summaryCutoffCandidate = null;
+  }
+
+  // 在调用模型前注入知识库上下文（仅用于模型输入，不落库）
+  try {
+    const inject = await buildKnowledgeInjectionForChat({
+      ds,
+      userId: user.id,
+      assistantId: conv.assistantId,
+      userMessageText: content,
+    });
+    if (inject.systemMessageText) {
+      const injected = {
+        role: MessageRole.System,
+        content: inject.systemMessageText,
+      } as Message;
+      // 放在“可能存在的摘要 System”之后，避免盖过摘要注入
+      const insertAt = historyForModel[0]?.role === MessageRole.System ? 1 : 0;
+      historyForModel = [
+        ...historyForModel.slice(0, insertAt),
+        injected,
+        ...historyForModel.slice(insertAt),
+      ];
+    }
+  } catch (e) {
+    // 注入失败不应影响主对话流程
+    console.error(
+      JSON.stringify({
+        module: "kb.injection",
+        action: "failed",
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
   }
 
   const updateConversationSummary = async (summary: string) => {

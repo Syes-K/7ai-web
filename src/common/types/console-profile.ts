@@ -16,6 +16,14 @@ export type ConsoleProfilePreference = {
   preferredVectorModel: ConsoleProfileModelSummary | null;
   /** 向量偏好指针曾悬空，已在服务端清空 */
   vectorPreferenceStale: boolean;
+  preferredKnowledgeTopK: number | null;
+  preferredKnowledgeThreshold: number | null;
+  preferredKnowledgeChunkSize: number | null;
+  preferredKnowledgeChunkOverlap: number | null;
+  knowledgeTopKEffective: number;
+  knowledgeThresholdEffective: number;
+  knowledgeChunkSizeEffective: number;
+  knowledgeChunkOverlapEffective: number;
 };
 
 export type ConsoleProfileResponse = {

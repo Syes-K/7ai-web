@@ -13,6 +13,10 @@ export const runtime = "nodejs";
 type PatchBody = {
   preferredModelConfigId?: unknown;
   preferredVectorModelConfigId?: unknown;
+  preferredKnowledgeTopK?: unknown;
+  preferredKnowledgeThreshold?: unknown;
+  preferredKnowledgeChunkSize?: unknown;
+  preferredKnowledgeChunkOverlap?: unknown;
 };
 
 async function applyModelPrefPointer(
@@ -65,10 +69,14 @@ export const PATCH = withApiWrapper(async (request: Request) => {
 
   const hasChat = Object.prototype.hasOwnProperty.call(body, "preferredModelConfigId");
   const hasVec = Object.prototype.hasOwnProperty.call(body, "preferredVectorModelConfigId");
-  if (!hasChat && !hasVec) {
+  const hasTopK = Object.prototype.hasOwnProperty.call(body, "preferredKnowledgeTopK");
+  const hasThreshold = Object.prototype.hasOwnProperty.call(body, "preferredKnowledgeThreshold");
+  const hasChunkSize = Object.prototype.hasOwnProperty.call(body, "preferredKnowledgeChunkSize");
+  const hasChunkOverlap = Object.prototype.hasOwnProperty.call(body, "preferredKnowledgeChunkOverlap");
+  if (!hasChat && !hasVec && !hasTopK && !hasThreshold && !hasChunkSize && !hasChunkOverlap) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "至少需要 preferredModelConfigId 或 preferredVectorModelConfigId 之一",
+      "至少需要一个偏好字段",
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -100,6 +108,81 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       row,
     );
     if (err) return err;
+  }
+
+  if (hasTopK) {
+    if (body.preferredKnowledgeTopK === null) {
+      row.preferredKnowledgeTopK = null;
+    } else {
+      const n = typeof body.preferredKnowledgeTopK === "number"
+        ? body.preferredKnowledgeTopK
+        : Number(body.preferredKnowledgeTopK);
+      const v = Number.isFinite(n) ? Math.floor(n) : NaN;
+      if (!Number.isFinite(v) || v < 1 || v > 20) {
+        return jsonError(
+          ErrorCode.VALIDATION_ERROR,
+          "preferredKnowledgeTopK 须为 1-20 的整数或 null",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      row.preferredKnowledgeTopK = v;
+    }
+  }
+
+  if (hasThreshold) {
+    if (body.preferredKnowledgeThreshold === null) {
+      row.preferredKnowledgeThreshold = null;
+    } else {
+      const n = typeof body.preferredKnowledgeThreshold === "number"
+        ? body.preferredKnowledgeThreshold
+        : Number(body.preferredKnowledgeThreshold);
+      if (!Number.isFinite(n) || n < 0 || n > 1) {
+        return jsonError(
+          ErrorCode.VALIDATION_ERROR,
+          "preferredKnowledgeThreshold 须为 0-1 的数字或 null",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      row.preferredKnowledgeThreshold = n;
+    }
+  }
+
+  if (hasChunkSize) {
+    if (body.preferredKnowledgeChunkSize === null) {
+      row.preferredKnowledgeChunkSize = null;
+    } else {
+      const n = typeof body.preferredKnowledgeChunkSize === "number"
+        ? body.preferredKnowledgeChunkSize
+        : Number(body.preferredKnowledgeChunkSize);
+      const v = Number.isFinite(n) ? Math.floor(n) : NaN;
+      if (!Number.isFinite(v) || v < 200 || v > 4000) {
+        return jsonError(
+          ErrorCode.VALIDATION_ERROR,
+          "preferredKnowledgeChunkSize 须为 200-4000 的整数或 null",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      row.preferredKnowledgeChunkSize = v;
+    }
+  }
+
+  if (hasChunkOverlap) {
+    if (body.preferredKnowledgeChunkOverlap === null) {
+      row.preferredKnowledgeChunkOverlap = null;
+    } else {
+      const n = typeof body.preferredKnowledgeChunkOverlap === "number"
+        ? body.preferredKnowledgeChunkOverlap
+        : Number(body.preferredKnowledgeChunkOverlap);
+      const v = Number.isFinite(n) ? Math.floor(n) : NaN;
+      if (!Number.isFinite(v) || v < 0 || v > 1000) {
+        return jsonError(
+          ErrorCode.VALIDATION_ERROR,
+          "preferredKnowledgeChunkOverlap 须为 0-1000 的整数或 null",
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      row.preferredKnowledgeChunkOverlap = v;
+    }
   }
 
   await userRepo.save(row);

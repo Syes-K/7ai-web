@@ -2,6 +2,7 @@
 
 import { EditOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import {
+  ProFormDigit,
   PageContainer,
   ProForm,
   ProFormSelect,
@@ -88,6 +89,10 @@ export default function ConsoleProfilePage() {
   const [prefForm] = ProForm.useForm<{
     preferredModelConfigId?: string;
     preferredVectorModelConfigId?: string;
+    preferredKnowledgeTopK?: number;
+    preferredKnowledgeThreshold?: number;
+    preferredKnowledgeChunkSize?: number;
+    preferredKnowledgeChunkOverlap?: number;
   }>();
 
   const loadAll = useCallback(async () => {
@@ -154,6 +159,10 @@ export default function ConsoleProfilePage() {
       preferredModelConfigId: profile.preference.preferredModelConfigId ?? undefined,
       preferredVectorModelConfigId:
         profile.preference.preferredVectorModelConfigId ?? undefined,
+      preferredKnowledgeTopK: profile.preference.knowledgeTopKEffective,
+      preferredKnowledgeThreshold: profile.preference.knowledgeThresholdEffective,
+      preferredKnowledgeChunkSize: profile.preference.knowledgeChunkSizeEffective,
+      preferredKnowledgeChunkOverlap: profile.preference.knowledgeChunkOverlapEffective,
     });
   }, [profile, prefEditing, prefForm]);
 
@@ -213,6 +222,13 @@ export default function ConsoleProfilePage() {
       preferredModelConfigId: profile.preference.preferredModelConfigId ?? undefined,
       preferredVectorModelConfigId:
         profile.preference.preferredVectorModelConfigId ?? undefined,
+      preferredKnowledgeTopK: profile.preference.preferredKnowledgeTopK ?? undefined,
+      preferredKnowledgeThreshold:
+        profile.preference.preferredKnowledgeThreshold ?? undefined,
+      preferredKnowledgeChunkSize:
+        profile.preference.preferredKnowledgeChunkSize ?? undefined,
+      preferredKnowledgeChunkOverlap:
+        profile.preference.preferredKnowledgeChunkOverlap ?? undefined,
     });
     setPrefEditing(true);
   }, [prefForm, profile]);
@@ -232,6 +248,22 @@ export default function ConsoleProfilePage() {
         body: JSON.stringify({
           preferredModelConfigId: v.preferredModelConfigId ?? null,
           preferredVectorModelConfigId: v.preferredVectorModelConfigId ?? null,
+          preferredKnowledgeTopK:
+            typeof v.preferredKnowledgeTopK === "number"
+              ? Math.floor(v.preferredKnowledgeTopK)
+              : null,
+          preferredKnowledgeThreshold:
+            typeof v.preferredKnowledgeThreshold === "number"
+              ? v.preferredKnowledgeThreshold
+              : null,
+          preferredKnowledgeChunkSize:
+            typeof v.preferredKnowledgeChunkSize === "number"
+              ? Math.floor(v.preferredKnowledgeChunkSize)
+              : null,
+          preferredKnowledgeChunkOverlap:
+            typeof v.preferredKnowledgeChunkOverlap === "number"
+              ? Math.floor(v.preferredKnowledgeChunkOverlap)
+              : null,
         }),
       });
       if (res.status === 401) {
@@ -506,6 +538,54 @@ export default function ConsoleProfilePage() {
                           }
                         : {}),
                     }}
+                  />
+                  <ProFormDigit
+                    name="preferredKnowledgeTopK"
+                    label={formLabelWithHint(
+                      "检索 topK",
+                      "知识库检索每次最多返回的命中条数。留空时使用系统默认值。",
+                      prefEditing,
+                    )}
+                    placeholder={prefEditing ? "留空使用默认值（3）" : undefined}
+                    min={1}
+                    max={20}
+                    fieldProps={{ precision: 0, className: "w-full" }}
+                  />
+                  <ProFormDigit
+                    name="preferredKnowledgeThreshold"
+                    label={formLabelWithHint(
+                      "检索置信度",
+                      "知识库检索命中阈值（0-1）。留空时使用系统默认值。",
+                      prefEditing,
+                    )}
+                    placeholder={prefEditing ? "留空使用默认值（0.75）" : undefined}
+                    min={0}
+                    max={1}
+                    fieldProps={{ precision: 3, step: 0.05, className: "w-full" }}
+                  />
+                  <ProFormDigit
+                    name="preferredKnowledgeChunkSize"
+                    label={formLabelWithHint(
+                      "分片长度",
+                      "知识库向量化分片长度。留空时使用系统默认值。",
+                      prefEditing,
+                    )}
+                    placeholder={prefEditing ? "留空使用默认值（1000）" : undefined}
+                    min={200}
+                    max={4000}
+                    fieldProps={{ precision: 0, className: "w-full" }}
+                  />
+                  <ProFormDigit
+                    name="preferredKnowledgeChunkOverlap"
+                    label={formLabelWithHint(
+                      "重叠长度",
+                      "知识库向量化分片重叠长度。留空时使用系统默认值。",
+                      prefEditing,
+                    )}
+                    placeholder={prefEditing ? "留空使用默认值（200）" : undefined}
+                    min={0}
+                    max={1000}
+                    fieldProps={{ precision: 0, className: "w-full" }}
                   />
                 </ProForm>
               )}

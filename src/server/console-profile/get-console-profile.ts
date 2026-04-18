@@ -2,6 +2,7 @@ import type { ConsoleProfileResponse } from "@/common/types";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
+import { resolveKnowledgePreferenceFromUserRow } from "@/server/knowledge-base/user-preference";
 
 /**
  * 组装控制台「账号与偏好」聚合数据；若偏好指针悬空则清空并标记 preferenceStale。
@@ -56,6 +57,8 @@ export async function getConsoleProfileResponse(userId: string): Promise<Console
     }
   }
 
+  const knowledgePref = resolveKnowledgePreferenceFromUserRow(user);
+
   return {
     profile: {
       email: user.email,
@@ -69,6 +72,14 @@ export async function getConsoleProfileResponse(userId: string): Promise<Console
       preferredVectorModelConfigId: vecId,
       preferredVectorModel,
       vectorPreferenceStale,
+      preferredKnowledgeTopK: user.preferredKnowledgeTopK ?? null,
+      preferredKnowledgeThreshold: user.preferredKnowledgeThreshold ?? null,
+      preferredKnowledgeChunkSize: user.preferredKnowledgeChunkSize ?? null,
+      preferredKnowledgeChunkOverlap: user.preferredKnowledgeChunkOverlap ?? null,
+      knowledgeTopKEffective: knowledgePref.topK,
+      knowledgeThresholdEffective: knowledgePref.threshold,
+      knowledgeChunkSizeEffective: knowledgePref.chunkSize,
+      knowledgeChunkOverlapEffective: knowledgePref.chunkOverlap,
     },
   };
 }
