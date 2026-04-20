@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import { MessageRole } from "@/common/enums";
 import {
@@ -28,10 +28,16 @@ import {
   fetchAssistantsForPicker,
   fetchConversations,
   fetchMessages,
+  fetchTurns,
+  sendMessage,
   sendMessageStream,
   type ConversationListItem,
   type CreatedConversation,
   type MessageRow,
+  type StreamTurnStepDeltaPayload,
+  type TurnInterruptionReason,
+  type TurnSnapshotPayload,
+  type TurnStepStatus,
 } from "./chat-api";
 import { BrandMark } from "@/components/brand/BrandMark";
 import type { AssistantListItem } from "@/common/types";
@@ -119,6 +125,465 @@ function MessageBubble({
 
 type Toast = { type: "ok" | "err"; text: string };
 
+type TurnUiModel = {
+  turnId: string;
+  userMessageId?: string | null;
+  assistantMessageId?: string | null;
+  finalStatus: "completed" | "failed" | "interrupted" | "running";
+  interruptionReason: TurnInterruptionReason | null;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number | null;
+  steps: TurnSnapshotPayload["steps"];
+  reasoning: TurnSnapshotPayload["reasoning"];
+  sourceMode: "streaming" | "non_stream_snapshot";
+  isSnapshotComplete: boolean;
+};
+
+const STATUS_TEXT: Record<TurnStepStatus, string> = {
+  pending: "等待执行",
+  running: "执行中",
+  completed: "已完成",
+  failed: "执行失败",
+  skipped: "已跳过",
+  interrupted: "已中断",
+};
+
+const INTERRUPTION_REASON_TEXT: Record<TurnInterruptionReason, string> = {
+  user_cancelled: "你已停止本轮生成",
+  network_disconnected: "网络中断，本轮未完整返回",
+  server_timeout: "服务响应超时，本轮已中断",
+  unknown: "本轮意外中断，可重试",
+};
+
+const REASONING_STATUS_TEXT: Record<TurnUiModel["reasoning"]["status"], string> = {
+  not_triggered: "未触发",
+  running: "进行中",
+  completed: "已完成",
+  failed: "异常结束",
+  interrupted: "异常结束",
+};
+
+function normalizeTurnFromSnapshot(
+  payload: TurnSnapshotPayload,
+  sourceMode: TurnUiModel["sourceMode"],
+): TurnUiModel {
+  const mainStages = Array.isArray(payload.steps.mainStages) ? payload.steps.mainStages : [];
+  const subSteps = Array.isArray(payload.steps.subSteps) ? payload.steps.subSteps : [];
+  return {
+    turnId: payload.turnId,
+    userMessageId: payload.userMessageId ?? null,
+    assistantMessageId: payload.assistantMessageId ?? null,
+    finalStatus: payload.finalStatus,
+    interruptionReason: payload.interruptionReason ?? null,
+    startedAt: payload.startedAt,
+    endedAt: payload.endedAt,
+    durationMs: payload.durationMs ?? null,
+    steps: {
+      version: payload.steps.version ?? "0.1.8",
+      frozen: Boolean(payload.steps.frozen),
+      mainStages,
+      subSteps,
+      reasoning: payload.steps.reasoning,
+    },
+    reasoning: payload.reasoning,
+    sourceMode,
+    isSnapshotComplete: mainStages.length > 0 && subSteps.length > 0,
+  };
+}
+
+function turnModelFromDelta(started: { turnId: string; steps?: TurnSnapshotPayload["steps"] }): TurnUiModel {
+  return {
+    turnId: started.turnId,
+    userMessageId: null,
+    assistantMessageId: null,
+    finalStatus: "running",
+    interruptionReason: null,
+    steps: started.steps ?? {
+      version: "0.1.8",
+      frozen: false,
+      mainStages: [],
+      subSteps: [],
+      reasoning: { visibilityLevel: 0, status: "not_triggered", safeSummary: null },
+    },
+    reasoning: started.steps?.reasoning ?? {
+      visibilityLevel: 0,
+      status: "not_triggered",
+      safeSummary: null,
+    },
+    sourceMode: "streaming",
+    isSnapshotComplete: false,
+  };
+}
+
+function applyTurnDelta(prev: TurnUiModel | null, payload: StreamTurnStepDeltaPayload): TurnUiModel {
+  const next = prev?.turnId === payload.turnId ? prev : turnModelFromDelta({ turnId: payload.turnId });
+  return {
+    ...next,
+    userMessageId: next.userMessageId ?? null,
+    assistantMessageId: next.assistantMessageId ?? null,
+    finalStatus: next.steps.frozen ? next.finalStatus : "running",
+    steps: payload.snapshot,
+    reasoning: payload.snapshot.reasoning,
+    sourceMode: "streaming",
+    isSnapshotComplete:
+      Array.isArray(payload.snapshot.mainStages) &&
+      payload.snapshot.mainStages.length > 0 &&
+      Array.isArray(payload.snapshot.subSteps) &&
+      payload.snapshot.subSteps.length > 0,
+  };
+}
+
+function hasSucceededRetry(current: TurnUiModel, allTurns: Record<string, TurnUiModel>): boolean {
+  if (!current.userMessageId) return false;
+  const currentTs = Date.parse(current.startedAt ?? current.endedAt ?? "1970-01-01T00:00:00.000Z");
+  return Object.values(allTurns).some((turn) => {
+    if (turn.turnId === current.turnId) return false;
+    if (turn.userMessageId !== current.userMessageId) return false;
+    if (turn.finalStatus !== "completed") return false;
+    const ts = Date.parse(turn.startedAt ?? turn.endedAt ?? "1970-01-01T00:00:00.000Z");
+    return ts >= currentTs;
+  });
+}
+
+function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
+  const rows: MessageRow[] = [];
+  const statusTone: Record<TurnStepStatus, string> = {
+    pending: "等待中",
+    running: "进行中",
+    completed: "已完成",
+    failed: "失败",
+    skipped: "已跳过",
+    interrupted: "已中断",
+  };
+  const reasoningTone: Record<TurnUiModel["reasoning"]["status"], string> = {
+    not_triggered: "未触发",
+    running: "进行中",
+    completed: "已完成",
+    failed: "失败",
+    interrupted: "已中断",
+  };
+  const compact = (text?: string | null) => {
+    const t = (text ?? "").trim();
+    if (!t) return "";
+    return t.length > 80 ? `${t.slice(0, 80)}...` : t;
+  };
+  const addRow = (id: string, content: string, createdAt?: string | null) => {
+    rows.push({
+      id: `${turn.turnId}-${id}`,
+      role: MessageRole.Assistant,
+      content,
+      createdAt: createdAt ?? turn.startedAt ?? new Date().toISOString(),
+      turnId: turn.turnId,
+    });
+  };
+  const stepByKey = new Map(turn.steps.subSteps.map((step) => [step.stepKey, step]));
+  const knowledgeStep = stepByKey.get("C1");
+  if (knowledgeStep) {
+    addRow(
+      "knowledge",
+      `知识库增强 ${statusTone[knowledgeStep.status]}${compact(knowledgeStep.safeMessage) ? ` · ${compact(knowledgeStep.safeMessage)}` : ""}`,
+      knowledgeStep.startedAt ?? knowledgeStep.endedAt,
+    );
+  }
+  const toolStep = turn.steps.subSteps.find((step) =>
+    `${step.stepKey} ${step.subStage}`.toLowerCase().match(/tool|mcp/),
+  );
+  if (toolStep) {
+    addRow(
+      "tooling",
+      `MCP / Tools 调用 ${statusTone[toolStep.status]}${compact(toolStep.safeMessage) ? ` · ${compact(toolStep.safeMessage)}` : ""}`,
+      toolStep.startedAt ?? toolStep.endedAt,
+    );
+  }
+  const skillStep = turn.steps.subSteps.find((step) => step.subStage.toLowerCase().includes("skill"));
+  if (skillStep) {
+    addRow(
+      "skills",
+      `Skills 调用 ${statusTone[skillStep.status]}${compact(skillStep.safeMessage) ? ` · ${compact(skillStep.safeMessage)}` : ""}`,
+      skillStep.startedAt ?? skillStep.endedAt,
+    );
+  }
+  const summaryStep = stepByKey.get("E1");
+  if (summaryStep) {
+    addRow(
+      "summary",
+      `摘要回调 ${statusTone[summaryStep.status]}${compact(summaryStep.safeMessage) ? ` · ${compact(summaryStep.safeMessage)}` : ""}`,
+      summaryStep.startedAt ?? summaryStep.endedAt,
+    );
+  }
+  addRow(
+    "reasoning",
+    `推理过程 ${reasoningTone[turn.reasoning.status]}${compact(turn.reasoning.safeSummary) ? ` · ${compact(turn.reasoning.safeSummary)}` : ""}`,
+    turn.endedAt ?? turn.startedAt,
+  );
+  return rows.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+}
+
+type TurnStageItem = {
+  key: string;
+  label: string;
+  status: TurnStepStatus;
+  summary: string | null;
+  details: string[];
+  detailBlocks: Array<{ title: string; content: string }>;
+  startedAt: string | null;
+  endedAt: string | null;
+  order: number;
+};
+
+function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
+  const items: TurnStageItem[] = [];
+  const push = (
+    order: number,
+    key: string,
+    label: string,
+    status: TurnStepStatus,
+    summary: string | null | undefined,
+    details: Array<string | null | undefined>,
+    startedAt: string | null,
+    endedAt: string | null,
+  ) => {
+    const clean = details
+      .map((t) => (t ?? "").trim())
+      .filter((t) => t.length > 0);
+    if (!summary && clean.length === 0) return;
+    items.push({
+      key,
+      label,
+      status,
+      summary: summary ?? null,
+      details: clean,
+      detailBlocks: [],
+      startedAt,
+      endedAt,
+      order,
+    });
+  };
+  const byKey = new Map(turn.steps.subSteps.map((s) => [s.stepKey, s]));
+  const knowledge = byKey.get("C1");
+  if (knowledge) {
+    push(
+      10,
+      "knowledge",
+      "知识库增强",
+      knowledge.status,
+      knowledge.safeMessage,
+      [knowledge.reasonTag, knowledge.error?.message],
+      knowledge.startedAt,
+      knowledge.endedAt,
+    );
+    const row = items[items.length - 1];
+    if (row) {
+      row.detailBlocks = (knowledge.details ?? []).filter((d) => d?.title && d?.content);
+    }
+  }
+  const tooling = turn.steps.subSteps.find((s) =>
+    `${s.stepKey} ${s.subStage}`.toLowerCase().match(/tool|mcp/),
+  );
+  if (tooling) {
+    push(
+      20,
+      "tooling",
+      "MCP / Tools 调用",
+      tooling.status,
+      tooling.safeMessage,
+      [tooling.reasonTag, tooling.error?.message],
+      tooling.startedAt,
+      tooling.endedAt,
+    );
+    const row = items[items.length - 1];
+    if (row) {
+      row.detailBlocks = (tooling.details ?? []).filter((d) => d?.title && d?.content);
+    }
+  }
+  const skill = turn.steps.subSteps.find((s) => s.subStage.toLowerCase().includes("skill"));
+  if (skill) {
+    push(
+      30,
+      "skill",
+      "Skills 调用",
+      skill.status,
+      skill.safeMessage,
+      [skill.reasonTag, skill.error?.message],
+      skill.startedAt,
+      skill.endedAt,
+    );
+    const row = items[items.length - 1];
+    if (row) {
+      row.detailBlocks = (skill.details ?? []).filter((d) => d?.title && d?.content);
+    }
+  }
+  const summary = byKey.get("E1");
+  if (summary) {
+    push(
+      50,
+      "summary",
+      "摘要回调",
+      summary.status,
+      summary.safeMessage,
+      [summary.reasonTag, summary.error?.message],
+      summary.startedAt,
+      summary.endedAt,
+    );
+    const row = items[items.length - 1];
+    if (row) {
+      row.detailBlocks = (summary.details ?? []).filter((d) => d?.title && d?.content);
+    }
+  }
+  const reasoningSummary = turn.reasoning.safeSummary?.trim() ?? "";
+  if (reasoningSummary || turn.reasoning.status !== "not_triggered") {
+    const reasoningStatus: TurnStepStatus =
+      turn.reasoning.status === "running"
+        ? "running"
+        : turn.reasoning.status === "completed"
+          ? "completed"
+          : turn.reasoning.status === "not_triggered"
+            ? "skipped"
+            : "failed";
+    push(
+      40,
+      "reasoning",
+      "推理过程",
+      reasoningStatus,
+      reasoningSummary || null,
+      [REASONING_STATUS_TEXT[turn.reasoning.status]],
+      turn.startedAt ?? null,
+      turn.endedAt ?? null,
+    );
+    const row = items[items.length - 1];
+    if (row) {
+      row.detailBlocks = reasoningSummary
+        ? [{ title: "推理摘要", content: reasoningSummary }]
+        : [];
+    }
+  }
+  return items.sort((a, b) => a.order - b.order);
+}
+
+function AssistantFlowCard({
+  turn,
+  assistantMessage,
+  streamingText,
+  assistantBubbleLabel,
+  sending,
+  onRetry,
+  retryDisabledReason,
+  dimmed,
+}: {
+  turn: TurnUiModel;
+  assistantMessage: MessageRow | null;
+  streamingText?: string;
+  assistantBubbleLabel?: string | null;
+  sending?: boolean;
+  onRetry?: () => void;
+  retryDisabledReason?: string | null;
+  dimmed?: boolean;
+}) {
+  const stageItems = buildTurnStageItems(turn);
+  const statusText =
+    turn.finalStatus === "running"
+      ? "进行中"
+      : turn.finalStatus === "completed"
+        ? "已完成"
+        : turn.finalStatus === "failed"
+          ? "失败"
+          : "已中断";
+  const assistantShown = assistantBubbleLabel?.trim() ? assistantBubbleLabel.trim() : "助手";
+  const d1 = turn.steps.subSteps.find((step) => step.stepKey === "D1");
+  const failedReason =
+    d1?.error?.message ??
+    d1?.safeMessage ??
+    (turn.finalStatus === "interrupted"
+      ? INTERRUPTION_REASON_TEXT[turn.interruptionReason ?? "unknown"]
+      : null);
+  const fallbackFailureText =
+    turn.finalStatus === "completed"
+      ? ""
+      : `本轮回复失败：${failedReason ?? "模型调用失败，请稍后重试。"}`;
+  const finalText = assistantMessage?.content ?? streamingText ?? fallbackFailureText;
+  const finalStreaming = !assistantMessage && Boolean(streamingText);
+  const isFailed = turn.finalStatus === "failed";
+  const isInterrupted = turn.finalStatus === "interrupted";
+  const wrapperClass = isFailed
+    ? "border-rose-500/35 bg-rose-950/20 text-rose-50 shadow-[0_0_24px_-6px_rgba(244,63,94,0.25)]"
+    : isInterrupted
+      ? "border-amber-500/35 bg-amber-950/20 text-amber-50 shadow-[0_0_24px_-6px_rgba(245,158,11,0.2)]"
+      : "border-fuchsia-500/25 bg-zinc-900/90 text-zinc-100 shadow-[0_0_24px_-4px_rgba(217,70,239,0.15)]";
+  const dimmedClass = dimmed ? "opacity-55 saturate-50" : "";
+  return (
+    <div className="mb-4 flex justify-start">
+      <div className={`min-w-0 max-w-[min(100%,720px)] rounded-xl border px-3 py-2.5 text-sm leading-relaxed ${wrapperClass} ${dimmedClass}`}>
+        <div className="mb-1 font-mono text-[10px] tracking-wider text-zinc-400">{assistantShown}</div>
+        <div className="mb-2 flex items-center justify-between text-[11px] text-zinc-500">
+          <span className="font-mono">Turn {turn.turnId.slice(0, 8)}</span>
+          <span>{statusText}</span>
+        </div>
+        {(isFailed || isInterrupted) && (onRetry || retryDisabledReason) ? (
+          <div className="mb-2 flex items-center gap-2 rounded-md border border-zinc-700/70 bg-zinc-900/60 px-2.5 py-2 text-xs text-zinc-200">
+            <span>
+              {retryDisabledReason
+                ? retryDisabledReason
+                : isFailed
+                  ? "本轮调用失败，可重试。"
+                  : "本轮中断，可重试。"}
+            </span>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={Boolean(sending)}
+                className="ml-auto rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sending ? "重试中..." : "重试"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      {stageItems.length > 0 ? (
+        <div className="mb-2 space-y-2">
+          {stageItems.map((item) => (
+            <details
+              key={item.key}
+              className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-2"
+            >
+              <summary className="cursor-pointer text-xs text-zinc-200">
+                {item.label} · {STATUS_TEXT[item.status]}
+                {item.summary ? ` · ${item.summary}` : ""}
+              </summary>
+              {item.details.length > 0 ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-400">
+                  {item.details.map((d, i) => (
+                    <li key={`${item.key}-${i}`}>{d}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {item.detailBlocks.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {item.detailBlocks.map((block, idx) => (
+                    <details key={`${item.key}-block-${idx}`} className="rounded border border-zinc-700/70 bg-zinc-900/60 px-2 py-1.5">
+                      <summary className="cursor-pointer text-[11px] text-zinc-300">{block.title}</summary>
+                      <pre className="mt-1 whitespace-pre-wrap break-words text-[11px] text-zinc-400">
+                        {block.content}
+                      </pre>
+                    </details>
+                  ))}
+                </div>
+              ) : null}
+            </details>
+          ))}
+        </div>
+      ) : null}
+        {finalText ? (
+          <AssistantOutputRenderer
+            payload={assistantPayloadFromContent(finalText, { streaming: finalStreaming })}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function ChatWorkspace({
   userLabel,
   freeTierAssistantHint = false,
@@ -149,12 +614,15 @@ export function ChatWorkspace({
   const [sending, setSending] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [turnState, setTurnState] = useState<TurnUiModel | null>(null);
+  const [turnHistoryMap, setTurnHistoryMap] = useState<Record<string, TurnUiModel>>({});
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const sendInFlightRef = useRef(false);
+  const pendingLocalUserMessageIdRef = useRef<string | null>(null);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [pickerLoading, setPickerLoading] = useState(false);
@@ -197,12 +665,21 @@ export function ChatWorkspace({
     async (conversationId: string) => {
       setMessagesLoading(true);
       try {
-        const { items } = await fetchMessages(conversationId);
+        const [{ items }, turnsResp] = await Promise.all([
+          fetchMessages(conversationId),
+          fetchTurns(conversationId),
+        ]);
         setMessages(items);
+        const map: Record<string, TurnUiModel> = {};
+        for (const turn of turnsResp.items) {
+          map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+        }
+        setTurnHistoryMap(map);
         scrollToBottom();
       } catch (e) {
         showToast({ type: "err", text: e instanceof Error ? e.message : "加载消息失败" });
         setMessages([]);
+        setTurnHistoryMap({});
       } finally {
         setMessagesLoading(false);
       }
@@ -231,11 +708,19 @@ export function ChatWorkspace({
         setSelectedId(first);
         setMessagesLoading(true);
         try {
-          const { items: msgs } = await fetchMessages(first);
+          const [{ items: msgs }, turnsResp] = await Promise.all([
+            fetchMessages(first),
+            fetchTurns(first),
+          ]);
           if (cancelled) {
             return;
           }
           setMessages(msgs);
+          const map: Record<string, TurnUiModel> = {};
+          for (const turn of turnsResp.items) {
+            map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+          }
+          setTurnHistoryMap(map);
         } catch (e) {
           if (!cancelled) {
             showToast({ type: "err", text: e instanceof Error ? e.message : "加载消息失败" });
@@ -277,6 +762,8 @@ export function ChatWorkspace({
       }
       setStreaming(false);
       setStreamText("");
+      setTurnState(null);
+      setTurnHistoryMap({});
       await loadMessagesFor(id);
     },
     [isDesktop, loadMessagesFor],
@@ -313,6 +800,8 @@ export function ChatWorkspace({
         setMessages([]);
         setStreaming(false);
         setStreamText("");
+        setTurnState(null);
+        setTurnHistoryMap({});
         await loadConversationList();
         await loadMessagesFor(conversation.id);
         if (!isDesktop) {
@@ -360,6 +849,7 @@ export function ChatWorkspace({
           setMessages([]);
           setStreaming(false);
           setStreamText("");
+          setTurnState(null);
         } else {
           setConversations(nextList);
           if (selectedId === id) {
@@ -375,7 +865,10 @@ export function ChatWorkspace({
     [conversations, loadMessagesFor, selectedId, showToast],
   );
 
-  const handleSend = async () => {
+  const sendText = async (
+    text: string,
+    options?: { retryUserMessageId?: string | null; appendUserMessage?: boolean },
+  ) => {
     if (!selectedId) {
       showToast({ type: "err", text: "请先新建或选择一个会话" });
       return;
@@ -383,26 +876,48 @@ export function ChatWorkspace({
     if (sendInFlightRef.current) {
       return;
     }
-    const text = [...inputValue.trim()].join("");
-    if (!text) {
-      showToast({ type: "err", text: "请输入内容" });
-      return;
-    }
+    const conversationId = selectedId;
 
+    const appendUserMessage = options?.appendUserMessage !== false;
     sendInFlightRef.current = true;
     setSending(true);
     setStreaming(true);
     setStreamText("");
+    setTurnState(null);
+    if (appendUserMessage) {
+      const localUserMessageId = `__local_user__${Date.now()}`;
+      pendingLocalUserMessageIdRef.current = localUserMessageId;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: localUserMessageId,
+          role: MessageRole.User,
+          content: text,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    } else {
+      pendingLocalUserMessageIdRef.current = null;
+    }
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[conversationId];
+      return next;
+    });
 
     try {
-      await sendMessageStream(selectedId, text, {
+      await sendMessageStream(
+        conversationId,
+        text,
+        {
         onUserMessage: (u) => {
-          setMessages((prev) => (prev.some((m) => m.id === u.id) ? prev : [...prev, u]));
-          setDrafts((prev) => {
-            const next = { ...prev };
-            delete next[selectedId];
-            return next;
+          setMessages((prev) => {
+            const withoutLocal = pendingLocalUserMessageIdRef.current
+              ? prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current)
+              : prev;
+            return withoutLocal.some((m) => m.id === u.id) ? withoutLocal : [...withoutLocal, u];
           });
+          pendingLocalUserMessageIdRef.current = null;
         },
         onDelta: (d) => {
           setStreamText((s) => s + d);
@@ -418,6 +933,7 @@ export function ChatWorkspace({
                     role: p.role,
                     content: p.content,
                     createdAt: p.createdAt,
+                      turnId: p.turnId ?? null,
                   },
                 ],
           );
@@ -426,27 +942,139 @@ export function ChatWorkspace({
           void loadConversationList();
           scrollToBottom();
         },
+        onTurnStarted: (payload) => {
+          setTurnState(turnModelFromDelta(payload));
+        },
+        onTurnStepDelta: (payload) => {
+          setTurnState((prev) => applyTurnDelta(prev, payload));
+        },
+        onTurnCompleted: (payload) => {
+          const nextTurn = normalizeTurnFromSnapshot(payload, "streaming");
+          setTurnState(nextTurn);
+          setTurnHistoryMap((prev) => ({ ...prev, [nextTurn.turnId]: nextTurn }));
+          if (pendingLocalUserMessageIdRef.current) {
+            setMessages((prev) =>
+              prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current),
+            );
+            pendingLocalUserMessageIdRef.current = null;
+          }
+          setStreaming(false);
+        },
+        onTurnFailed: (payload) => {
+          const nextTurn = normalizeTurnFromSnapshot(payload, "streaming");
+          setTurnState(nextTurn);
+          setTurnHistoryMap((prev) => ({ ...prev, [nextTurn.turnId]: nextTurn }));
+          if (pendingLocalUserMessageIdRef.current) {
+            setMessages((prev) =>
+              prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current),
+            );
+            pendingLocalUserMessageIdRef.current = null;
+          }
+          setStreaming(false);
+        },
         onError: async (msg) => {
-          showToast({ type: "err", text: msg });
           setStreamText("");
           setStreaming(false);
+          const errMsgId = `__assistant_error__${Date.now()}`;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === errMsgId)) return prev;
+            return [
+              ...prev,
+              {
+                id: errMsgId,
+                role: MessageRole.Assistant,
+                content: `本轮回复失败：${msg}`,
+                createdAt: new Date().toISOString(),
+              },
+            ];
+          });
           try {
-            const { items } = await fetchMessages(selectedId);
+            const [{ items }, turnsResp] = await Promise.all([
+              fetchMessages(conversationId),
+              fetchTurns(conversationId),
+            ]);
             setMessages(items);
+            const map: Record<string, TurnUiModel> = {};
+            for (const turn of turnsResp.items) {
+              map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+            }
+            setTurnHistoryMap(map);
           } catch {
             /* 保持当前列表，避免失败后再报错 */
           }
         },
-      });
+        },
+        { retryUserMessageId: options?.retryUserMessageId ?? null },
+      );
     } catch (e) {
-      showToast({ type: "err", text: e instanceof Error ? e.message : "发送失败" });
-      setStreamText("");
-      setStreaming(false);
-      try {
-        const { items } = await fetchMessages(selectedId);
-        setMessages(items);
-      } catch {
-        /* 同上 */
+      if (e instanceof Error && e.message.includes("响应无 body")) {
+        try {
+          const fallback = await sendMessage(conversationId, text, {
+            retryUserMessageId: options?.retryUserMessageId ?? null,
+          });
+          setMessages((prev) =>
+            pendingLocalUserMessageIdRef.current
+              ? prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current)
+              : prev,
+          );
+          pendingLocalUserMessageIdRef.current = null;
+          setMessages((prev) => {
+            const next = [...prev];
+            if (!next.some((m) => m.id === fallback.userMessage.id)) {
+              next.push(fallback.userMessage);
+            }
+            if (!next.some((m) => m.id === fallback.assistantMessage.id)) {
+              next.push(fallback.assistantMessage);
+            }
+            return next;
+          });
+          if (fallback.turn) {
+            const nextTurn = normalizeTurnFromSnapshot(fallback.turn, "non_stream_snapshot");
+            setTurnState(nextTurn);
+            setTurnHistoryMap((prev) => ({ ...prev, [nextTurn.turnId]: nextTurn }));
+          }
+          setStreamText("");
+          setStreaming(false);
+          void loadConversationList();
+        } catch (fallbackErr) {
+          const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : "发送失败";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `__assistant_error__${Date.now()}`,
+              role: MessageRole.Assistant,
+              content: `本轮回复失败：${fallbackMsg}`,
+              createdAt: new Date().toISOString(),
+            },
+          ]);
+        }
+      } else {
+        setStreamText("");
+        setStreaming(false);
+        const errMsg = e instanceof Error ? e.message : "发送失败";
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `__assistant_error__${Date.now()}`,
+            role: MessageRole.Assistant,
+            content: `本轮回复失败：${errMsg}`,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        try {
+          const [{ items }, turnsResp] = await Promise.all([
+            fetchMessages(conversationId),
+            fetchTurns(conversationId),
+          ]);
+          setMessages(items);
+          const map: Record<string, TurnUiModel> = {};
+          for (const turn of turnsResp.items) {
+            map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+          }
+          setTurnHistoryMap(map);
+        } catch {
+          /* 同上 */
+        }
       }
     } finally {
       sendInFlightRef.current = false;
@@ -457,6 +1085,15 @@ export function ChatWorkspace({
     }
   };
 
+  const handleSend = async () => {
+    const text = [...inputValue.trim()].join("");
+    if (!text) {
+      showToast({ type: "err", text: "请输入内容" });
+      return;
+    }
+    await sendText(text);
+  };
+
   const selectedConv = conversations.find((c) => c.id === selectedId) ?? null;
   /** 设计 §3.4：助手不可用时助手消息降级为泛化「助手」标签 */
   const assistantBubbleLabel =
@@ -465,6 +1102,22 @@ export function ChatWorkspace({
         ? "助手"
         : `${selectedConv.assistant.icon ?? "🤖"} ${selectedConv.assistant.name}`
       : null;
+  const turnStatusLine = useMemo(() => {
+    if (!turnState) {
+      return "";
+    }
+    if (turnState.finalStatus === "running") {
+      const runningStep = turnState.steps.subSteps.find((item) => item.status === "running");
+      return runningStep
+        ? `当前步骤 ${runningStep.stepKey} ${STATUS_TEXT.running}`
+        : `当前轮次 ${STATUS_TEXT.running}`;
+    }
+    if (turnState.finalStatus === "interrupted") {
+      const reason = turnState.interruptionReason ?? "unknown";
+      return INTERRUPTION_REASON_TEXT[reason];
+    }
+    return `当前轮次 ${turnState.finalStatus === "completed" ? "已完成" : "执行失败"}`;
+  }, [turnState]);
 
   const handleClear = () => {
     if (!selectedId) {
@@ -487,6 +1140,8 @@ export function ChatWorkspace({
         setMessages([]);
         setStreamText("");
         setStreaming(false);
+        setTurnState(null);
+        setTurnHistoryMap({});
         setDrafts((prev) => {
           const next = { ...prev };
           delete next[selectedId];
@@ -796,27 +1451,142 @@ export function ChatWorkspace({
               </div>
             ) : (
               <>
-                {messages.map((m) => (
-                  <MessageBubble
-                    key={m.id}
-                    row={m}
-                    userLabel={userLabel}
-                    assistantBubbleLabel={assistantBubbleLabel}
-                  />
-                ))}
-                {streaming && (
-                  <MessageBubble
-                    row={{
-                      id: "__stream__",
-                      role: MessageRole.Assistant,
-                      content: streamText,
-                      createdAt: new Date().toISOString(),
-                    }}
-                    streaming
-                    userLabel={userLabel}
-                    assistantBubbleLabel={assistantBubbleLabel}
-                  />
-                )}
+                <div className="sr-only" aria-live="polite">
+                  {turnStatusLine}
+                </div>
+                {messages.length > 0 && Object.keys(turnHistoryMap).length === 0 && !turnState ? (
+                  <div
+                    className="mb-4 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-400"
+                    role="status"
+                  >
+                    当前会话暂无步骤快照
+                  </div>
+                ) : null}
+                {(() => {
+                  const renderedTurnIds = new Set<string>();
+                  const byTurn: Record<string, { user: MessageRow | null; assistant: MessageRow | null }> = {};
+                  for (const msg of messages) {
+                    if (!msg.turnId) continue;
+                    if (!byTurn[msg.turnId]) {
+                      byTurn[msg.turnId] = { user: null, assistant: null };
+                    }
+                    if (msg.role === MessageRole.User) {
+                      byTurn[msg.turnId].user = msg;
+                    } else if (msg.role === MessageRole.Assistant) {
+                      byTurn[msg.turnId].assistant = msg;
+                    }
+                  }
+                  const nodes: ReactNode[] = [];
+                  for (const msg of messages) {
+                    if (!msg.turnId) {
+                      if (
+                        msg.id.startsWith("__local_user__") &&
+                        messages.some(
+                          (m) =>
+                            m.turnId &&
+                            m.role === MessageRole.User &&
+                            m.content.trim() === msg.content.trim(),
+                        )
+                      ) {
+                        continue;
+                      }
+                      nodes.push(
+                        <MessageBubble
+                          key={msg.id}
+                          row={msg}
+                          userLabel={userLabel}
+                          assistantBubbleLabel={assistantBubbleLabel}
+                        />,
+                      );
+                      continue;
+                    }
+                    const turn = turnHistoryMap[msg.turnId];
+                    if (!turn || renderedTurnIds.has(msg.turnId)) {
+                      continue;
+                    }
+                    const pair = byTurn[msg.turnId];
+                    const hasAssistant = Boolean(pair?.assistant);
+                    // 有 assistant 消息时，以 assistant 行为锚点渲染整轮；
+                    // 无 assistant（如模型失败）时，以 user 行为锚点也要渲染整轮。
+                    if (hasAssistant && msg.role !== MessageRole.Assistant) {
+                      continue;
+                    }
+                    if (!hasAssistant && msg.role !== MessageRole.User) {
+                      continue;
+                    }
+                    renderedTurnIds.add(msg.turnId);
+                    nodes.push(
+                      <div key={`turn-card-${msg.turnId}`}>
+                        {pair?.user ? (
+                          <MessageBubble
+                            key={pair.user.id}
+                            row={pair.user}
+                            userLabel={userLabel}
+                            assistantBubbleLabel={assistantBubbleLabel}
+                          />
+                        ) : null}
+                        <AssistantFlowCard
+                          turn={turn}
+                          assistantMessage={pair?.assistant ?? null}
+                          assistantBubbleLabel={assistantBubbleLabel}
+                          sending={sending}
+                          retryDisabledReason={
+                            hasSucceededRetry(turn, turnHistoryMap) ? "该问题已重试成功，无需继续重试。" : null
+                          }
+                          dimmed={hasSucceededRetry(turn, turnHistoryMap)}
+                          onRetry={
+                            pair?.user?.content && !hasSucceededRetry(turn, turnHistoryMap)
+                              ? () => {
+                                  void sendText(pair.user!.content, {
+                                    retryUserMessageId: pair.user!.id,
+                                    appendUserMessage: false,
+                                  });
+                                }
+                              : undefined
+                          }
+                        />
+                      </div>,
+                    );
+                  }
+                  if (turnState && (sending || streaming)) {
+                    const pendingPair =
+                      (turnState.turnId && byTurn[turnState.turnId]) || { user: null, assistant: null };
+                    nodes.push(
+                      <div key={`turn-card-streaming-${turnState.turnId}`}>
+                        {pendingPair.user ? (
+                          <MessageBubble
+                            key={pendingPair.user.id}
+                            row={pendingPair.user}
+                            userLabel={userLabel}
+                            assistantBubbleLabel={assistantBubbleLabel}
+                          />
+                        ) : null}
+                        <AssistantFlowCard
+                          turn={turnState}
+                          assistantMessage={pendingPair.assistant}
+                          streamingText={streaming ? streamText : undefined}
+                          assistantBubbleLabel={assistantBubbleLabel}
+                          sending={sending}
+                          retryDisabledReason={
+                            hasSucceededRetry(turnState, turnHistoryMap) ? "该问题已重试成功，无需继续重试。" : null
+                          }
+                          dimmed={hasSucceededRetry(turnState, turnHistoryMap)}
+                          onRetry={
+                            pendingPair.user?.content && !hasSucceededRetry(turnState, turnHistoryMap)
+                              ? () => {
+                                  void sendText(pendingPair.user!.content, {
+                                    retryUserMessageId: pendingPair.user!.id,
+                                    appendUserMessage: false,
+                                  });
+                                }
+                              : undefined
+                          }
+                        />
+                      </div>,
+                    );
+                  }
+                  return nodes;
+                })()}
                 <div ref={bottomRef} />
               </>
             )}

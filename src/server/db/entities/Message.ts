@@ -19,6 +19,11 @@ export class Message {
   @Index()
   conversationId!: string;
 
+  /** 所属 turn（v0.1.8 新增）；历史数据可为空 */
+  @Column({ type: "varchar", length: 36, nullable: true })
+  @Index()
+  turnId!: string | null;
+
   /** 冗余 userId，便于防御性校验与审计 */
   @Column({ type: "varchar", length: 36 })
   @Index()

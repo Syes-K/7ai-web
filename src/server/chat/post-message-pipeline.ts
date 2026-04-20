@@ -10,6 +10,7 @@ import { jsonError } from "@/server/http/json-response";
 import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
 import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
 import { buildKnowledgeInjectionForChat } from "@/server/knowledge-base/injection";
+import type { KnowledgeInjectionResult } from "@/server/knowledge-base/injection";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
@@ -17,10 +18,10 @@ import { v4 as uuidv4 } from "uuid";
 import type { Repository } from "typeorm";
 import { RunnableLambda, RunnableSequence } from "@langchain/core/runnables";
 
-export type PostMessageBody = { content?: unknown; stream?: unknown };
+export type PostMessageBody = { content?: unknown; stream?: unknown; retryUserMessageId?: unknown };
 
 export type ValidatePostMessageBodyResult =
-  | { ok: true; content: string; stream: boolean }
+  | { ok: true; content: string; stream: boolean; retryUserMessageId: string | null }
   | { ok: false; response: NextResponse };
 
 /** A1：解析并校验 POST body（不含鉴权）。 */
@@ -63,7 +64,11 @@ export function validatePostMessageBody(body: PostMessageBody): ValidatePostMess
     };
   }
 
-  return { ok: true, content, stream: body.stream === true };
+  const retryUserMessageId =
+    typeof body.retryUserMessageId === "string" && body.retryUserMessageId.trim()
+      ? body.retryUserMessageId.trim()
+      : null;
+  return { ok: true, content, stream: body.stream === true, retryUserMessageId };
 }
 
 /** B2：拉取会话全量历史（升序）。 */
@@ -146,7 +151,21 @@ export async function injectKbSystemIntoHistoryForModel(options: {
       userMessageText,
     });
     if (!inject.systemMessageText) {
-      return historyForModel;
+      const noKbHitGuard = {
+        role: MessageRole.System,
+        content: [
+          "【知识库检索结果】",
+          "本轮未命中可用知识片段。",
+          "回答中禁止使用“根据知识库”“依据知识库检索片段”等表述。",
+          "如需给出结论，请明确来源为通用知识或用户提供信息，避免误导为知识库命中。",
+        ].join("\n"),
+      } as Message;
+      const insertAt = historyForModel[0]?.role === MessageRole.System ? 1 : 0;
+      return [
+        ...historyForModel.slice(0, insertAt),
+        noKbHitGuard,
+        ...historyForModel.slice(insertAt),
+      ];
     }
     const injected = {
       role: MessageRole.System,
@@ -190,6 +209,7 @@ export type PrepareModelInputForPostMessageInput = {
 export type PrepareModelInputForPostMessageOutput = {
   historyForModel: Message[];
   summaryCutoffCandidate: number | null;
+  kbInjection: KnowledgeInjectionResult | null;
 };
 
 /**
@@ -217,19 +237,30 @@ export async function prepareModelInputForPostMessage(
     }),
     // C1：知识库注入
     RunnableLambda.from(async (state: PrepareModelInputState) => {
-      const historyForModel = await injectKbSystemIntoHistoryForModel({
+      const inject = await buildKnowledgeInjectionForChat({
         ds: state.ds,
         userId: state.userId,
         assistantId: state.conv.assistantId,
         userMessageText: state.userMessageText,
-        historyForModel: state.historyForModel ?? [],
       });
-      return { ...state, historyForModel };
+      const historyForModel = inject.systemMessageText
+        ? (() => {
+            const injected = {
+              role: MessageRole.System,
+              content: inject.systemMessageText,
+            } as Message;
+            const current = state.historyForModel ?? [];
+            const insertAt = current[0]?.role === MessageRole.System ? 1 : 0;
+            return [...current.slice(0, insertAt), injected, ...current.slice(insertAt)];
+          })()
+        : state.historyForModel ?? [];
+      return { ...state, historyForModel, kbInjection: inject };
     }),
     // B3：返回结果
     RunnableLambda.from((state: PrepareModelInputState) => ({
       historyForModel: state.historyForModel ?? [],
       summaryCutoffCandidate: state.summaryCutoffCandidate ?? null,
+      kbInjection: (state as PrepareModelInputState & { kbInjection?: KnowledgeInjectionResult }).kbInjection ?? null,
     })),
   ]);
 
@@ -273,8 +304,9 @@ export async function persistUserMessageAndTouchConversation(options: {
   conv: Conversation;
   user: User;
   content: string;
+  turnId?: string | null;
 }): Promise<Message> {
-  const { ds, conv, user, content } = options;
+  const { ds, conv, user, content, turnId = null } = options;
   const msgRepo = ds.getRepository(Message);
   const convRepo = ds.getRepository(Conversation);
 
@@ -282,6 +314,7 @@ export async function persistUserMessageAndTouchConversation(options: {
   const userMsg = msgRepo.create({
     id: uuidv4(),
     conversationId: conv.id,
+    turnId,
     userId: user.id,
     role: MessageRole.User,
     content,

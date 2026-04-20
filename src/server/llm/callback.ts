@@ -241,6 +241,60 @@ export class LoggerCallbackHandler extends BaseCallbackHandler {
   }
 }
 
+export type ToolTraceEvent = {
+  phase: "start" | "end" | "error";
+  name: string;
+  input?: string | null;
+  output?: string | null;
+  error?: string | null;
+  ts: string;
+};
+
+/** 采集工具调用事件（含 MCP/Tools），供 turn 详情展示。 */
+export class ToolTraceCallbackHandler extends BaseCallbackHandler {
+  readonly name = "tool_trace_handler";
+
+  constructor(
+    private readonly options?: {
+      onToolEvent?: (event: ToolTraceEvent) => Promise<void> | void;
+    },
+  ) {
+    super();
+  }
+
+  handleToolStart(
+    tool: Serialized,
+    input: string,
+  ): void {
+    const name = pickSerializedId(tool) ?? "unknown_tool";
+    void this.options?.onToolEvent?.({
+      phase: "start",
+      name,
+      input: input?.slice(0, 1000) ?? null,
+      ts: new Date().toISOString(),
+    });
+  }
+
+  handleToolEnd(output: unknown): void {
+    const txt = typeof output === "string" ? output : JSON.stringify(output ?? null);
+    void this.options?.onToolEvent?.({
+      phase: "end",
+      name: "tool",
+      output: txt.slice(0, 1000),
+      ts: new Date().toISOString(),
+    });
+  }
+
+  handleToolError(err: Error): void {
+    void this.options?.onToolEvent?.({
+      phase: "error",
+      name: "tool",
+      error: err?.message ?? String(err),
+      ts: new Date().toISOString(),
+    });
+  }
+}
+
 /** 提取模型 ID */
 function pickSerializedId(llm: Serialized): string | null {
   if (llm && typeof llm === "object" && "id" in llm && Array.isArray((llm as { id?: unknown }).id)) {

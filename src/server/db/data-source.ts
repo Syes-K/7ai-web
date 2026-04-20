@@ -12,6 +12,7 @@ import { UserModelConfig } from "./entities/UserModelConfig";
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { KnowledgeBaseVectorChunk } from "@/server/db/entities/KnowledgeBaseVectorChunk";
 import { AssistantKnowledgeBase } from "@/server/db/entities/AssistantKnowledgeBase";
+import { ChatTurn } from "@/server/db/entities/ChatTurn";
 
 let dataSource: DataSource | null = null;
 
@@ -42,6 +43,7 @@ export async function getDataSource(): Promise<DataSource> {
       KnowledgeBase,
       KnowledgeBaseVectorChunk,
       AssistantKnowledgeBase,
+      ChatTurn,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",

@@ -12,7 +12,12 @@ import { MessageRole } from "@/common/enums";
 import type { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
 import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/chat/langchain-agent";
-import { LoggerCallbackHandler, SummarizationLlmCallbackHandler } from "@/server/llm/callback";
+import {
+  LoggerCallbackHandler,
+  SummarizationLlmCallbackHandler,
+  ToolTraceCallbackHandler,
+  type ToolTraceEvent,
+} from "@/server/llm/callback";
 
 type AssistantRuntimeOptions = {
   /** 与 userId 对应且已加载的 User，可省去模型解析时再查一次 User */
@@ -24,6 +29,8 @@ type AssistantRuntimeOptions = {
   assistantId?: string | null;
   /** 摘要中间件产出新摘要时回调（用于落库会话摘要）。 */
   onSummary?: (summary: string) => Promise<void> | void;
+  /** 采集工具调用事件（含 MCP/Tools）。 */
+  onToolEvent?: (event: ToolTraceEvent) => Promise<void> | void;
 };
 
 function historyToBaseMessages(history: Message[]): BaseMessage[] {
@@ -84,6 +91,7 @@ export async function invokeAssistantReply(
     callbacks: [
       // new LoggerCallbackHandler(),
       new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+      new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
     ],
   });
   const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
@@ -105,6 +113,7 @@ export async function* streamAssistantReply(
     [
       // new LoggerCallbackHandler(),
       new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+      new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
     ],
   );
 }

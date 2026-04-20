@@ -125,6 +125,7 @@ export type MessageRow = {
   role: string;
   content: string;
   createdAt: string;
+  turnId?: string | null;
 };
 
 export type MessagesResponse = {
@@ -148,9 +149,24 @@ export async function fetchMessages(
   return parseResponse<MessagesResponse>(res);
 }
 
+export type TurnsResponse = {
+  items: TurnSnapshotPayload[];
+};
+
+export async function fetchTurns(conversationId: string): Promise<TurnsResponse> {
+  const res = await fetch(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/turns`,
+    { credentials: "include" },
+  );
+  const parsed = await parseResponse<TurnsResponse>(res);
+  parsed.items = parsed.items.map(normalizeTurnSnapshotPayload);
+  return parsed;
+}
+
 export type SendMessageResponse = {
   userMessage: MessageRow;
   assistantMessage: MessageRow;
+  turn?: TurnSnapshotPayload;
   conversation: { id: string; title: string; updatedAt: string };
 };
 
@@ -159,11 +175,84 @@ export type StreamAssistantDonePayload = MessageRow & {
   conversation: { id: string; title: string; updatedAt: string };
 };
 
+export type TurnStepStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "interrupted";
+
+export type TurnInterruptionReason =
+  | "user_cancelled"
+  | "network_disconnected"
+  | "server_timeout"
+  | "unknown";
+
+export type TurnMainStage = "A" | "B" | "C" | "D" | "E" | "F";
+
+export type TurnStep = {
+  stepKey: string;
+  mainStage: TurnMainStage;
+  subStage: string;
+  status: TurnStepStatus;
+  reasonTag: string | null;
+  safeMessage: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMs: number | null;
+  error: { code: string; message: string } | null;
+  details?: Array<{ title: string; content: string }>;
+  seq: number;
+};
+
+export type TurnReasoningPayload = {
+  visibilityLevel: 0;
+  status: "not_triggered" | "running" | "completed" | "failed" | "interrupted";
+  safeSummary: string | null;
+};
+
+export type TurnSnapshotPayload = {
+  turnId: string;
+  userMessageId?: string | null;
+  assistantMessageId?: string | null;
+  finalStatus: "completed" | "failed" | "interrupted";
+  interruptionReason: TurnInterruptionReason | null;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number | null;
+  steps: {
+    version: "0.1.8";
+    frozen: boolean;
+    mainStages: Array<{ stage: TurnMainStage; status: TurnStepStatus }>;
+    subSteps: TurnStep[];
+    reasoning: TurnReasoningPayload;
+  };
+  reasoning: TurnReasoningPayload;
+};
+
+export type StreamTurnStartedPayload = {
+  turnId: string;
+  conversationId: string;
+  steps?: TurnSnapshotPayload["steps"];
+};
+
+export type StreamTurnStepDeltaPayload = {
+  turnId: string;
+  seq: number;
+  step: TurnStep;
+  snapshot: TurnSnapshotPayload["steps"];
+};
+
 export type MessageStreamHandlers = {
   onUserMessage: (m: MessageRow) => void;
   onDelta: (text: string) => void;
   onDone: (payload: StreamAssistantDonePayload) => void;
   onError: (message: string, code?: string) => void;
+  onTurnStarted?: (payload: StreamTurnStartedPayload) => void;
+  onTurnStepDelta?: (payload: StreamTurnStepDeltaPayload) => void;
+  onTurnCompleted?: (payload: TurnSnapshotPayload) => void;
+  onTurnFailed?: (payload: TurnSnapshotPayload) => void;
 };
 
 function dispatchSseFrame(frame: string, handlers: MessageStreamHandlers): void {
@@ -202,6 +291,18 @@ function dispatchSseFrame(frame: string, handlers: MessageStreamHandlers): void 
     case "assistant_done":
       handlers.onDone(data as StreamAssistantDonePayload);
       break;
+    case "turn_started":
+      handlers.onTurnStarted?.(data as StreamTurnStartedPayload);
+      break;
+    case "turn_step_delta":
+      handlers.onTurnStepDelta?.(data as StreamTurnStepDeltaPayload);
+      break;
+    case "turn_completed":
+      handlers.onTurnCompleted?.(normalizeTurnSnapshotPayload(data));
+      break;
+    case "turn_failed":
+      handlers.onTurnFailed?.(normalizeTurnSnapshotPayload(data));
+      break;
     case "error": {
       const err = data as { code?: string; message?: string };
       handlers.onError(err.message ?? "未知错误", err.code);
@@ -233,6 +334,7 @@ export async function sendMessageStream(
   conversationId: string,
   content: string,
   handlers: MessageStreamHandlers,
+  options?: { retryUserMessageId?: string | null },
 ): Promise<void> {
   const res = await fetch(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
@@ -240,7 +342,11 @@ export async function sendMessageStream(
       method: "POST",
       credentials: "include",
       headers: JSON_HDR,
-      body: JSON.stringify({ content, stream: true }),
+      body: JSON.stringify({
+        content,
+        stream: true,
+        retryUserMessageId: options?.retryUserMessageId ?? null,
+      }),
     },
   );
 
@@ -284,6 +390,65 @@ export async function sendMessageStream(
       break;
     }
   }
+}
+
+function normalizeTurnSnapshotPayload(raw: unknown): TurnSnapshotPayload {
+  const input = (raw ?? {}) as Record<string, unknown>;
+  const steps = (input.steps ?? {}) as TurnSnapshotPayload["steps"];
+  const reasoningRaw = (input.reasoning ?? steps?.reasoning ?? {}) as Partial<TurnReasoningPayload>;
+  const reasoning: TurnReasoningPayload = {
+    visibilityLevel: 0,
+    status: reasoningRaw.status ?? "not_triggered",
+    safeSummary: reasoningRaw.safeSummary ?? null,
+  };
+  return {
+    turnId: String(input.turnId ?? input.id ?? ""),
+    userMessageId: typeof input.userMessageId === "string" ? input.userMessageId : null,
+    assistantMessageId: typeof input.assistantMessageId === "string" ? input.assistantMessageId : null,
+    finalStatus: (input.finalStatus as TurnSnapshotPayload["finalStatus"]) ?? "failed",
+    interruptionReason: (input.interruptionReason as TurnInterruptionReason | null) ?? null,
+    startedAt: typeof input.startedAt === "string" ? input.startedAt : undefined,
+    endedAt: typeof input.endedAt === "string" ? input.endedAt : undefined,
+    durationMs: typeof input.durationMs === "number" ? input.durationMs : null,
+    steps: {
+      version: steps?.version ?? "0.1.8",
+      frozen: Boolean(steps?.frozen),
+      mainStages: Array.isArray(steps?.mainStages) ? steps.mainStages : [],
+      subSteps: Array.isArray(steps?.subSteps) ? steps.subSteps : [],
+      reasoning: {
+        visibilityLevel: 0,
+        status: steps?.reasoning?.status ?? reasoning.status,
+        safeSummary: steps?.reasoning?.safeSummary ?? reasoning.safeSummary,
+      },
+    },
+    reasoning,
+  };
+}
+
+/** 非流式发送：返回完整 turn 快照（若后端提供） */
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  options?: { retryUserMessageId?: string | null },
+): Promise<SendMessageResponse> {
+  const res = await fetch(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: JSON_HDR,
+      body: JSON.stringify({
+        content,
+        stream: false,
+        retryUserMessageId: options?.retryUserMessageId ?? null,
+      }),
+    },
+  );
+  const parsed = await parseResponse<SendMessageResponse>(res);
+  if (parsed.turn) {
+    parsed.turn = normalizeTurnSnapshotPayload(parsed.turn);
+  }
+  return parsed;
 }
 
 export type ClearMessagesResponse = {
