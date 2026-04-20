@@ -4,17 +4,21 @@ import {
   CHAT_DEFAULT_CONVERSATION_TITLE,
   CHAT_MESSAGE_LIST_DEFAULT_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
-  CHAT_USER_MESSAGE_MAX_LENGTH,
 } from "@/common/constants";
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { invokeAssistantReply, streamAssistantReply } from "@/server/chat/assistant";
-import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
+import {
+  createConversationSummaryUpdater,
+  getNextMessageSortOrder,
+  prepareModelInputForPostMessage,
+  persistUserMessageAndTouchConversation,
+  validatePostMessageBody,
+  type PostMessageBody,
+} from "@/server/chat/post-message-pipeline";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
-import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
 import { findOwnedConversation } from "@/server/chat/conversation-access";
-import { buildKnowledgeInjectionForChat } from "@/server/knowledge-base/injection";
 import { getDataSource } from "@/server/db/data-source";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
@@ -44,22 +48,6 @@ function parseMessageLimit(raw: string | null): number | null {
     return null;
   }
   return Math.min(n, CHAT_MESSAGE_LIST_MAX_LIMIT);
-}
-
-type DataSource = Awaited<ReturnType<typeof getDataSource>>;
-
-/** 下一条消息的 sortOrder（SQLite MAX 可能返回字符串） */
-async function nextSortOrder(ds: DataSource, conversationId: string): Promise<number> {
-  const msgRepo = ds.getRepository(Message);
-  const row = await msgRepo
-    .createQueryBuilder("m")
-    .select("MAX(m.sortOrder)", "max")
-    .where("m.conversationId = :cid", { cid: conversationId })
-    .getRawOne<{ max: number | string | null }>();
-  const raw = row?.max;
-  const max =
-    raw == null ? -1 : typeof raw === "number" ? raw : Number.parseInt(String(raw), 10);
-  return Number.isFinite(max) ? max + 1 : 0;
 }
 
 /**
@@ -122,8 +110,6 @@ export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   );
 });
 
-type PostBody = { content?: unknown; stream?: unknown };
-
 /**
  * POST /api/chat/conversations/:conversationId/messages
  */
@@ -136,43 +122,18 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
 
   const { conversationId } = await ctx.params;
 
-  let body: PostBody;
+  let body: PostMessageBody;
   try {
-    body = (await req.json()) as PostBody;
+    body = (await req.json()) as PostMessageBody;
   } catch {
     return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
-  const contentRaw = body.content;
-  if (typeof contentRaw !== "string") {
-    return jsonError(
-      ErrorCode.VALIDATION_ERROR,
-      "content 无效",
-      HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "content", message: "须为非空字符串" }],
-    );
+  const validated = validatePostMessageBody(body);
+  if (!validated.ok) {
+    return validated.response;
   }
-
-  const content = [...contentRaw.trim()].join("");
-  if (!content) {
-    return jsonError(
-      ErrorCode.VALIDATION_ERROR,
-      "content 不能为空",
-      HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "content", message: "不能为空" }],
-    );
-  }
-
-  if ([...content].length > CHAT_USER_MESSAGE_MAX_LENGTH) {
-    return jsonError(
-      ErrorCode.VALIDATION_ERROR,
-      "content 过长",
-      HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "content", message: `长度不能超过 ${CHAT_USER_MESSAGE_MAX_LENGTH} 个字符` }],
-    );
-  }
-
-  const stream = body.stream === true;
+  const { content, stream } = validated;
 
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
@@ -183,116 +144,20 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   const msgRepo = ds.getRepository(Message);
   const convRepo = ds.getRepository(Conversation);
 
-  const userSort = await nextSortOrder(ds, conv.id);
-  const userMsg = msgRepo.create({
-    id: uuidv4(),
-    conversationId: conv.id,
+  const userMsg = await persistUserMessageAndTouchConversation({ ds, conv, user, content });
+
+  const { historyForModel, summaryCutoffCandidate } = await prepareModelInputForPostMessage({
+    ds,
+    conv,
     userId: user.id,
-    role: MessageRole.User,
-    content,
-    sortOrder: userSort,
+    userMessageText: content,
   });
-  await msgRepo.save(userMsg);
 
-  const userMsgCount = await msgRepo.count({
-    where: { conversationId: conv.id, role: MessageRole.User },
+  const updateConversationSummary = createConversationSummaryUpdater({
+    convRepo,
+    conv,
+    summaryCutoffCandidate,
   });
-  if (userMsgCount === 1) {
-    await convRepo.update(
-      { id: conv.id },
-      { title: titleFromFirstUserMessage(content), updatedAt: new Date() },
-    );
-  } else {
-    await convRepo.update({ id: conv.id }, { updatedAt: new Date() });
-  }
-
-  const history = await msgRepo.find({
-    where: { conversationId: conv.id },
-    order: { sortOrder: "ASC" },
-  });
-  let historyForModel = history;
-  let sourceMessagesForModel = history;
-  let summaryCutoffCandidate: number | null = null;
-  // 若会话已有落库摘要，则优先走“摘要 + 新增消息（不足则补齐最近最少条数）”输入，避免每轮都拿全量历史导致立刻再次触发摘要。
-  try {
-    const summaryCfg = await getConversationSummaryConfig();
-    const summaryText = conv.contextSummary?.trim();
-    const minRecentMessages = Math.max(1, summaryCfg.summaryMinRecentMessages);
-    if (summaryCfg.enabled && summaryText) {
-      const templates = await getSummaryPromptTemplates();
-      const cutoff = conv.contextSummaryCutoffSortOrder ?? -1;
-      const afterCutoff = history.filter((m) => m.sortOrder > cutoff);
-      // 优先使用“摘要后新增消息”；若不足最少条数则从全量尾部补齐最近消息。
-      const recent = afterCutoff.length >= minRecentMessages
-        ? afterCutoff
-        : history.slice(-minRecentMessages);
-      sourceMessagesForModel = recent;
-      const summaryInjected = {
-        // 仅用于模型输入，不写回数据库；role/content 是 historyToBaseMessages 需要的最小字段。
-        role: MessageRole.System,
-        content: `${templates.summarySystemPrefix}\n\n${summaryText}`,
-      } as Message;
-      historyForModel = [summaryInjected, ...recent];
-    }
-    // 若本轮再次触发摘要，新的 cutoff 至少要为“当前喂给模型的原文消息里，保留最近 minRecent 后的最后一条”。
-    const idx = sourceMessagesForModel.length - minRecentMessages - 1;
-    summaryCutoffCandidate = idx >= 0 ? sourceMessagesForModel[idx].sortOrder : null;
-  } catch {
-    // 摘要配置读取失败时回退到原行为（全量历史），不中断主对话流程。
-    historyForModel = history;
-    sourceMessagesForModel = history;
-    summaryCutoffCandidate = null;
-  }
-
-  // 在调用模型前注入知识库上下文（仅用于模型输入，不落库）
-  try {
-    const inject = await buildKnowledgeInjectionForChat({
-      ds,
-      userId: user.id,
-      assistantId: conv.assistantId,
-      userMessageText: content,
-    });
-    if (inject.systemMessageText) {
-      const injected = {
-        role: MessageRole.System,
-        content: inject.systemMessageText,
-      } as Message;
-      // 放在“可能存在的摘要 System”之后，避免盖过摘要注入
-      const insertAt = historyForModel[0]?.role === MessageRole.System ? 1 : 0;
-      historyForModel = [
-        ...historyForModel.slice(0, insertAt),
-        injected,
-        ...historyForModel.slice(insertAt),
-      ];
-    }
-  } catch (e) {
-    // 注入失败不应影响主对话流程
-    console.error(
-      JSON.stringify({
-        module: "kb.injection",
-        action: "failed",
-        message: e instanceof Error ? e.message : String(e),
-      }),
-    );
-  }
-
-  const updateConversationSummary = async (summary: string) => {
-    const currentCutoff = conv.contextSummaryCutoffSortOrder;
-    const nextCutoffSortOrder =
-      summaryCutoffCandidate === null
-        ? currentCutoff ?? null
-        : currentCutoff == null
-          ? summaryCutoffCandidate
-          : Math.max(currentCutoff, summaryCutoffCandidate);
-    await convRepo.update(
-      { id: conv.id },
-      {
-        contextSummary: summary,
-        contextSummaryUpdatedAt: new Date(),
-        contextSummaryCutoffSortOrder: nextCutoffSortOrder,
-      },
-    );
-  };
 
   if (stream) {
     const encoder = new TextEncoder();
@@ -320,7 +185,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             send("assistant_delta", { text: delta });
           }
 
-          const asstSort = await nextSortOrder(ds, conv.id);
+          const asstSort = await getNextMessageSortOrder(ds, conv.id);
           const asstMsg = msgRepo.create({
             id: uuidv4(),
             conversationId: conv.id,
@@ -373,7 +238,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     return jsonError(ErrorCode.MODEL_ERROR, msg, HttpStatus.BAD_GATEWAY);
   }
 
-  const asstSort = await nextSortOrder(ds, conv.id);
+  const asstSort = await getNextMessageSortOrder(ds, conv.id);
   const asstMsg = msgRepo.create({
     id: uuidv4(),
     conversationId: conv.id,

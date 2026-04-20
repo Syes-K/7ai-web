@@ -1,7 +1,9 @@
 /**
- * 模型调用占位（LangChain）：
- * - 0.0.1 不创建 Chain、不调用外部模型。
- * - 后续版本在此封装统一入口（如 chat / completion 编排），由服务端路由调用。
+ * `server/llm` 仅保留：
+ * - {@link ./model.ts}：纯模型工厂（`getModel`、provider 等）
+ * - {@link ./callback.ts}：通用 LangChain 回调（日志、摘要监听等）
+ *
+ * 聊天 Agent 编排见 `server/chat/langchain-agent.ts`；业务胶水见 `server/chat/assistant.ts`。
  */
 
 export {};

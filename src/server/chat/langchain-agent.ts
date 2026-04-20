@@ -1,9 +1,10 @@
 /**
- * `/chat` 对话链路的 LangChain Agent 层。
+ * `/chat` 对话链路的 LangChain Agent 编排（原 `server/llm/assistant.ts`，已迁入 `chat/`）。
  *
  * 职责：用 {@link getChatRuntimeModel} 解析用户侧模型；用 {@link findReadableAssistant} 与默认
- * {@link CHAT_SYSTEM_PROMPT} 解析系统提示；通过 `createAgent`（无工具）得到统一执行体。
- * 普通对话与绑定助手会话共用本模块，不处理 HTTP 与 TypeORM `Message` 持久化结构。
+ * {@link CHAT_SYSTEM_PROMPT} 解析系统提示；经 {@link resolveAllToolsForAgent} /
+ * {@link resolveSystemPromptWithSkills} 加载 tools/MCP/skills（当前均为空占位）；通过 `createAgent` 得到统一执行体。
+ * 纯模型构造见 `server/llm/model.ts`；本模块不处理 HTTP 与 TypeORM `Message` 持久化结构。
  *
  * 流式输出见 {@link streamChatAssistantAgentText}（基于 LangGraph `streamEvents`）。
  */
@@ -13,9 +14,13 @@ import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import { CHAT_SYSTEM_PROMPT, LLM_SUMMARIZATION_TAG } from "@/common/constants";
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
+import { getChatRuntimeModel, getChatRuntimeSummarizationModel } from "@/server/chat/llm-runtime";
 import { getDataSource } from "@/server/db/data-source";
 import type { User } from "@/server/db/entities/User";
-import { getChatRuntimeModel, getChatRuntimeSummarizationModel } from "@/server/chat/llm-runtime";
+import {
+  resolveAllToolsForAgent,
+  resolveSystemPromptWithSkills,
+} from "@/server/chat/turn-capabilities";
 
 export type GetChatAssistantAgentOptions = {
   userId: string;
@@ -44,14 +49,20 @@ export async function resolveChatAssistantSystemPrompt(
 }
 
 /**
- * 获取用于 `/chat` 对话的 LangChain `createAgent` 实例（无工具，纯对话）。
+ * 获取用于 `/chat` 对话的 LangChain `createAgent` 实例。
+ * tools/MCP/skills 经 {@link resolveAllToolsForAgent} / {@link resolveSystemPromptWithSkills} 注入（当前为空列表与空追加）。
  * 普通对话与绑定助手会话均经此入口创建，模型来自用户偏好 {@link getChatRuntimeModel}。
  */
 export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
   const { userId, user, assistantId } = options;
   const model = await getChatRuntimeModel(userId, { user: user ?? undefined });
   const summaryModel = await getChatRuntimeSummarizationModel(userId, { user: user ?? undefined });
-  const systemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
+  const capCtx = { userId, user, assistantId };
+  const baseSystemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
+  const [systemPrompt, tools] = await Promise.all([
+    resolveSystemPromptWithSkills(baseSystemPrompt, capCtx),
+    resolveAllToolsForAgent(capCtx),
+  ]);
   const summaryCfg = await getConversationSummaryConfig();
   const summaryTemplates = await getSummaryPromptTemplates();
   // LangChain summarizationMiddleware 会对 summaryPrompt 执行 .replace("{messages}", 历史正文)，
@@ -60,8 +71,6 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
     /\{maxChars\}/g,
     String(summaryCfg.maxChars),
   );
-  // LangChain keepSchema：keep 必须且只能指定 fraction / tokens / messages 之一（不能同时传多个）。
-  // trigger 的 contextSizeSchema：至少指定其一；按单键传参即只按该维度判断。
   const trigger =
     summaryCfg.mode === "tokens"
       ? { tokens: summaryCfg.summaryTriggerTokens }
@@ -74,11 +83,11 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
   return createAgent({
     model,
     systemPrompt,
-    tools: [],
+    tools,
     middleware: summaryCfg.enabled
       ? [
           summarizationMiddleware({
-            // 摘要专用模型由 llm/model.ts 构造，内置 summarization tag。
+            // 摘要专用模型由 @/server/llm/model 构造，内置 summarization tag。
             model: summaryModel,
             trigger,
             keep,
@@ -134,7 +143,6 @@ export async function* streamChatAssistantAgentText(
     if (ev.event !== "on_chat_model_stream" || !ev.data?.chunk) {
       continue;
     }
-    // 过滤摘要子调用的分词，避免把摘要文本拼进本轮助手最终回复。
     if (
       (Array.isArray(ev.tags) && ev.tags.includes(LLM_SUMMARIZATION_TAG)) ||
       ev.metadata?.lc_source === LLM_SUMMARIZATION_TAG

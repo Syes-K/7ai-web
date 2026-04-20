@@ -4,14 +4,14 @@
  * 职责：将数据库中的会话 {@link Message} 转为 LangChain `BaseMessage` 序列；调用
  * {@link getAssistantAgent} 做非流式 {@link invokeAssistantReply} 与流式
  * {@link streamAssistantReply}（委托 {@link streamChatAssistantAgentText}）。
- * 模型解析、系统提示、Agent 构建均在 `server/llm/assistant`，本文件不重复实现。
+ * 模型解析、系统提示、Agent 构建均在 `server/chat/langchain-agent`，本文件不重复实现。
  */
 import type { BaseMessage } from "@langchain/core/messages";
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { MessageRole } from "@/common/enums";
 import type { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
-import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/llm/assistant";
+import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/chat/langchain-agent";
 import { LoggerCallbackHandler, SummarizationLlmCallbackHandler } from "@/server/llm/callback";
 
 type AssistantRuntimeOptions = {
