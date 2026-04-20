@@ -100,8 +100,8 @@ server {
     listen 443 ssl http2;
     server_name 7ai.club www.7ai.club;
 
-    ssl_certificate     /etc/pki/nginx/fullchain.pem;
-    ssl_certificate_key /etc/pki/nginx/privkey.pem;
+    ssl_certificate     /etc/pki/nginx/7ai.club.pem;
+    ssl_certificate_key /etc/pki/nginx/7ai.club.key;
     # 可选：ssl_session_cache shared:SSL:10m;
     # 可选：ssl_protocols TLSv1.2 TLSv1.3;
 
