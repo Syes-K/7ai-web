@@ -24,6 +24,7 @@ import {
   Tooltip,
 } from "antd";
 import dayjs from "dayjs";
+import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ASSISTANT_ICON_MAX_LENGTH,
@@ -36,6 +37,10 @@ import type { AssistantListItem } from "@/common/types";
 
 const API_BASE = "/api/console/assistants";
 const KB_API_BASE = "/api/knowledge-bases";
+const MCP_LIST_API = "/api/console/mcp-configs";
+
+type McpPickerItem = { id: string; name: string; enabled: boolean; transport: string };
+const EMPTY_MCP_IDS: string[] = [];
 
 async function parseApiError(res: Response): Promise<string> {
   const j = (await res.json().catch(() => null)) as {
@@ -56,6 +61,7 @@ export default function ConsoleAssistantsPage() {
     openingMessage?: string;
     tags?: string[];
     knowledgeBaseIds?: string[];
+    mcpConfigIds?: string[];
   }>();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,6 +74,9 @@ export default function ConsoleAssistantsPage() {
     [],
   );
   const [kbLoading, setKbLoading] = useState(false);
+  const [mcpOptions, setMcpOptions] = useState<McpPickerItem[]>([]);
+  const [mcpLoading, setMcpLoading] = useState(false);
+  const mcpConfigIdsWatch = Form.useWatch("mcpConfigIds", form);
 
   const [keyword, setKeyword] = useState("");
   const [keywordDraft, setKeywordDraft] = useState("");
@@ -99,14 +108,57 @@ export default function ConsoleAssistantsPage() {
     }
   }, [message]);
 
+  const loadMcpOptions = useCallback(async () => {
+    setMcpLoading(true);
+    try {
+      const res = await fetch(MCP_LIST_API, { credentials: "include" });
+      if (res.status === 401) {
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent("/console/assistants");
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res));
+        return;
+      }
+      const data = (await res.json()) as { items: McpPickerItem[] };
+      setMcpOptions(Array.isArray(data.items) ? data.items : []);
+    } finally {
+      setMcpLoading(false);
+    }
+  }, [message]);
+
+  const loadAssistantMcpConfigs = useCallback(
+    async (assistantId: string) => {
+      const res = await fetch(`${API_BASE}/${assistantId}/mcp-configs`, {
+        credentials: "include",
+      });
+      if (res.status === 401) {
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent("/console/assistants");
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res));
+        return;
+      }
+      const data = (await res.json()) as { mcpConfigIds: string[] };
+      form.setFieldsValue({
+        mcpConfigIds: Array.isArray(data.mcpConfigIds) ? data.mcpConfigIds : [],
+      });
+    },
+    [form, message],
+  );
+
   const openCreate = useCallback(() => {
     setModalMode("create");
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ tags: [], knowledgeBaseIds: [] });
+    form.setFieldsValue({ tags: [], knowledgeBaseIds: [], mcpConfigIds: [] });
     setModalOpen(true);
     void loadKnowledgeBaseOptions();
-  }, [form, loadKnowledgeBaseOptions]);
+    void loadMcpOptions();
+  }, [form, loadKnowledgeBaseOptions, loadMcpOptions]);
 
   const loadAssistantKnowledgeBases = useCallback(
     async (assistantId: string) => {
@@ -145,11 +197,12 @@ export default function ConsoleAssistantsPage() {
         knowledgeBaseIds: [],
       });
       setModalOpen(true);
-      // 仅个人助手支持配置
       void loadKnowledgeBaseOptions();
+      void loadMcpOptions();
       void loadAssistantKnowledgeBases(row.id);
+      void loadAssistantMcpConfigs(row.id);
     },
-    [form, loadAssistantKnowledgeBases, loadKnowledgeBaseOptions],
+    [form, loadAssistantKnowledgeBases, loadAssistantMcpConfigs, loadKnowledgeBaseOptions, loadMcpOptions],
   );
 
   const openView = useCallback(
@@ -191,6 +244,7 @@ export default function ConsoleAssistantsPage() {
       const knowledgeBaseIds = Array.isArray(v.knowledgeBaseIds)
         ? v.knowledgeBaseIds
         : [];
+      const mcpConfigIds = Array.isArray(v.mcpConfigIds) ? v.mcpConfigIds : [];
       const iconTrim = (v.icon ?? "").trim();
       const openingTrim = (v.openingMessage ?? "").trim();
       const payload = {
@@ -219,15 +273,26 @@ export default function ConsoleAssistantsPage() {
         }
         const data = (await res.json()) as { item?: { id?: string } };
         const assistantId = data?.item?.id;
-        if (assistantId && knowledgeBaseIds.length > 0) {
-          const relRes = await fetch(`${API_BASE}/${assistantId}/knowledge-bases`, {
+        if (assistantId) {
+          if (knowledgeBaseIds.length > 0) {
+            const relRes = await fetch(`${API_BASE}/${assistantId}/knowledge-bases`, {
+              method: "PUT",
+              credentials: "include",
+              headers: { "Content-Type": "application/json; charset=utf-8" },
+              body: JSON.stringify({ knowledgeBaseIds }),
+            });
+            if (!relRes.ok) {
+              message.warning("助手已创建，但知识库绑定保存失败");
+            }
+          }
+          const mcpRes = await fetch(`${API_BASE}/${assistantId}/mcp-configs`, {
             method: "PUT",
             credentials: "include",
             headers: { "Content-Type": "application/json; charset=utf-8" },
-            body: JSON.stringify({ knowledgeBaseIds }),
+            body: JSON.stringify({ mcpConfigIds }),
           });
-          if (!relRes.ok) {
-            message.warning("助手已创建，但知识库绑定保存失败");
+          if (!mcpRes.ok) {
+            message.warning("助手已创建，但 MCP 挂载保存失败");
           }
         }
         message.success("已创建");
@@ -261,6 +326,15 @@ export default function ConsoleAssistantsPage() {
       });
       if (!relRes.ok) {
         message.warning("助手已保存，但知识库绑定保存失败");
+      }
+      const mcpRes = await fetch(`${API_BASE}/${editing.id}/mcp-configs`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ mcpConfigIds }),
+      });
+      if (!mcpRes.ok) {
+        message.warning("助手已保存，但 MCP 挂载保存失败");
       }
       message.success("已保存");
       closeModal();
@@ -459,6 +533,16 @@ export default function ConsoleAssistantsPage() {
       : modalMode === "edit"
         ? "编辑助手"
         : "查看助手（系统）";
+
+  const selectedMcpIdsForPicker = Array.isArray(mcpConfigIdsWatch) ? mcpConfigIdsWatch : EMPTY_MCP_IDS;
+  const hasInactiveMountedMcp = useMemo(
+    () =>
+      selectedMcpIdsForPicker.some((id) => {
+        const o = mcpOptions.find((m) => m.id === id);
+        return Boolean(o && !o.enabled);
+      }),
+    [mcpOptions, selectedMcpIdsForPicker],
+  );
 
   return (
     <PageContainer ghost title="助手管理">
@@ -662,6 +746,76 @@ export default function ConsoleAssistantsPage() {
                     optionFilterProp="label"
                     showSearch
                     maxTagCount="responsive"
+                  />
+                </Form.Item>
+
+                <Divider className="my-3">MCP 挂载</Divider>
+                {mcpOptions.length === 0 && !mcpLoading ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="mb-3"
+                    message="您还没有可用的 MCP"
+                    description={
+                      <span>
+                        请先到 <Link href="/console/mcp">MCP 管理</Link> 添加配置。
+                      </span>
+                    }
+                  />
+                ) : null}
+                {hasInactiveMountedMcp ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    className="mb-3"
+                    message="部分已挂载的 MCP 已停用"
+                    description="对话中不会加载已停用的 MCP，建议启用或移除。"
+                  />
+                ) : null}
+                <Form.Item
+                  name="mcpConfigIds"
+                  label={
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span>MCP（多选）</span>
+                      <Link href="/console/mcp" className="text-xs font-normal text-sky-300 hover:text-sky-200">
+                        管理 MCP…
+                      </Link>
+                    </span>
+                  }
+                  extra="对话时为本助手加载对应工具；与是否使用知识库检索无关。"
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder="加载 MCP 列表…"
+                    loading={mcpLoading}
+                    disabled={mcpOptions.length === 0 && !mcpLoading}
+                    optionFilterProp="label"
+                    showSearch
+                    maxTagCount="responsive"
+                    options={mcpOptions.map((m) => ({
+                      label: `${m.name}（${m.transport}）`,
+                      value: m.id,
+                      disabled: !m.enabled && !selectedMcpIdsForPicker.includes(m.id),
+                    }))}
+                    tagRender={(props) => {
+                      const { label, value, closable, onClose } = props;
+                      const row = mcpOptions.find((m) => m.id === value);
+                      const inactive = row && !row.enabled;
+                      return (
+                        <Tag
+                          color={inactive ? "orange" : "blue"}
+                          closable={closable}
+                          onClose={onClose}
+                          className="m-0 max-w-[220px]"
+                        >
+                          <span className="inline-block max-w-[160px] truncate align-bottom">
+                            {row?.name ?? String(label)}
+                          </span>
+                          {inactive ? "（已停用）" : ""}
+                        </Tag>
+                      );
+                    }}
                   />
                 </Form.Item>
               </>

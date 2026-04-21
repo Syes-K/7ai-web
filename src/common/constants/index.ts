@@ -149,3 +149,20 @@ export const CONVERSATION_SUMMARY_TRIGGER_MESSAGES_MAX = 1000;
 export const CONVERSATION_SUMMARY_KEEP_MESSAGES_MAX = 500;
 /** 摘要后最少保留最近原文消息条数上限（管理端校验）。 */
 export const CONVERSATION_SUMMARY_MIN_RECENT_MESSAGES_MAX = 200;
+
+/** MCP 配置名称最大长度（与实体列一致） */
+export const MCP_CONFIG_NAME_MAX_LENGTH = 64;
+/** MCP 配置描述最大长度 */
+export const MCP_CONFIG_DESCRIPTION_MAX_LENGTH = 500;
+/** MCP transport 字段最大长度 */
+export const MCP_CONFIG_TRANSPORT_MAX_LENGTH = 32;
+/** 单用户最多 MCP 配置条数（技术上限） */
+export const MCP_CONFIG_MAX_PER_USER = 50;
+/** 单助手最多挂载 MCP 数 */
+export const MCP_CONFIG_MAX_PER_ASSISTANT = 20;
+/** 单轮对话最多加载的不同 MCP 配置数 */
+export const MCP_CONFIG_MAX_BINDINGS_PER_CHAT_TURN = 10;
+/** list_tools / 测试连接超时（毫秒） */
+export const MCP_LIST_TOOLS_TIMEOUT_MS = 30_000;
+/** 测试连接：同一用户同一配置最短间隔（毫秒），用于简单频控 */
+export const MCP_TEST_CONNECTION_MIN_INTERVAL_MS = 3_000;

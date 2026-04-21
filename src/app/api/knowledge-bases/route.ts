@@ -41,7 +41,6 @@ function normalizeTags(raw: unknown): { ok: true; tags: string[] } | { ok: false
       return { ok: false, message: `单个标签最长 ${KNOWLEDGE_BASE_TAG_MAX_LENGTH} 字` };
     }
   }
-  // 去重（保持顺序）
   const out: string[] = [];
   const set = new Set<string>();
   for (const t of tags) {
@@ -203,7 +202,6 @@ export const POST = withApiWrapper(async (request: Request) => {
   try {
     await repo.save(row);
   } catch (e) {
-    // name unique 冲突
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.toLowerCase().includes("unique")) {
       return jsonError(
@@ -216,7 +214,6 @@ export const POST = withApiWrapper(async (request: Request) => {
     return jsonError(ErrorCode.INTERNAL_ERROR, "保存失败，请稍后重试", HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
-  // 同步触发向量化：失败不阻塞创建（vectorize 内会落 failed）
   try {
     await vectorizeKnowledgeBase(ds, row);
   } catch {
@@ -229,4 +226,3 @@ export const POST = withApiWrapper(async (request: Request) => {
     { status: HttpStatus.CREATED, headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
 });
-

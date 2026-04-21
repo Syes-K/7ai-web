@@ -392,6 +392,70 @@ export async function sendMessageStream(
   }
 }
 
+/**
+ * 将 subStep 上的 details 规范为对象数组。
+ * 若仅 `Array.isArray` 判断，会把「JSON 字符串形式存库的 details」误写成 []，导致刷新后前端无分段。
+ */
+function coerceStepDetailsArray(raw: unknown): Array<{ title: string; content: string }> {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as Array<{ title: string; content: string }>;
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      if (Array.isArray(p)) return p as Array<{ title: string; content: string }>;
+      if (p != null && typeof p === "object" && !Array.isArray(p)) {
+        const o = p as Record<string, unknown>;
+        if ("title" in o || "content" in o || "Title" in o || "Content" in o) {
+          return [p as { title: string; content: string }];
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    if ("title" in o || "content" in o || "Title" in o || "Content" in o) {
+      return [raw as { title: string; content: string }];
+    }
+    /** 类数组对象 `{0:{...},1:{...}}` 等，与 `stepDetailsToBlocks` 对齐 */
+    const vals = Object.values(o);
+    if (
+      vals.length > 0 &&
+      vals.every((v) => v != null && typeof v === "object")
+    ) {
+      return vals.flatMap((v) => coerceStepDetailsArray(v));
+    }
+  }
+  return [];
+}
+
+/** 保证每条 subStep 带上 `details` 数组，兼容 `Details`、JSON 字符串等。 */
+function normalizeSubStepsForPayload(raw: unknown): TurnSnapshotPayload["steps"]["subSteps"] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((step) => {
+    if (step == null || typeof step !== "object") return step as TurnSnapshotPayload["steps"]["subSteps"][number];
+    const s = step as Record<string, unknown>;
+    const dRaw = s.details ?? s.Details;
+    const details = coerceStepDetailsArray(dRaw);
+    return {
+      ...s,
+      details,
+    } as TurnSnapshotPayload["steps"]["subSteps"][number];
+  });
+}
+
+/** 规范化每条 subStep 的 `details`，供 REST、SSE 与 UI 共用。 */
+export function finalizeStepsSnapshotForClient(
+  steps: TurnSnapshotPayload["steps"],
+): TurnSnapshotPayload["steps"] {
+  return {
+    ...steps,
+    subSteps: normalizeSubStepsForPayload(steps.subSteps),
+  };
+}
+
 function normalizeTurnSnapshotPayload(raw: unknown): TurnSnapshotPayload {
   const input = (raw ?? {}) as Record<string, unknown>;
   const steps = (input.steps ?? {}) as TurnSnapshotPayload["steps"];
@@ -410,7 +474,7 @@ function normalizeTurnSnapshotPayload(raw: unknown): TurnSnapshotPayload {
     startedAt: typeof input.startedAt === "string" ? input.startedAt : undefined,
     endedAt: typeof input.endedAt === "string" ? input.endedAt : undefined,
     durationMs: typeof input.durationMs === "number" ? input.durationMs : null,
-    steps: {
+    steps: finalizeStepsSnapshotForClient({
       version: steps?.version ?? "0.1.8",
       frozen: Boolean(steps?.frozen),
       mainStages: Array.isArray(steps?.mainStages) ? steps.mainStages : [],
@@ -420,7 +484,7 @@ function normalizeTurnSnapshotPayload(raw: unknown): TurnSnapshotPayload {
         status: steps?.reasoning?.status ?? reasoning.status,
         safeSummary: steps?.reasoning?.safeSummary ?? reasoning.safeSummary,
       },
-    },
+    }),
     reasoning,
   };
 }

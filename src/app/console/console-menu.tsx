@@ -1,6 +1,7 @@
 import {
   ApiOutlined,
   BookOutlined,
+  CloudServerOutlined,
   RobotOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -30,5 +31,11 @@ export const consoleMenuRoutes: MenuDataItem[] = [
     name: "知识库管理",
     key: "knowledge",
     icon: <BookOutlined />,
+  },
+  {
+    path: "/console/mcp",
+    name: "MCP 管理",
+    key: "mcp",
+    icon: <CloudServerOutlined />,
   },
 ];

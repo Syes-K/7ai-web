@@ -33,6 +33,7 @@ import {
   KNOWLEDGE_BASE_NAME_MAX_LENGTH,
 } from "@/common/constants";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import { readApiErrorPayload } from "@/components/auth/map-api-errors";
 
 type KnowledgeBaseListItem = {
   id: string;
@@ -50,15 +51,14 @@ type KnowledgeBaseListItem = {
 };
 
 type KnowledgeBaseDetail = KnowledgeBaseListItem & { content: string };
+
 type ChunkTestTarget = Pick<KnowledgeBaseListItem, "id" | "name" | "vectorStatus">;
 
 const API_BASE = "/api/knowledge-bases";
 
 async function parseApiError(res: Response): Promise<string> {
-  const j = (await res.json().catch(() => null)) as {
-    error?: { message?: string };
-  } | null;
-  return j?.error?.message ?? `请求失败（${res.status}）`;
+  const e = await readApiErrorPayload(res);
+  return e.message;
 }
 
 function vectorStatusTag(status: KnowledgeBaseListItem["vectorStatus"]) {
@@ -715,14 +715,17 @@ export default function ConsoleKnowledgePage() {
         title={modalMode === "create" ? "新建知识库" : "编辑知识库"}
         open={modalOpen}
         onCancel={closeModal}
-        onOk={() => void submitModal()}
-        okText="保存"
-        okButtonProps={{ ghost: true }}
-        cancelText="取消"
-        confirmLoading={submitting}
         width={760}
         maskClosable={false}
         destroyOnClose
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button onClick={closeModal}>取消</Button>
+            <Button type="primary" ghost loading={submitting} onClick={() => void submitModal()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={form} layout="vertical" className="mt-4">
           <Form.Item

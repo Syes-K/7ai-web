@@ -13,6 +13,8 @@ import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { KnowledgeBaseVectorChunk } from "@/server/db/entities/KnowledgeBaseVectorChunk";
 import { AssistantKnowledgeBase } from "@/server/db/entities/AssistantKnowledgeBase";
 import { ChatTurn } from "@/server/db/entities/ChatTurn";
+import { UserMcpConfig } from "@/server/db/entities/UserMcpConfig";
+import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
 
 let dataSource: DataSource | null = null;
 
@@ -44,11 +46,17 @@ export async function getDataSource(): Promise<DataSource> {
       KnowledgeBaseVectorChunk,
       AssistantKnowledgeBase,
       ChatTurn,
+      UserMcpConfig,
+      AssistantMcpBinding,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",
   });
 
   await dataSource.initialize();
+  const { migrateKnowledgeBaseMcpToAssistantMcp } = await import(
+    "@/server/db/migrate-kb-mcp-to-assistant-mcp"
+  );
+  await migrateKnowledgeBaseMcpToAssistantMcp(dataSource);
   return dataSource;
 }

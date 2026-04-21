@@ -29,6 +29,7 @@ import {
   fetchConversations,
   fetchMessages,
   fetchTurns,
+  finalizeStepsSnapshotForClient,
   sendMessage,
   sendMessageStream,
   type ConversationListItem,
@@ -156,6 +157,52 @@ const INTERRUPTION_REASON_TEXT: Record<TurnInterruptionReason, string> = {
   unknown: "本轮意外中断，可重试",
 };
 
+/**
+ * Turn 步骤中的 `details` 经 JSON 后应为 `{ title, content }[]`。
+ * 旧逻辑用 `title && content` 过滤会把 `content === ""`、`0` 等假值整块丢掉，导致 MCP/知识库展开无正文。
+ */
+function stepDetailsToBlocks(details: unknown): Array<{ title: string; content: string }> {
+  if (typeof details === "string") {
+    try {
+      return stepDetailsToBlocks(JSON.parse(details) as unknown);
+    } catch {
+      return details.trim() ? [{ title: "详情", content: details }] : [];
+    }
+  }
+  /** 单条对象、或类数组对象 {0:{...},1:{...}} 在部分存储/反序列化路径下不是 Array，不能直接丢弃 */
+  if (details != null && typeof details === "object" && !Array.isArray(details)) {
+    const o = details as Record<string, unknown>;
+    if ("title" in o || "Title" in o || "content" in o || "Content" in o) {
+      return stepDetailsToBlocks([details]);
+    }
+    const vals = Object.values(o);
+    if (
+      vals.length > 0 &&
+      vals.every((v) => v != null && typeof v === "object" && !Array.isArray(v))
+    ) {
+      return stepDetailsToBlocks(vals);
+    }
+  }
+  if (!Array.isArray(details)) return [];
+  const out: Array<{ title: string; content: string }> = [];
+  for (const raw of details) {
+    if (typeof raw === "string") {
+      if (raw.trim()) out.push({ title: "详情", content: raw });
+      continue;
+    }
+    if (raw == null || typeof raw !== "object") continue;
+    const d = raw as Record<string, unknown>;
+    const titleRaw = d.title ?? d.Title;
+    const contentRaw = d.content ?? d.Content ?? d.detail ?? d.body;
+    const title = typeof titleRaw === "string" ? titleRaw : titleRaw != null ? String(titleRaw) : "";
+    const content =
+      typeof contentRaw === "string" ? contentRaw : contentRaw != null ? String(contentRaw) : "";
+    if (!title.trim() && content === "") continue;
+    out.push({ title: title.trim() || "详情", content });
+  }
+  return out;
+}
+
 const REASONING_STATUS_TEXT: Record<TurnUiModel["reasoning"]["status"], string> = {
   not_triggered: "未触发",
   running: "进行中",
@@ -168,8 +215,9 @@ function normalizeTurnFromSnapshot(
   payload: TurnSnapshotPayload,
   sourceMode: TurnUiModel["sourceMode"],
 ): TurnUiModel {
-  const mainStages = Array.isArray(payload.steps.mainStages) ? payload.steps.mainStages : [];
-  const subSteps = Array.isArray(payload.steps.subSteps) ? payload.steps.subSteps : [];
+  const steps = finalizeStepsSnapshotForClient(payload.steps);
+  const mainStages = Array.isArray(steps.mainStages) ? steps.mainStages : [];
+  const subSteps = steps.subSteps;
   return {
     turnId: payload.turnId,
     userMessageId: payload.userMessageId ?? null,
@@ -180,11 +228,11 @@ function normalizeTurnFromSnapshot(
     endedAt: payload.endedAt,
     durationMs: payload.durationMs ?? null,
     steps: {
-      version: payload.steps.version ?? "0.1.8",
-      frozen: Boolean(payload.steps.frozen),
+      version: steps.version ?? "0.1.8",
+      frozen: Boolean(steps.frozen),
       mainStages,
       subSteps,
-      reasoning: payload.steps.reasoning,
+      reasoning: steps.reasoning,
     },
     reasoning: payload.reasoning,
     sourceMode,
@@ -193,24 +241,23 @@ function normalizeTurnFromSnapshot(
 }
 
 function turnModelFromDelta(started: { turnId: string; steps?: TurnSnapshotPayload["steps"] }): TurnUiModel {
+  const base =
+    started.steps ?? {
+      version: "0.1.8",
+      frozen: false,
+      mainStages: [],
+      subSteps: [],
+      reasoning: { visibilityLevel: 0, status: "not_triggered", safeSummary: null },
+    };
+  const steps = finalizeStepsSnapshotForClient(base);
   return {
     turnId: started.turnId,
     userMessageId: null,
     assistantMessageId: null,
     finalStatus: "running",
     interruptionReason: null,
-    steps: started.steps ?? {
-      version: "0.1.8",
-      frozen: false,
-      mainStages: [],
-      subSteps: [],
-      reasoning: { visibilityLevel: 0, status: "not_triggered", safeSummary: null },
-    },
-    reasoning: started.steps?.reasoning ?? {
-      visibilityLevel: 0,
-      status: "not_triggered",
-      safeSummary: null,
-    },
+    steps,
+    reasoning: steps.reasoning,
     sourceMode: "streaming",
     isSnapshotComplete: false,
   };
@@ -218,19 +265,20 @@ function turnModelFromDelta(started: { turnId: string; steps?: TurnSnapshotPaylo
 
 function applyTurnDelta(prev: TurnUiModel | null, payload: StreamTurnStepDeltaPayload): TurnUiModel {
   const next = prev?.turnId === payload.turnId ? prev : turnModelFromDelta({ turnId: payload.turnId });
+  const snap = finalizeStepsSnapshotForClient(payload.snapshot);
   return {
     ...next,
     userMessageId: next.userMessageId ?? null,
     assistantMessageId: next.assistantMessageId ?? null,
-    finalStatus: next.steps.frozen ? next.finalStatus : "running",
-    steps: payload.snapshot,
-    reasoning: payload.snapshot.reasoning,
+    finalStatus: snap.frozen ? next.finalStatus : "running",
+    steps: snap,
+    reasoning: snap.reasoning,
     sourceMode: "streaming",
     isSnapshotComplete:
-      Array.isArray(payload.snapshot.mainStages) &&
-      payload.snapshot.mainStages.length > 0 &&
-      Array.isArray(payload.snapshot.subSteps) &&
-      payload.snapshot.subSteps.length > 0,
+      Array.isArray(snap.mainStages) &&
+      snap.mainStages.length > 0 &&
+      Array.isArray(snap.subSteps) &&
+      snap.subSteps.length > 0,
   };
 }
 
@@ -286,14 +334,12 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
       knowledgeStep.startedAt ?? knowledgeStep.endedAt,
     );
   }
-  const toolStep = turn.steps.subSteps.find((step) =>
-    `${step.stepKey} ${step.subStage}`.toLowerCase().match(/tool|mcp/),
-  );
-  if (toolStep) {
+  const mcpStep = stepByKey.get("C2");
+  if (mcpStep) {
     addRow(
-      "tooling",
-      `MCP / Tools 调用 ${statusTone[toolStep.status]}${compact(toolStep.safeMessage) ? ` · ${compact(toolStep.safeMessage)}` : ""}`,
-      toolStep.startedAt ?? toolStep.endedAt,
+      "mcp",
+      `MCP 工具 ${statusTone[mcpStep.status]}${compact(mcpStep.safeMessage) ? ` · ${compact(mcpStep.safeMessage)}` : ""}`,
+      mcpStep.startedAt ?? mcpStep.endedAt,
     );
   }
   const skillStep = turn.steps.subSteps.find((step) => step.subStage.toLowerCase().includes("skill"));
@@ -322,6 +368,8 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
 
 type TurnStageItem = {
   key: string;
+  /** 对应 `turn.steps.subSteps` 的 `stepKey`，用于刷新后从快照再解析一遍 `details` */
+  sourceStepKey?: string | null;
   label: string;
   status: TurnStepStatus;
   summary: string | null;
@@ -332,107 +380,113 @@ type TurnStageItem = {
   order: number;
 };
 
+function shouldHideUnboundMcpStep(step: {
+  safeMessage: string | null;
+  details?: unknown;
+}): boolean {
+  const summary = (step.safeMessage ?? "").trim();
+  if (!summary) return false;
+  if (summary.includes("未绑定助手") || summary.includes("未挂载 MCP")) {
+    return true;
+  }
+  const blocks = stepDetailsToBlocks(step.details);
+  if (
+    summary.includes("未启用 MCP") &&
+    blocks.length === 1 &&
+    blocks[0]?.content.includes("未启用 MCP")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function shouldHideUnboundKnowledgeStep(step: {
+  safeMessage: string | null;
+  details?: unknown;
+}): boolean {
+  const summary = (step.safeMessage ?? "").trim();
+  if (summary !== "未命中可用知识片段") return false;
+  return stepDetailsToBlocks(step.details).length === 0;
+}
+
 function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
   const items: TurnStageItem[] = [];
-  const push = (
+
+  /** 与旧 `push` 不同：只要 `details` 能解析出分段，就应展示，且避免误把上一行的 `items[items.length-1]` 当成当前步。 */
+  const appendFromStep = (
     order: number,
     key: string,
     label: string,
-    status: TurnStepStatus,
-    summary: string | null | undefined,
-    details: Array<string | null | undefined>,
-    startedAt: string | null,
-    endedAt: string | null,
+    step: (typeof turn.steps.subSteps)[number],
+    sourceStepKey: string,
   ) => {
-    const clean = details
+    const summaryRaw = step.safeMessage ?? null;
+    const blocks = stepDetailsToBlocks(step.details);
+    const clean = [step.reasonTag, step.error?.message]
       .map((t) => (t ?? "").trim())
-      .filter((t) => t.length > 0);
-    if (!summary && clean.length === 0) return;
+      .filter((t) => t.length > 0)
+      // 知识库改为只展示命中结果，不展示「命中理由」字段。
+      .filter((t, idx) => !(key === "knowledge" && idx === 0));
+    // 子流程应展示自身状态，不应仅依赖 summary/details（例如 C2 pending/running）。
+    const shouldRenderByStatus =
+      step.status === "pending" ||
+      step.status === "running" ||
+      step.status === "completed" ||
+      step.status === "failed" ||
+      step.status === "interrupted";
+    if (!shouldRenderByStatus && !summaryRaw?.trim() && clean.length === 0 && blocks.length === 0) return;
     items.push({
       key,
+      sourceStepKey,
       label,
-      status,
-      summary: summary ?? null,
+      status: step.status,
+      summary: summaryRaw,
       details: clean,
-      detailBlocks: [],
-      startedAt,
-      endedAt,
+      detailBlocks: blocks,
+      startedAt: step.startedAt,
+      endedAt: step.endedAt,
       order,
     });
   };
+
   const byKey = new Map(turn.steps.subSteps.map((s) => [s.stepKey, s]));
   const knowledge = byKey.get("C1");
-  if (knowledge) {
-    push(
-      10,
-      "knowledge",
-      "知识库增强",
-      knowledge.status,
-      knowledge.safeMessage,
-      [knowledge.reasonTag, knowledge.error?.message],
-      knowledge.startedAt,
-      knowledge.endedAt,
-    );
-    const row = items[items.length - 1];
-    if (row) {
-      row.detailBlocks = (knowledge.details ?? []).filter((d) => d?.title && d?.content);
-    }
+  if (knowledge && !shouldHideUnboundKnowledgeStep(knowledge)) {
+    appendFromStep(10, "knowledge", "知识库增强", knowledge, "C1");
   }
-  const tooling = turn.steps.subSteps.find((s) =>
-    `${s.stepKey} ${s.subStage}`.toLowerCase().match(/tool|mcp/),
-  );
-  if (tooling) {
-    push(
-      20,
-      "tooling",
-      "MCP / Tools 调用",
-      tooling.status,
-      tooling.safeMessage,
-      [tooling.reasonTag, tooling.error?.message],
-      tooling.startedAt,
-      tooling.endedAt,
-    );
-    const row = items[items.length - 1];
-    if (row) {
-      row.detailBlocks = (tooling.details ?? []).filter((d) => d?.title && d?.content);
-    }
+  const mcp =
+    byKey.get("C2") ?? turn.steps.subSteps.find((s) => s.subStage === "mcp_tools_resolution");
+  if (mcp && !shouldHideUnboundMcpStep(mcp)) {
+    appendFromStep(15, "mcp", "MCP 工具", mcp, "C2");
   }
   const skill = turn.steps.subSteps.find((s) => s.subStage.toLowerCase().includes("skill"));
   if (skill) {
-    push(
-      30,
-      "skill",
-      "Skills 调用",
-      skill.status,
-      skill.safeMessage,
-      [skill.reasonTag, skill.error?.message],
-      skill.startedAt,
-      skill.endedAt,
-    );
-    const row = items[items.length - 1];
-    if (row) {
-      row.detailBlocks = (skill.details ?? []).filter((d) => d?.title && d?.content);
-    }
+    appendFromStep(30, "skill", "Skills 调用", skill, skill.stepKey);
   }
-  const summary = byKey.get("E1");
-  if (summary) {
-    push(
-      50,
-      "summary",
-      "摘要回调",
-      summary.status,
-      summary.safeMessage,
-      [summary.reasonTag, summary.error?.message],
-      summary.startedAt,
-      summary.endedAt,
-    );
-    const row = items[items.length - 1];
-    if (row) {
-      row.detailBlocks = (summary.details ?? []).filter((d) => d?.title && d?.content);
+  const summaryStep = byKey.get("E1");
+  if (summaryStep) {
+    const summaryBlocks = stepDetailsToBlocks(summaryStep.details);
+    const summaryHasContent =
+      Boolean(summaryStep.safeMessage?.trim()) ||
+      Boolean(summaryStep.reasonTag?.trim()) ||
+      Boolean(summaryStep.error?.message?.trim()) ||
+      summaryBlocks.length > 0;
+    const summaryTriggered =
+      summaryStep.status === "running" ||
+      summaryStep.status === "completed" ||
+      summaryStep.status === "failed" ||
+      summaryStep.status === "interrupted";
+    if (summaryTriggered || summaryHasContent) {
+      appendFromStep(50, "summary", "摘要回调", summaryStep, "E1");
     }
   }
   const reasoningSummary = turn.reasoning.safeSummary?.trim() ?? "";
-  if (reasoningSummary || turn.reasoning.status !== "not_triggered") {
+  const showReasoning =
+    reasoningSummary.length > 0 ||
+    turn.reasoning.status === "running" ||
+    turn.reasoning.status === "failed" ||
+    turn.reasoning.status === "interrupted";
+  if (showReasoning) {
     const reasoningStatus: TurnStepStatus =
       turn.reasoning.status === "running"
         ? "running"
@@ -441,24 +495,124 @@ function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
           : turn.reasoning.status === "not_triggered"
             ? "skipped"
             : "failed";
-    push(
-      40,
-      "reasoning",
-      "推理过程",
-      reasoningStatus,
-      reasoningSummary || null,
-      [REASONING_STATUS_TEXT[turn.reasoning.status]],
-      turn.startedAt ?? null,
-      turn.endedAt ?? null,
-    );
-    const row = items[items.length - 1];
-    if (row) {
-      row.detailBlocks = reasoningSummary
-        ? [{ title: "推理摘要", content: reasoningSummary }]
-        : [];
-    }
+    const statusLine = REASONING_STATUS_TEXT[turn.reasoning.status];
+    const clean = [statusLine].map((t) => t.trim()).filter((t) => t.length > 0);
+    const blocks = reasoningSummary ? [{ title: "推理摘要", content: reasoningSummary }] : [];
+    items.push({
+      key: "reasoning",
+      sourceStepKey: null,
+      label: "推理过程",
+      status: reasoningStatus,
+      summary: reasoningSummary || null,
+      details: clean,
+      detailBlocks: blocks,
+      startedAt: turn.startedAt ?? null,
+      endedAt: turn.endedAt ?? null,
+      // 放在摘要之后，避免“摘要前先出现推理”造成理解混淆。
+      order: 60,
+    });
   }
   return items.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * 不用原生 &lt;details&gt;：在多层 overflow-y-auto + flex min-h-0 下，部分浏览器会出现点击无法展开或内容高度为 0。
+ * 刷新后从 `/turns` 拉到的快照里，`details` 只在 `subSteps` 上；若仅依赖 build 时写入的 `detailBlocks`，可能为空导致无展开按钮。
+ */
+function resolveSubStepForStageItem(
+  turn: TurnUiModel,
+  item: TurnStageItem,
+): (typeof turn.steps.subSteps)[number] | undefined {
+  const sub = turn.steps.subSteps ?? [];
+  if (item.sourceStepKey) {
+    const byKey = sub.find((s) => s.stepKey === item.sourceStepKey);
+    if (byKey) return byKey;
+  }
+  if (item.key === "mcp") {
+    return sub.find((s) => s.subStage === "mcp_tools_resolution") ?? sub.find((s) => s.stepKey === "C2");
+  }
+  if (item.key === "knowledge") {
+    return sub.find((s) => s.subStage === "knowledge_injection") ?? sub.find((s) => s.stepKey === "C1");
+  }
+  if (item.key === "summary") {
+    return sub.find((s) => s.stepKey === "E1");
+  }
+  return undefined;
+}
+
+function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel }) {
+  const [open, setOpen] = useState(false);
+  const rawStep = resolveSubStepForStageItem(turn, item);
+  const stepRecord = rawStep != null ? (rawStep as Record<string, unknown>) : undefined;
+  const detailsRaw = stepRecord?.details ?? stepRecord?.Details;
+  let fromSnapshot = stepDetailsToBlocks(detailsRaw);
+  /** 优先用当前 turn 快照解析结果（与 Network 一致）；build 阶段写入的 item 可能曾为空 */
+  const detailBlocks =
+    fromSnapshot.length > 0 ? fromSnapshot : item.detailBlocks;
+  const hasBody =
+    item.details.length > 0 ||
+    detailBlocks.length > 0 ||
+    Boolean(item.summary?.trim());
+  return (
+    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/70">
+      <button
+        type="button"
+        disabled={!hasBody}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-start justify-between gap-2 px-2.5 py-2 text-left text-xs text-zinc-200 ${
+          hasBody ? "cursor-pointer hover:bg-zinc-800/50" : "cursor-default"
+        }`}
+        aria-expanded={hasBody ? open : undefined}
+      >
+        <span className="min-w-0 flex-1 break-words">
+          {item.label} · {STATUS_TEXT[item.status]}
+          {item.status === "running" ? (
+            <span
+              className="ml-1 inline-block h-3 w-3 animate-spin rounded-full border border-cyan-400/50 border-t-cyan-300 align-[-1px]"
+              aria-label="loading"
+            />
+          ) : null}
+          {item.summary ? ` · ${item.summary}` : ""}
+        </span>
+        {hasBody ? (
+          <span className="shrink-0 font-mono text-[10px] text-zinc-500" aria-hidden>
+            {open ? "▼" : "▶"}
+          </span>
+        ) : null}
+      </button>
+      {open && hasBody ? (
+        <div className="border-t border-zinc-800/90 px-2.5 pb-2.5 pt-2">
+          {item.details.length > 0 ? (
+            <ul className="mb-2 list-disc space-y-1 pl-5 text-xs text-zinc-400 last:mb-0">
+              {item.details.map((d, i) => (
+                <li key={`${item.key}-li-${i}`}>{d}</li>
+              ))}
+            </ul>
+          ) : null}
+          {detailBlocks.length > 0 ? (
+            <div className="space-y-2">
+              {detailBlocks.map((block, idx) => (
+                <div
+                  key={`${item.key}-block-${idx}`}
+                  className="rounded border border-zinc-700/70 bg-zinc-900/60 px-2 py-1.5"
+                >
+                  <div className="text-[11px] font-medium text-zinc-300">{block.title}</div>
+                  <pre className="mt-1 whitespace-pre-wrap break-words text-[11px] text-zinc-400">
+                    {block.content}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {item.details.length === 0 && detailBlocks.length === 0 ? (
+            <p className="text-xs leading-relaxed text-zinc-400">
+              {item.summary?.trim() ? item.summary : "暂无结构化分段详情"}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function AssistantFlowCard({
@@ -517,7 +671,15 @@ function AssistantFlowCard({
         <div className="mb-1 font-mono text-[10px] tracking-wider text-zinc-400">{assistantShown}</div>
         <div className="mb-2 flex items-center justify-between text-[11px] text-zinc-500">
           <span className="font-mono">Turn {turn.turnId.slice(0, 8)}</span>
-          <span>{statusText}</span>
+          <span className="inline-flex items-center gap-1">
+            {statusText}
+            {turn.finalStatus === "running" ? (
+              <span
+                className="inline-block h-3 w-3 animate-spin rounded-full border border-cyan-400/50 border-t-cyan-300"
+                aria-label="loading"
+              />
+            ) : null}
+          </span>
         </div>
         {(isFailed || isInterrupted) && (onRetry || retryDisabledReason) ? (
           <div className="mb-2 flex items-center gap-2 rounded-md border border-zinc-700/70 bg-zinc-900/60 px-2.5 py-2 text-xs text-zinc-200">
@@ -543,34 +705,7 @@ function AssistantFlowCard({
       {stageItems.length > 0 ? (
         <div className="mb-2 space-y-2">
           {stageItems.map((item) => (
-            <details
-              key={item.key}
-              className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-2"
-            >
-              <summary className="cursor-pointer text-xs text-zinc-200">
-                {item.label} · {STATUS_TEXT[item.status]}
-                {item.summary ? ` · ${item.summary}` : ""}
-              </summary>
-              {item.details.length > 0 ? (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-400">
-                  {item.details.map((d, i) => (
-                    <li key={`${item.key}-${i}`}>{d}</li>
-                  ))}
-                </ul>
-              ) : null}
-              {item.detailBlocks.length > 0 ? (
-                <div className="mt-2 space-y-1.5">
-                  {item.detailBlocks.map((block, idx) => (
-                    <details key={`${item.key}-block-${idx}`} className="rounded border border-zinc-700/70 bg-zinc-900/60 px-2 py-1.5">
-                      <summary className="cursor-pointer text-[11px] text-zinc-300">{block.title}</summary>
-                      <pre className="mt-1 whitespace-pre-wrap break-words text-[11px] text-zinc-400">
-                        {block.content}
-                      </pre>
-                    </details>
-                  ))}
-                </div>
-              ) : null}
-            </details>
+            <TurnStageFold key={item.key} item={item} turn={turn} />
           ))}
         </div>
       ) : null}
@@ -622,6 +757,8 @@ export function ChatWorkspace({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const sendInFlightRef = useRef(false);
+  /** 中文等 IME 组字过程中为 true，避免 Enter 误触发送 */
+  const imeComposingRef = useRef(false);
   const pendingLocalUserMessageIdRef = useRef<string | null>(null);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
@@ -1614,17 +1751,31 @@ export function ChatWorkspace({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={
-                  selectedId ? "输入消息 — Enter 发送，Shift+Enter 换行" : "请先新建或选择会话"
+                  selectedId
+                    ? "输入消息 — Enter 发送，Shift+Enter 换行（中文输入法组字时 Enter 用于选字）"
+                    : "请先新建或选择会话"
                 }
                 disabled={!selectedId}
                 rows={3}
                 className="min-h-[78px] w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 pb-12 pr-12 font-mono text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
                 aria-label="消息输入框"
+                onCompositionStart={() => {
+                  imeComposingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  imeComposingRef.current = false;
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void handleSend();
+                  if (e.key !== "Enter" || e.shiftKey) {
+                    return;
                   }
+                  const ne = e.nativeEvent as KeyboardEvent;
+                  // 229：部分浏览器在 IME 处理时 keyCode；isComposing：组字或候选确认过程中
+                  if (ne.isComposing || imeComposingRef.current || ne.keyCode === 229) {
+                    return;
+                  }
+                  e.preventDefault();
+                  void handleSend();
                 }}
               />
               <button

@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   icons: {
     /** 显式声明：仅写 `apple` 时可能覆盖 Next 对 `app/icon` 的合并，导致缺少 rel=icon */
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
       { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/favicon.ico", sizes: "any" },
     ],
     apple: [
       {

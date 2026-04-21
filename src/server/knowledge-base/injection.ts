@@ -1,7 +1,6 @@
 import type { DataSource } from "typeorm";
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { getAssistantConfiguredKnowledgeBaseIds } from "@/server/knowledge-base/assistant-config";
-import { decideKnowledgeRetrievalIntent } from "@/server/knowledge-base/knowledge-retrieval-intent-agent";
 import { retrieveKnowledgeBaseChunks } from "@/server/knowledge-base/search";
 import { resolveKnowledgePreferenceByUserId } from "@/server/knowledge-base/user-preference";
 
@@ -40,26 +39,6 @@ export async function buildKnowledgeInjectionForChat(options: {
     .andWhere("kb.id IN (:...ids)", { ids: kbIds })
     .getMany();
 
-  const intent = await decideKnowledgeRetrievalIntent({
-    userId,
-    userMessageText,
-    knowledgeBases: kbs,
-  });
-  if (!intent.needSearch) {
-    console.info(
-      JSON.stringify({
-        module: "kb.intent",
-        userId,
-        assistantId,
-        needSearch: false,
-        reason: intent.hitReason,
-        intentSource: intent.intentSource,
-        knowledgeBaseCount: kbs.length,
-      }),
-    );
-    return { needSearch: false, reason: intent.hitReason, chunks: [], systemMessageText: null };
-  }
-
   const pref = await resolveKnowledgePreferenceByUserId(userId);
   const retrieved = await retrieveKnowledgeBaseChunks(ds, {
     userId,
@@ -79,7 +58,7 @@ export async function buildKnowledgeInjectionForChat(options: {
   }));
 
   const needSearch = chunks.length > 0;
-  const reason = needSearch ? intent.hitReason : "no_hit_above_threshold";
+  const reason = needSearch ? "direct_vector_search" : "no_hit_above_threshold";
 
   console.info(
     JSON.stringify({
@@ -88,7 +67,7 @@ export async function buildKnowledgeInjectionForChat(options: {
       assistantId,
       needSearch,
       reason,
-      intentSource: intent.intentSource,
+      intentSource: "removed_direct_search",
       knowledgeBaseCount: kbs.length,
       injectedChunkCount: chunks.length,
     }),

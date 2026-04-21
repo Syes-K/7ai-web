@@ -11,7 +11,11 @@ import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages
 import { MessageRole } from "@/common/enums";
 import type { Message } from "@/server/db/entities/Message";
 import type { User } from "@/server/db/entities/User";
-import { getAssistantAgent, streamChatAssistantAgentText } from "@/server/chat/langchain-agent";
+import {
+  getAssistantAgent,
+  streamChatAssistantAgentTextFromAgent,
+} from "@/server/chat/langchain-agent";
+import type { McpTurnUiSnapshot } from "@/server/chat/turn-capabilities";
 import {
   LoggerCallbackHandler,
   SummarizationLlmCallbackHandler,
@@ -27,6 +31,8 @@ type AssistantRuntimeOptions = {
    * 实际模型与系统提示由 {@link getAssistantAgent} 统一解析。
    */
   assistantId?: string | null;
+  /** Agent 构建完成（与 tools/MCP 同源），在首 token 之前调用，用于写入 Turn C2。 */
+  onAgentPrepared?: (payload: { mcpTurnUi: McpTurnUiSnapshot }) => Promise<void> | void;
   /** 摘要中间件产出新摘要时回调（用于落库会话摘要）。 */
   onSummary?: (summary: string) => Promise<void> | void;
   /** 采集工具调用事件（含 MCP/Tools）。 */
@@ -80,22 +86,30 @@ export async function invokeAssistantReply(
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): Promise<string> {
-  const agent = await getAssistantAgent({
+  const { agent, mcpTurnUi, disposeMcp } = await getAssistantAgent({
     userId,
     user: runtime?.user,
     assistantId: runtime?.assistantId,
   });
-  const state = await agent.invoke({
-    messages: historyToBaseMessages(historyOrdered),
-  }, {
-    callbacks: [
-      // new LoggerCallbackHandler(),
-      new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
-      new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
-    ],
-  });
-  const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
-  return lastAssistantText(msgs);
+  await runtime?.onAgentPrepared?.({ mcpTurnUi });
+  try {
+    const state = await agent.invoke(
+      {
+        messages: historyToBaseMessages(historyOrdered),
+      },
+      {
+        callbacks: [
+          // new LoggerCallbackHandler(),
+          new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+          new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
+        ],
+      },
+    );
+    const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
+    return lastAssistantText(msgs);
+  } finally {
+    await disposeMcp();
+  }
 }
 
 /**
@@ -107,13 +121,22 @@ export async function* streamAssistantReply(
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): AsyncGenerator<string, void, undefined> {
-  yield* streamChatAssistantAgentText(
-    { userId, user: runtime?.user, assistantId: runtime?.assistantId },
-    { messages: historyToBaseMessages(historyOrdered) },
-    [
-      // new LoggerCallbackHandler(),
-      new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
-      new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
-    ],
-  );
+  const { agent, mcpTurnUi, disposeMcp } = await getAssistantAgent({
+    userId,
+    user: runtime?.user,
+    assistantId: runtime?.assistantId,
+  });
+  await runtime?.onAgentPrepared?.({ mcpTurnUi });
+  try {
+    yield* streamChatAssistantAgentTextFromAgent(
+      agent,
+      { messages: historyToBaseMessages(historyOrdered) },
+      [
+        new SummarizationLlmCallbackHandler({ onSummary: runtime?.onSummary }),
+        new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
+      ],
+    );
+  } finally {
+    await disposeMcp();
+  }
 }

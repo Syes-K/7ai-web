@@ -2,6 +2,29 @@
  * 将后端 error.code + message 映射到表单字段，便于就近展示。
  */
 
+/** 控制台等接口返回的标准错误体（用于按 code 分支处理）。 */
+export type ApiErrorPayload = {
+  code?: string;
+  message: string;
+  details?: ReadonlyArray<{ field?: string; message?: string }>;
+};
+
+/**
+ * 解析 JSON 错误体（`{ error: { code, message, details } }`）。
+ * **会消费 `res` 的 body**，同一 Response 不可再调用 `json()`/`text()`。
+ */
+export async function readApiErrorPayload(res: Response): Promise<ApiErrorPayload> {
+  const j = (await res.json().catch(() => null)) as {
+    error?: { code?: string; message?: string; details?: Array<{ field?: string; message?: string }> };
+  } | null;
+  const msg = typeof j?.error?.message === "string" ? j.error.message.trim() : "";
+  return {
+    code: typeof j?.error?.code === "string" ? j.error.code : undefined,
+    message: msg.length > 0 ? msg : `请求失败（${res.status}）`,
+    details: Array.isArray(j?.error?.details) ? j.error.details : undefined,
+  };
+}
+
 export type LoginFieldErrors = {
   email?: string;
   password?: string;

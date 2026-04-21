@@ -16,6 +16,7 @@ import {
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
+import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
@@ -235,6 +236,7 @@ export const DELETE = withApiWrapper(async (
     );
   }
 
+  await ds.getRepository(AssistantMcpBinding).delete({ assistantId: id, userId: user.id } as any);
   await repo.remove(row);
 
   return new NextResponse(null, { status: HttpStatus.NO_CONTENT });

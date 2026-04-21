@@ -195,12 +195,26 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
     );
   }
 
+  const touched =
+    "name" in body ||
+    "description" in body ||
+    "tags" in body ||
+    "contentFormat" in body ||
+    "content" in body;
+
+  if (!touched) {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      "请求体为空：请至少提供一项可更新字段",
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
+  }
+
   row.name = nextName;
   row.description = nextDescription;
   row.tags = nextTags.length > 0 ? nextTags : null;
   row.contentFormat = nextFormat as any;
   row.content = nextContent;
-  // 编辑后重新向量化
   row.vectorStatus = "pending";
   row.vectorError = null;
   row.vectorLastStartedAt = new Date();
@@ -265,4 +279,3 @@ export const DELETE = withApiWrapper(async (_request: Request, ctx: RouteParams)
 
   return new NextResponse(null, { status: HttpStatus.NO_CONTENT });
 });
-

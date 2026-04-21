@@ -243,17 +243,27 @@ export async function prepareModelInputForPostMessage(
         assistantId: state.conv.assistantId,
         userMessageText: state.userMessageText,
       });
-      const historyForModel = inject.systemMessageText
-        ? (() => {
-            const injected = {
-              role: MessageRole.System,
-              content: inject.systemMessageText,
-            } as Message;
-            const current = state.historyForModel ?? [];
-            const insertAt = current[0]?.role === MessageRole.System ? 1 : 0;
-            return [...current.slice(0, insertAt), injected, ...current.slice(insertAt)];
-          })()
-        : state.historyForModel ?? [];
+      const current = state.historyForModel ?? [];
+      const insertAt = current[0]?.role === MessageRole.System ? 1 : 0;
+      const guardOrInjection = inject.systemMessageText
+        ? ({
+            role: MessageRole.System,
+            content: inject.systemMessageText,
+          } as Message)
+        : ({
+            role: MessageRole.System,
+            content: [
+              "【知识库检索结果】",
+              "本轮未命中可用知识片段。",
+              "回答中禁止使用“根据知识库”“依据知识库检索片段”等表述。",
+              "如需给出结论，请明确来源为通用知识或用户提供信息，避免误导为知识库命中。",
+            ].join("\n"),
+          } as Message);
+      const historyForModel = [
+        ...current.slice(0, insertAt),
+        guardOrInjection,
+        ...current.slice(insertAt),
+      ];
       return { ...state, historyForModel, kbInjection: inject };
     }),
     // B3：返回结果

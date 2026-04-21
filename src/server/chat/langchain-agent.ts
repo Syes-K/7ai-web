@@ -20,6 +20,7 @@ import type { User } from "@/server/db/entities/User";
 import {
   resolveAllToolsForAgent,
   resolveSystemPromptWithSkills,
+  type McpTurnUiSnapshot,
 } from "@/server/chat/turn-capabilities";
 
 export type GetChatAssistantAgentOptions = {
@@ -53,16 +54,25 @@ export async function resolveChatAssistantSystemPrompt(
  * tools/MCP/skills 经 {@link resolveAllToolsForAgent} / {@link resolveSystemPromptWithSkills} 注入（当前为空列表与空追加）。
  * 普通对话与绑定助手会话均经此入口创建，模型来自用户偏好 {@link getChatRuntimeModel}。
  */
-export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
+export type GetAssistantAgentResult = {
+  agent: Awaited<ReturnType<typeof createAgent>>;
+  mcpTurnUi: McpTurnUiSnapshot;
+  disposeMcp: () => Promise<void>;
+};
+
+export async function getAssistantAgent(options: GetChatAssistantAgentOptions): Promise<GetAssistantAgentResult> {
   const { userId, user, assistantId } = options;
   const model = await getChatRuntimeModel(userId, { user: user ?? undefined });
   const summaryModel = await getChatRuntimeSummarizationModel(userId, { user: user ?? undefined });
   const capCtx = { userId, user, assistantId };
   const baseSystemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
-  const [systemPrompt, tools] = await Promise.all([
+  const [systemPrompt, toolsRes] = await Promise.all([
     resolveSystemPromptWithSkills(baseSystemPrompt, capCtx),
     resolveAllToolsForAgent(capCtx),
   ]);
+  const tools = toolsRes.tools;
+  const mcpTurnUi = toolsRes.mcpTurnUi;
+  const disposeMcp = toolsRes.disposeMcp;
   const summaryCfg = await getConversationSummaryConfig();
   const summaryTemplates = await getSummaryPromptTemplates();
   // LangChain summarizationMiddleware 会对 summaryPrompt 执行 .replace("{messages}", 历史正文)，
@@ -80,7 +90,7 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
       ? { tokens: summaryCfg.summaryKeepTokens }
       : { messages: summaryCfg.summaryKeepMessages };
 
-  return createAgent({
+  const agent = createAgent({
     model,
     systemPrompt,
     tools,
@@ -97,6 +107,7 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions) {
         ]
       : [],
   });
+  return { agent, mcpTurnUi, disposeMcp };
 }
 
 type StreamEventV2 = {
@@ -127,16 +138,15 @@ function chunkToText(chunk: unknown): string {
 }
 
 /**
- * 流式执行同一 {@link getAssistantAgent} 图，产出与旧版 `model.stream` 类似的文本增量。
+ * 流式执行已构建的 Agent 图，产出与旧版 `model.stream` 类似的文本增量。
  * 使用 LangGraph `streamEvents` 过滤模型分词事件。
  */
-export async function* streamChatAssistantAgentText(
-  options: GetChatAssistantAgentOptions,
+export async function* streamChatAssistantAgentTextFromAgent(
+  agent: GetAssistantAgentResult["agent"],
   /** LangGraph invoke 状态：`messages` 为 LangChain 消息列表 */
   state: { messages: import("@langchain/core/messages").BaseMessage[] },
   callbacks?: BaseCallbackHandler[],
 ): AsyncGenerator<string, void, undefined> {
-  const agent = await getAssistantAgent(options);
   const eventStream = agent.streamEvents(state, { version: "v2", callbacks });
   for await (const raw of eventStream) {
     const ev = raw as StreamEventV2;
@@ -153,5 +163,21 @@ export async function* streamChatAssistantAgentText(
     if (text.length > 0) {
       yield text;
     }
+  }
+}
+
+/**
+ * 流式执行同一 {@link getAssistantAgent} 图，产出与旧版 `model.stream` 类似的文本增量。
+ */
+export async function* streamChatAssistantAgentText(
+  options: GetChatAssistantAgentOptions,
+  state: { messages: import("@langchain/core/messages").BaseMessage[] },
+  callbacks?: BaseCallbackHandler[],
+): AsyncGenerator<string, void, undefined> {
+  const { agent, disposeMcp } = await getAssistantAgent(options);
+  try {
+    yield* streamChatAssistantAgentTextFromAgent(agent, state, callbacks);
+  } finally {
+    await disposeMcp();
   }
 }
