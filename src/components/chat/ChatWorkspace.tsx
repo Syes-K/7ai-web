@@ -294,6 +294,49 @@ function hasSucceededRetry(current: TurnUiModel, allTurns: Record<string, TurnUi
   });
 }
 
+/**
+ * 拉取服务端消息后合并：若本轮仍在等待 `user_message` 事件，乐观用户消息不在服务端列表中，
+ * 直接 `setMessages(items)` 会丢掉用户气泡与重试上下文。
+ */
+function mergeServerMessagesWithPendingLocal(
+  prev: MessageRow[],
+  serverItems: MessageRow[],
+  pendingLocalId: string | null,
+): MessageRow[] {
+  if (!pendingLocalId) {
+    return serverItems;
+  }
+  const local = prev.find((m) => m.id === pendingLocalId);
+  if (!local || serverItems.some((m) => m.id === local.id)) {
+    return serverItems;
+  }
+  const turnId = local.turnId ?? null;
+  if (
+    turnId &&
+    serverItems.some((m) => m.turnId === turnId && m.role === MessageRole.User)
+  ) {
+    return serverItems;
+  }
+  const out = [...serverItems];
+  if (turnId) {
+    const assistantIdx = out.findIndex(
+      (m) => m.turnId === turnId && m.role === MessageRole.Assistant,
+    );
+    if (assistantIdx !== -1) {
+      out.splice(assistantIdx, 0, local);
+      return out;
+    }
+  }
+  const created = Date.parse(local.createdAt);
+  const insertAt = out.findIndex((m) => Date.parse(m.createdAt) > created);
+  if (insertAt === -1) {
+    out.push(local);
+  } else {
+    out.splice(insertAt, 0, local);
+  }
+  return out;
+}
+
 function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
   const rows: MessageRow[] = [];
   const statusTone: Record<TurnStepStatus, string> = {
@@ -669,9 +712,11 @@ function AssistantFlowCard({
     <div className="mb-4 flex justify-start">
       <div className={`min-w-0 max-w-[min(100%,720px)] rounded-xl border px-3 py-2.5 text-sm leading-relaxed ${wrapperClass} ${dimmedClass}`}>
         <div className="mb-1 font-mono text-[10px] tracking-wider text-zinc-400">{assistantShown}</div>
-        <div className="mb-2 flex items-center justify-between text-[11px] text-zinc-500">
-          <span className="font-mono">Turn {turn.turnId.slice(0, 8)}</span>
-          <span className="inline-flex items-center gap-1">
+        <div className="mb-2 flex min-w-0 items-center gap-3 text-[11px] text-zinc-500">
+          <span className="min-w-0 flex-1 truncate font-mono">
+            Turn {turn.turnId.slice(0, 8)}
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-2">
             {statusText}
             {turn.finalStatus === "running" ? (
               <span
@@ -1049,10 +1094,21 @@ export function ChatWorkspace({
         {
         onUserMessage: (u) => {
           setMessages((prev) => {
-            const withoutLocal = pendingLocalUserMessageIdRef.current
+            let next = pendingLocalUserMessageIdRef.current
               ? prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current)
               : prev;
-            return withoutLocal.some((m) => m.id === u.id) ? withoutLocal : [...withoutLocal, u];
+            if (u.role === MessageRole.User) {
+              const trimmed = u.content.trim();
+              next = next.filter(
+                (m) =>
+                  !(
+                    m.id.startsWith("__local_user__") &&
+                    m.content.trim() === trimmed &&
+                    m.id !== u.id
+                  ),
+              );
+            }
+            return next.some((m) => m.id === u.id) ? next : [...next, u];
           });
           pendingLocalUserMessageIdRef.current = null;
         },
@@ -1081,6 +1137,11 @@ export function ChatWorkspace({
         },
         onTurnStarted: (payload) => {
           setTurnState(turnModelFromDelta(payload));
+          const tid = payload.turnId;
+          const lid = pendingLocalUserMessageIdRef.current;
+          if (tid && lid) {
+            setMessages((prev) => prev.map((m) => (m.id === lid ? { ...m, turnId: tid } : m)));
+          }
         },
         onTurnStepDelta: (payload) => {
           setTurnState((prev) => applyTurnDelta(prev, payload));
@@ -1089,33 +1150,39 @@ export function ChatWorkspace({
           const nextTurn = normalizeTurnFromSnapshot(payload, "streaming");
           setTurnState(nextTurn);
           setTurnHistoryMap((prev) => ({ ...prev, [nextTurn.turnId]: nextTurn }));
-          if (pendingLocalUserMessageIdRef.current) {
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current),
-            );
-            pendingLocalUserMessageIdRef.current = null;
-          }
           setStreaming(false);
         },
         onTurnFailed: (payload) => {
           const nextTurn = normalizeTurnFromSnapshot(payload, "streaming");
           setTurnState(nextTurn);
           setTurnHistoryMap((prev) => ({ ...prev, [nextTurn.turnId]: nextTurn }));
-          if (pendingLocalUserMessageIdRef.current) {
+          const tid = nextTurn.turnId;
+          const lid = pendingLocalUserMessageIdRef.current;
+          if (tid && lid) {
             setMessages((prev) =>
-              prev.filter((m) => m.id !== pendingLocalUserMessageIdRef.current),
+              prev.map((m) => (m.id === lid && !m.turnId ? { ...m, turnId: tid } : m)),
             );
-            pendingLocalUserMessageIdRef.current = null;
           }
           setStreaming(false);
         },
         onError: async (msg) => {
           setStreamText("");
           setStreaming(false);
-          const errMsgId = `__assistant_error__${Date.now()}`;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === errMsgId)) return prev;
-            return [
+          try {
+            const pendingId = pendingLocalUserMessageIdRef.current;
+            const [{ items }, turnsResp] = await Promise.all([
+              fetchMessages(conversationId),
+              fetchTurns(conversationId),
+            ]);
+            setMessages((prev) => mergeServerMessagesWithPendingLocal(prev, items, pendingId));
+            const map: Record<string, TurnUiModel> = {};
+            for (const turn of turnsResp.items) {
+              map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+            }
+            setTurnHistoryMap(map);
+          } catch {
+            const errMsgId = `__assistant_error__${Date.now()}`;
+            setMessages((prev) => [
               ...prev,
               {
                 id: errMsgId,
@@ -1123,21 +1190,7 @@ export function ChatWorkspace({
                 content: `本轮回复失败：${msg}`,
                 createdAt: new Date().toISOString(),
               },
-            ];
-          });
-          try {
-            const [{ items }, turnsResp] = await Promise.all([
-              fetchMessages(conversationId),
-              fetchTurns(conversationId),
             ]);
-            setMessages(items);
-            const map: Record<string, TurnUiModel> = {};
-            for (const turn of turnsResp.items) {
-              map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
-            }
-            setTurnHistoryMap(map);
-          } catch {
-            /* 保持当前列表，避免失败后再报错 */
           }
         },
         },
@@ -1189,28 +1242,20 @@ export function ChatWorkspace({
         setStreamText("");
         setStreaming(false);
         const errMsg = e instanceof Error ? e.message : "发送失败";
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `__assistant_error__${Date.now()}`,
-            role: MessageRole.Assistant,
-            content: `本轮回复失败：${errMsg}`,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
         try {
+          const pendingId = pendingLocalUserMessageIdRef.current;
           const [{ items }, turnsResp] = await Promise.all([
             fetchMessages(conversationId),
             fetchTurns(conversationId),
           ]);
-          setMessages(items);
+          setMessages((prev) => mergeServerMessagesWithPendingLocal(prev, items, pendingId));
           const map: Record<string, TurnUiModel> = {};
           for (const turn of turnsResp.items) {
             map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
           }
           setTurnHistoryMap(map);
         } catch {
-          /* 同上 */
+          showToast({ type: "err", text: errMsg });
         }
       }
     } finally {
@@ -1416,10 +1461,23 @@ export function ChatWorkspace({
       <ModalShell
         open={newChatOpen}
         onClose={() => setNewChatOpen(false)}
-        title="新建对话"
+        title={
+          <span className="flex w-full min-w-0 items-center justify-between gap-3">
+            <span className="truncate">新建对话</span>
+            <Link
+              href="/console/assistants"
+              onClick={() => setNewChatOpen(false)}
+              className="shrink-0 font-mono text-xs font-normal text-cyan-400/90 underline decoration-cyan-500/35 underline-offset-[3px] transition hover:text-cyan-300"
+            >
+              新建助手
+            </Link>
+          </span>
+        }
         titleId="chat-new-dialog-title"
         describedBy={newChatDescId}
         initialFocusRef={skipNewChatRef}
+        panelClassName="flex max-h-[min(92dvh,720px)] flex-col overflow-hidden"
+        bodyClassName="mt-3 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
         footer={
           <div className="mt-6 flex flex-wrap justify-end gap-2">
             <button
@@ -1441,12 +1499,12 @@ export function ChatWorkspace({
           </div>
         }
       >
-        <p id={newChatDescId} className="mt-3 text-sm leading-relaxed text-zinc-400">
+        <p id={newChatDescId} className="shrink-0 text-sm leading-relaxed text-zinc-400">
           选择一个助手并开始对话，或跳过进入普通对话。
         </p>
         {pickerError && (
           <div
-            className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-950/35 px-3 py-2.5 text-sm leading-relaxed text-amber-100/95"
+            className="flex shrink-0 flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-950/35 px-3 py-2.5 text-sm leading-relaxed text-amber-100/95"
             role="alert"
           >
             <div className="flex items-start justify-between gap-2">
@@ -1461,9 +1519,9 @@ export function ChatWorkspace({
             </div>
           </div>
         )}
-        <div className="mt-4 min-h-[12rem] max-h-[min(18rem,45vh)] overflow-y-auto rounded-lg border border-zinc-800/90 bg-black/35 p-1">
+        <div className="max-h-[min(16.75rem,42vh)] min-h-0 overflow-y-auto overscroll-y-contain rounded-lg border border-zinc-800/90 bg-black/35 p-1">
           {pickerLoading ? (
-            <div className="flex min-h-[12rem] items-center justify-center">
+            <div className="flex min-h-[10rem] items-center justify-center py-6">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-400" />
             </div>
           ) : pickerError ? (
@@ -1474,13 +1532,14 @@ export function ChatWorkspace({
             <div className="px-2 py-4 text-center text-sm text-zinc-500">
               <p className="mb-2">暂无可选助手</p>
               <p className="mb-3 text-zinc-600">
-                你可使用下方「跳过 · 普通对话」继续；也可前往控制台创建助手。
+                你可使用下方「跳过 · 普通对话」继续；也可点击标题右侧「新建助手」前往控制台创建。
               </p>
               <Link
                 href="/console/assistants"
+                onClick={() => setNewChatOpen(false)}
                 className="inline-block text-cyan-400/95 underline decoration-cyan-500/35 underline-offset-2 hover:text-cyan-300"
               >
-                去助手管理创建
+                去助手管理
               </Link>
             </div>
           ) : (
@@ -1591,14 +1650,6 @@ export function ChatWorkspace({
                 <div className="sr-only" aria-live="polite">
                   {turnStatusLine}
                 </div>
-                {messages.length > 0 && Object.keys(turnHistoryMap).length === 0 && !turnState ? (
-                  <div
-                    className="mb-4 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-400"
-                    role="status"
-                  >
-                    当前会话暂无步骤快照
-                  </div>
-                ) : null}
                 {(() => {
                   const renderedTurnIds = new Set<string>();
                   const byTurn: Record<string, { user: MessageRow | null; assistant: MessageRow | null }> = {};
@@ -1674,8 +1725,11 @@ export function ChatWorkspace({
                           onRetry={
                             pair?.user?.content && !hasSucceededRetry(turn, turnHistoryMap)
                               ? () => {
-                                  void sendText(pair.user!.content, {
-                                    retryUserMessageId: pair.user!.id,
+                                  const u = pair.user!;
+                                  void sendText(u.content, {
+                                    retryUserMessageId: u.id.startsWith("__local_user__")
+                                      ? null
+                                      : u.id,
                                     appendUserMessage: false,
                                   });
                                 }
@@ -1711,8 +1765,11 @@ export function ChatWorkspace({
                           onRetry={
                             pendingPair.user?.content && !hasSucceededRetry(turnState, turnHistoryMap)
                               ? () => {
-                                  void sendText(pendingPair.user!.content, {
-                                    retryUserMessageId: pendingPair.user!.id,
+                                  const u = pendingPair.user!;
+                                  void sendText(u.content, {
+                                    retryUserMessageId: u.id.startsWith("__local_user__")
+                                      ? null
+                                      : u.id,
                                     appendUserMessage: false,
                                   });
                                 }

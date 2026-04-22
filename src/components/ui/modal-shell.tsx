@@ -22,6 +22,13 @@ export type ModalShellProps = {
   /** 打开时优先聚焦（与确认框主按钮一致） */
   initialFocusRef?: RefObject<HTMLElement | null>;
   maxWidthClass?: string;
+  /** 追加到对话框面板（如 max-h、flex 纵向分区） */
+  panelClassName?: string;
+  /**
+   * 若设置，将 children 包在此容器内（位于标题与 footer 之间），
+   * 便于正文区 `min-h-0` + 内部滚动而标题/底栏固定。
+   */
+  bodyClassName?: string;
 };
 
 /**
@@ -38,6 +45,8 @@ export function ModalShell({
   footer,
   initialFocusRef,
   maxWidthClass = "max-w-md",
+  panelClassName,
+  bodyClassName,
 }: ModalShellProps) {
   const genTitleId = useId();
   const titleId = titleIdProp ?? genTitleId;
@@ -90,17 +99,17 @@ export function ModalShell({
         aria-modal="true"
         aria-labelledby={titleId}
         {...a11yDesc}
-        className={`relative z-10 w-full ${maxWidthClass} rounded-xl border border-cyan-500/25 bg-zinc-950/95 p-5 shadow-[0_0_48px_-12px_rgba(34,211,238,0.35)]`}
+        className={`relative z-10 w-full ${maxWidthClass} rounded-xl border border-cyan-500/25 bg-zinc-950/95 p-5 shadow-[0_0_48px_-12px_rgba(34,211,238,0.35)] ${panelClassName ?? ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2
           id={titleId}
-          className="font-mono text-base font-medium text-cyan-100/95"
+          className="shrink-0 min-w-0 font-mono text-base font-medium text-cyan-100/95"
         >
           {title}
         </h2>
-        {children}
-        {footer}
+        {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}
+        {footer ? <div className="shrink-0">{footer}</div> : null}
       </div>
     </div>,
     document.body,
