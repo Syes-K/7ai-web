@@ -29,6 +29,10 @@ export class User {
   @Column({ type: "varchar", length: 32, default: "active" })
   status!: string;
 
+  /** 只读账号：仅允许 GET 请求，禁止新增/修改/删除等写操作 */
+  @Column({ type: "boolean", default: false })
+  readOnly!: boolean;
+
   /** 控制台默认使用的对话（Chat）模型配置（`user_model_configs.id`），可空 */
   @Column({ type: "varchar", length: 36, nullable: true })
   preferredModelConfigId!: string | null;

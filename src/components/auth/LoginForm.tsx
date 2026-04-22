@@ -24,8 +24,8 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") ?? "";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@7ai.club");
+  const [password, setPassword] = useState("test1234");
   const [captchaId, setCaptchaId] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [errors, setErrors] = useState<LoginFieldErrors>({});
@@ -137,15 +137,15 @@ export function LoginForm() {
         {loading ? "登录中…" : "登录"}
       </button>
 
-      <p className="text-center text-sm text-[#9AA3B2]">
-        没有账号？请联系网站管理员（
+      <p className="text-center text-xs text-[#7E8796]">
+        站点暂时不直接提供注册功能，可以使用默认的测试账户登录。如果有特殊需求请联系站点管理员
+        {" "}
         <a
           href="mailto:kuangyssky@163.com"
-          className="font-medium text-[#00E5FF] hover:underline"
+          className="text-[#78A9B2] hover:underline"
         >
           kuangyssky@163.com
         </a>
-        ）
       </p>
     </form>
   );

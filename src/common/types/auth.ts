@@ -3,6 +3,7 @@ export interface PublicUser {
   email: string;
   nickName: string;
   telNo: string | null;
+  readOnly: boolean;
 }
 
 export interface LoginRequestBody {

@@ -15,6 +15,10 @@ export default async function ChatPage() {
   const { user } = reqCtx;
   const freeTierAssistantHint = await shouldShowFreeOrSharedChatModelHint(user.id);
   return (
-    <ChatWorkspace userLabel={userDisplayLabel(user)} freeTierAssistantHint={freeTierAssistantHint} />
+    <ChatWorkspace
+      userLabel={userDisplayLabel(user)}
+      freeTierAssistantHint={freeTierAssistantHint}
+      readOnly={Boolean(user.readOnly)}
+    />
   );
 }

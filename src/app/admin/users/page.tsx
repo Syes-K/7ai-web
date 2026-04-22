@@ -169,6 +169,49 @@ export default function AdminUsersPage() {
     [loadList, message, modal],
   );
 
+  const patchReadOnly = useCallback(
+    (row: AdminUserRow, next: boolean) => {
+      const label = row.email || row.nickName;
+      modal.confirm({
+        title: next ? "设为只读账号？" : "取消只读账号？",
+        content: next
+          ? `将对「${label}」开启只读限制：登录后仅允许 GET 请求。`
+          : `将对「${label}」关闭只读限制：恢复新增/修改/删除等写操作能力。`,
+        okText: next ? "确认设为只读" : "确认取消只读",
+        cancelText: "取消",
+        onOk: async () => {
+          setRowBusyId(row.id);
+          try {
+            const res = await fetch(`/api/admin/users/${row.id}`, {
+              method: "PATCH",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ readOnly: next }),
+            });
+            if (res.status === 401) {
+              window.location.href =
+                "/login?redirect=" + encodeURIComponent("/admin/users");
+              return;
+            }
+            if (res.status === 403) {
+              window.location.replace("/console?notice=admin_forbidden");
+              return;
+            }
+            if (!res.ok) {
+              message.error(await parseApiError(res));
+              return Promise.reject();
+            }
+            message.success(next ? "已设为只读账号" : "已取消只读账号");
+            await loadList();
+          } finally {
+            setRowBusyId(null);
+          }
+        },
+      });
+    },
+    [loadList, message, modal],
+  );
+
   const openResetPassword = useCallback(
     (row: AdminUserRow) => {
       const label = row.email || row.nickName;
@@ -264,6 +307,13 @@ export default function AdminUsersPage() {
           ),
       },
       {
+        title: "访问模式",
+        dataIndex: "readOnly",
+        width: 120,
+        render: (readOnly: boolean) =>
+          readOnly ? <Tag color="gold">只读</Tag> : <Tag color="blue">读写</Tag>,
+      },
+      {
         title: "登录失败锁",
         key: "lock",
         width: 160,
@@ -298,8 +348,27 @@ export default function AdminUsersPage() {
               ? UserStatus.Disabled
               : UserStatus.Active;
           const enableLabel = row.status === UserStatus.Active ? "停用" : "启用";
+          const readOnlyLabel = row.readOnly ? "取消只读" : "设为只读";
           return (
             <Space size="small" wrap>
+              <Tooltip
+                title={
+                  self
+                    ? "不能变更当前登录账号的只读状态，请使用其他管理员操作"
+                    : undefined
+                }
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  className="px-0"
+                  disabled={self}
+                  loading={busy}
+                  onClick={() => patchReadOnly(row, !row.readOnly)}
+                >
+                  {readOnlyLabel}
+                </Button>
+              </Tooltip>
               <Tooltip
                 title={
                   self
@@ -342,7 +411,7 @@ export default function AdminUsersPage() {
         },
       },
     ],
-    [currentUserId, openResetPassword, patchStatus, rowBusyId],
+    [currentUserId, openResetPassword, patchReadOnly, patchStatus, rowBusyId],
   );
 
   return (

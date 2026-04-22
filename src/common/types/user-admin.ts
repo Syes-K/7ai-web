@@ -5,6 +5,7 @@ export type AdminUserRow = {
   nickName: string;
   telNo: string | null;
   status: string;
+  readOnly: boolean;
   createdAt: string;
   updatedAt: string;
   accountDisabled: boolean;

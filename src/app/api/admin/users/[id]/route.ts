@@ -16,6 +16,7 @@ const ALLOWED_STATUS = new Set<string>([
 
 type PatchBody = {
   status?: unknown;
+  readOnly?: unknown;
 };
 
 /**
@@ -36,10 +37,29 @@ export const PATCH = withApiWrapper([withAdminApi], async (admin, request, ctx) 
   }
 
   const status = body.status;
-  if (typeof status !== "string" || !ALLOWED_STATUS.has(status)) {
+  const readOnly = body.readOnly;
+  const hasStatus = status !== undefined;
+  const hasReadOnly = readOnly !== undefined;
+
+  if (!hasStatus && !hasReadOnly) {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      "至少提供一个可更新字段：status 或 readOnly",
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  if (hasStatus && (typeof status !== "string" || !ALLOWED_STATUS.has(status))) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
       `status 须为 ${UserStatus.Active} 或 ${UserStatus.Disabled}`,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  if (hasReadOnly && typeof readOnly !== "boolean") {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      "readOnly 须为布尔值",
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -60,7 +80,12 @@ export const PATCH = withApiWrapper([withAdminApi], async (admin, request, ctx) 
   }
 
   const operatorEmail = admin.email.trim().toLowerCase();
-  target.status = status;
+  if (hasStatus) {
+    target.status = status as string;
+  }
+  if (hasReadOnly) {
+    target.readOnly = readOnly as boolean;
+  }
   await repo.save(target);
 
   console.info(
@@ -69,7 +94,8 @@ export const PATCH = withApiWrapper([withAdminApi], async (admin, request, ctx) 
       action: "patch_status",
       operator: operatorEmail,
       targetUserId: userId,
-      newStatus: status,
+      newStatus: hasStatus ? status : undefined,
+      newReadOnly: hasReadOnly ? readOnly : undefined,
     }),
   );
 

@@ -7,5 +7,6 @@ export function toPublicUser(user: User): PublicUser {
     email: user.email,
     nickName: user.nickName,
     telNo: user.telNo,
+    readOnly: Boolean(user.readOnly),
   };
 }

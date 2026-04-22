@@ -17,6 +17,7 @@ export function userToAdminRow(user: User): AdminUserRow {
     nickName: user.nickName,
     telNo: user.telNo,
     status: user.status,
+    readOnly: Boolean(user.readOnly),
     createdAt: iso(user.createdAt),
     updatedAt: iso(user.updatedAt),
     accountDisabled,

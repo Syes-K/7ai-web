@@ -110,7 +110,23 @@ export function PunkLanding() {
       </main>
 
       <footer className="relative z-20 border-t border-zinc-800/50 bg-black/40 px-4 py-4 text-center font-mono text-[10px] text-zinc-600 sm:text-xs">
-        <span className="text-zinc-500">SYS://local · learning mode · no warranty</span>
+        <div className="flex flex-col items-center gap-1 sm:flex-row sm:justify-center sm:gap-3">
+          <span className="text-zinc-500">SYS://local · learning mode · no warranty</span>
+          <a
+            href="mailto:kuangyssky@163.com"
+            className="text-zinc-500 transition hover:text-cyan-300"
+          >
+            作者邮箱：kuangyssky@163.com
+          </a>
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-zinc-500 transition hover:text-cyan-300"
+          >
+            皖ICP备2026009633号-1
+          </a>
+        </div>
       </footer>
     </div>
   );

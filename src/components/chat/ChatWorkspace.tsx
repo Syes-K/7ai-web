@@ -767,10 +767,13 @@ function AssistantFlowCard({
 export function ChatWorkspace({
   userLabel,
   freeTierAssistantHint = false,
+  readOnly = false,
 }: {
   userLabel: string;
   /** 服务端根据账号偏好判定：未选模型、或选用公有模型时为 true */
   freeTierAssistantHint?: boolean;
+  /** 只读账号仅可浏览，不允许发送消息 */
+  readOnly?: boolean;
 }) {
   /** 是否为桌面端 */
   const isDesktop = useIsLg();
@@ -1051,6 +1054,10 @@ export function ChatWorkspace({
     text: string,
     options?: { retryUserMessageId?: string | null; appendUserMessage?: boolean },
   ) => {
+    if (readOnly) {
+      showToast({ type: "err", text: "测试账户仅支持浏览，不支持发送消息" });
+      return;
+    }
     if (!selectedId) {
       showToast({ type: "err", text: "请先新建或选择一个会话" });
       return;

@@ -1,4 +1,5 @@
 import { withApiLog } from "./with-api-log";
+import { withReadOnlyApi } from "@/server/auth/with-readonly-api";
 
 /** 使用 `any[]` 以兼容 Next.js 对 `RouteHandler` 的签名推断（避免 `never[]` 导致导出类型不兼容） */
 type AnyRouteHandler = (...args: any[]) => Promise<Response> | Response;
@@ -45,7 +46,7 @@ export function withApiWrapper(
         for (const wrap of extras) {
             composed = wrap(composed);
         }
-        return withApiLog(composed);
+        return withApiLog(withReadOnlyApi(composed));
     }
-    return withApiLog(extrasOrHandler as AnyRouteHandler);
+    return withApiLog(withReadOnlyApi(extrasOrHandler as AnyRouteHandler));
 }
