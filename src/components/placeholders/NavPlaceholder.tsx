@@ -5,7 +5,6 @@ import Link from "next/link";
 const links = [
   { href: "/", label: "首页" },
   { href: "/login", label: "登录" },
-  { href: "/register", label: "注册" },
   { href: "/chat", label: "对话" },
   { href: "/console", label: "控制台" },
 ] as const;

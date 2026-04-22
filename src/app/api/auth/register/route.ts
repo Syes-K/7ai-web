@@ -19,6 +19,8 @@ import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/server/auth/session-user";
+import { isAdminEmail } from "@/server/auth/admin";
 
 export const runtime = "nodejs";
 
@@ -26,6 +28,14 @@ export const runtime = "nodejs";
  * POST /api/auth/register
  */
 export const POST = withApiWrapper(async (req: Request) => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return jsonError(ErrorCode.UNAUTHORIZED, "请先登录管理员账号", HttpStatus.UNAUTHORIZED);
+  }
+  if (!isAdminEmail(currentUser.email)) {
+    return jsonError(ErrorCode.FORBIDDEN, "仅管理员可创建账号", HttpStatus.FORBIDDEN);
+  }
+
   if (!allowRate(`register:${clientIp(req)}`, 20, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,

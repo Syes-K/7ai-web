@@ -1729,7 +1729,7 @@ export function ChatWorkspace({
             )}
           </div>
 
-          <div className="chat-composer shrink-0 border-t border-zinc-800/90 bg-zinc-950/90 p-3 sm:p-4">
+          <div className="chat-composer shrink-0 border-t border-zinc-800/90 bg-zinc-950/90 px-3 pt-3 pb-1 sm:px-4 sm:pt-4 sm:pb-1">
             {freeTierAssistantHint && (
               <p
                 className="mb-2 font-sans text-[11px] leading-snug text-amber-400/90"
@@ -1800,6 +1800,9 @@ export function ChatWorkspace({
                 )}
               </button>
             </div>
+            <p className="px-1 text-center text-[11px] leading-snug text-zinc-600">
+              温馨提示：请勿输入涉密、违法或敏感个人信息；AI 生成内容仅供参考。
+            </p>
           </div>
         </main>
       </div>

@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import { getCurrentUser } from "@/server/auth/session-user";
+import { isAdminEmail } from "@/server/auth/admin";
 
 export const metadata: Metadata = {
   title: "注册 | 7ai-web",
@@ -11,7 +14,8 @@ export const metadata: Metadata = {
 /**
  * 注册页：邮箱必填，手机号可选
  */
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  await gateRegisterPage();
   return (
     <AuthShell title="注册账号">
       <Suspense
@@ -23,4 +27,14 @@ export default function RegisterPage() {
       </Suspense>
     </AuthShell>
   );
+}
+
+async function gateRegisterPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login?redirect=/register");
+  }
+  if (!isAdminEmail(user.email)) {
+    redirect("/login");
+  }
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { CaptchaField } from "./CaptchaField";
@@ -139,13 +138,14 @@ export function LoginForm() {
       </button>
 
       <p className="text-center text-sm text-[#9AA3B2]">
-        没有账号？{" "}
-        <Link
-          href="/register"
+        没有账号？请联系网站管理员（
+        <a
+          href="mailto:kuangyssky@163.com"
           className="font-medium text-[#00E5FF] hover:underline"
         >
-          注册
-        </Link>
+          kuangyssky@163.com
+        </a>
+        ）
       </p>
     </form>
   );
