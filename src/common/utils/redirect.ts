@@ -3,11 +3,23 @@
  */
 const ALLOWED_EXACT = new Set(["/", "/chat", "/console", "/admin"]);
 
+function isLocalePrefixedPath(pathOnly: string): boolean {
+  const m = pathOnly.match(/^\/(en|zh)(\/.*)?$/);
+  if (!m) return false;
+  const rest = m[2] ?? "";
+  if (rest === "" || rest === "/") return true;
+  if (rest === "/chat" || rest.startsWith("/chat/")) return true;
+  if (rest === "/login" || rest.startsWith("/login/")) return true;
+  if (rest === "/register" || rest.startsWith("/register/")) return true;
+  return false;
+}
+
 function isAllowedRedirectPath(pathOnly: string): boolean {
   if (ALLOWED_EXACT.has(pathOnly)) return true;
   if (pathOnly.startsWith("/admin/")) {
     return !pathOnly.includes("..");
   }
+  if (isLocalePrefixedPath(pathOnly)) return true;
   return false;
 }
 

@@ -5,6 +5,8 @@ import { Dropdown } from "antd";
 import type { DropdownProps } from "antd";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { useCookieAppLocale } from "@/common/hooks/use-cookie-app-locale";
+import { getPageShellMessages } from "@/i18n/page-shell-messages";
 import { UserAvatar } from "./UserAvatar";
 
 /** 与 ProLayout 顶栏 `headerActionLinkClass` 一致，仅头像时无昵称行 */
@@ -21,9 +23,9 @@ export type UserAvatarMenuProps = {
   /** `shell`：控制台 / 管理后台顶栏；`home`：站点首页顶栏 */
   variant?: UserAvatarMenuVariant;
   placement?: DropdownProps["placement"];
-  /** 首页 i18n 登出文案；shell 仍用默认中文 */
+  /** 首页 i18n 登出文案；shell 读 page.shell（或 cookie locale） */
   logoutLabel?: string;
-  /** 首页 i18n 触发器 aria-label */
+  /** 触发器 aria-label */
   ariaLabel?: string;
 };
 
@@ -34,10 +36,25 @@ export function UserAvatarMenu({
   displayName,
   variant = "shell",
   placement = "bottomRight",
-  logoutLabel = "退出登录",
+  logoutLabel,
   ariaLabel,
 }: UserAvatarMenuProps) {
   const router = useRouter();
+  const cookieLocale = useCookieAppLocale();
+  const shellMessages = getPageShellMessages(cookieLocale);
+
+  const resolvedLogout =
+    logoutLabel ??
+    (variant === "shell" ? shellMessages.userMenu.logout : "退出登录");
+  const resolvedAria =
+    ariaLabel ??
+    (variant === "shell"
+      ? displayName
+        ? shellMessages.userMenu.ariaLabelWithName.replace("{name}", displayName)
+        : shellMessages.userMenu.ariaLabel
+      : displayName
+        ? `用户菜单：${displayName}`
+        : "用户菜单");
 
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -48,8 +65,8 @@ export function UserAvatarMenu({
       router.refresh();
       return;
     }
-    router.replace("/login");
-  }, [router, variant]);
+    router.replace(`/${cookieLocale}/login`);
+  }, [router, variant, cookieLocale]);
 
   return (
     <Dropdown
@@ -58,7 +75,7 @@ export function UserAvatarMenu({
           {
             key: "logout",
             icon: <LogoutOutlined />,
-            label: logoutLabel,
+            label: resolvedLogout,
             onClick: () => void handleLogout(),
           },
         ],
@@ -68,7 +85,7 @@ export function UserAvatarMenu({
       <button
         type="button"
         className={TRIGGER_CLASS}
-        aria-label={ariaLabel ?? (displayName ? `用户菜单：${displayName}` : "用户菜单")}
+        aria-label={resolvedAria}
       >
         <UserAvatar displayName={displayName} size="sm" />
       </button>

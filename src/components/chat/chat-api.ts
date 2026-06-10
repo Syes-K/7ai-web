@@ -6,6 +6,16 @@ import type { AssistantListItem } from "@/common/types";
 
 const JSON_HDR = { "Content-Type": "application/json; charset=utf-8" };
 
+/** SSE 流无 body 时抛出，供 UI 走非流式 fallback */
+export const CHAT_NO_RESPONSE_BODY = "CHAT_NO_RESPONSE_BODY";
+
+export class ChatNoResponseBodyError extends Error {
+  constructor() {
+    super(CHAT_NO_RESPONSE_BODY);
+    this.name = "ChatNoResponseBodyError";
+  }
+}
+
 export class ChatApiError extends Error {
   constructor(
     message: string,
@@ -305,7 +315,7 @@ function dispatchSseFrame(frame: string, handlers: MessageStreamHandlers): void 
       break;
     case "error": {
       const err = data as { code?: string; message?: string };
-      handlers.onError(err.message ?? "未知错误", err.code);
+      handlers.onError(err.message ?? "", err.code);
       break;
     }
     default:
@@ -368,7 +378,7 @@ export async function sendMessageStream(
   }
 
   if (!res.body) {
-    throw new Error("响应无 body");
+    throw new ChatNoResponseBodyError();
   }
 
   const reader = res.body.getReader();

@@ -1,0 +1,180 @@
+{
+  "meta": {
+    "title": "对话 | 7ai-web",
+    "description": "与助手和模型对话"
+  },
+  "langSwitcher": {
+    "ariaLabel": "语言",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "header": {
+    "console": {
+      "title": "控制台",
+      "ariaLabel": "打开控制台"
+    },
+    "clearMessages": {
+      "title": "清空当前对话内容",
+      "ariaLabel": "清空当前对话内容"
+    }
+  },
+  "sidebar": {
+    "newChat": {
+      "label": "新建对话",
+      "title": "新建对话",
+      "ariaLabel": "新建对话"
+    },
+    "empty": "暂无历史会话",
+    "assistantUnavailable": "助手不可用",
+    "assistantUnavailableTitle": "助手不可用",
+    "deleteConversation": {
+      "title": "删除会话",
+      "ariaLabel": "删除会话"
+    },
+    "drawer": {
+      "title": "对话历史",
+      "close": "关闭",
+      "openHistory": {
+        "title": "打开对话历史",
+        "label": "历史"
+      }
+    }
+  },
+  "messages": {
+    "userFallback": "用户",
+    "assistantFallback": "助手",
+    "emptySelect": "请新建对话或从侧栏选择历史",
+    "emptyThread": "在下方输入框发送消息，即可开始对话",
+    "assistantUnavailableBanner": "该助手已无法使用，你可以继续对话或新建对话选用其他助手。"
+  },
+  "output": {
+    "disclaimer": "提示：以上内容由 AI 生成，仅供参考，请结合实际情况审慎使用。"
+  },
+  "assistantStreaming": {
+    "waitTips": [
+      "正在连接模型服务…",
+      "正在理解你的问题…",
+      "正在组织回复…"
+    ]
+  },
+  "composer": {
+    "placeholder": {
+      "ready": "输入消息 — Enter 发送，Shift+Enter 换行（中文输入法组字时 Enter 用于选字）",
+      "noSession": "请先新建或选择会话"
+    },
+    "inputAriaLabel": "消息输入框",
+    "send": {
+      "title": "发送",
+      "ariaLabel": "发送",
+      "sending": "传输中…"
+    },
+    "disclaimer": "温馨提示：请勿输入涉密、违法或敏感个人信息；AI 生成内容仅供参考。"
+  },
+  "freeTierHint": {
+    "beforeLink": "当前为免费/共享接入，效果可能不稳定。可在",
+    "link": "个人偏好",
+    "afterLink": "绑定自有密钥与模型，获得更稳定、更高质量的回答。"
+  },
+  "newChat": {
+    "title": "新建对话",
+    "createAssistant": "新建助手",
+    "description": "选择一个助手并开始对话，或跳过进入普通对话。",
+    "skipGeneral": "跳过 · 普通对话",
+    "start": "开始对话",
+    "retry": "重试",
+    "loadFailedInline": "无法加载助手列表，请重试或跳过进入普通对话。",
+    "emptyTitle": "暂无可选助手",
+    "emptyHint": "你可使用下方「跳过 · 普通对话」继续；也可点击标题右侧「新建助手」前往控制台创建。",
+    "goToAssistants": "去助手管理"
+  },
+  "confirm": {
+    "deleteConversation": {
+      "title": "删除会话",
+      "content": "确定删除该会话？下属消息将一并删除且不可恢复。",
+      "ok": "删除",
+      "cancel": "取消"
+    },
+    "clearMessages": {
+      "title": "清空消息",
+      "content": "将删除本会话中的全部消息，会话仍保留在列表中。清空后无法恢复已删内容，是否继续？",
+      "ok": "清空",
+      "cancel": "取消"
+    }
+  },
+  "toast": {
+    "loadConversationsFailed": "加载会话列表失败",
+    "loadMessagesFailed": "加载消息失败",
+    "loadAssistantsFailed": "加载助手列表失败",
+    "createConversationFailed": "创建会话失败",
+    "deleteFailed": "删除失败",
+    "clearFailed": "清空失败",
+    "sendFailed": "发送失败"
+  },
+  "errors": {
+    "emptyInput": "请输入内容",
+    "noSession": "请先新建或选择一个会话",
+    "readOnlyBlocked": "测试账户仅支持浏览，不支持发送消息",
+    "networkRetry": "网络异常，请重试",
+    "sseUnknown": "未知错误",
+    "noResponseBody": "响应无 body",
+    "requestFailed": "请求失败（{status}）"
+  },
+  "turn": {
+    "status": {
+      "pending": "等待执行",
+      "running": "执行中",
+      "completed": "已完成",
+      "failed": "执行失败",
+      "skipped": "已跳过",
+      "interrupted": "已中断"
+    },
+    "reasoningStatus": {
+      "not_triggered": "未触发",
+      "running": "进行中",
+      "completed": "已完成",
+      "failed": "失败",
+      "interrupted": "已中断"
+    },
+    "interruption": {
+      "user_cancelled": "你已停止本轮生成",
+      "network_disconnected": "网络中断，本轮未完整返回",
+      "server_timeout": "服务响应超时，本轮已中断",
+      "unknown": "本轮意外中断，可重试"
+    },
+    "stage": {
+      "knowledge": "知识库增强",
+      "mcp": "MCP 工具",
+      "skill": "Skills 调用",
+      "summary": "摘要回调",
+      "reasoning": "推理过程",
+      "details": "详情",
+      "reasoningSummary": "推理摘要"
+    },
+    "card": {
+      "status": {
+        "running": "进行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "interrupted": "已中断"
+      },
+      "failurePrefix": "本轮回复失败：",
+      "modelFallback": "模型调用失败，请稍后重试。",
+      "retryHintFailed": "本轮调用失败，可重试。",
+      "retryHintInterrupted": "本轮中断，可重试。",
+      "retry": "重试",
+      "retrying": "重试中...",
+      "retrySucceeded": "该问题已重试成功，无需继续重试。",
+      "noStructuredDetails": "暂无结构化分段详情"
+    },
+    "a11y": {
+      "currentStep": "当前步骤 {stepKey} {status}",
+      "currentTurnRunning": "当前轮次 {status}",
+      "currentTurnCompleted": "当前轮次 已完成",
+      "currentTurnFailed": "当前轮次 执行失败"
+    }
+  }
+}

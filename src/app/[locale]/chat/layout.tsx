@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { hasLocale } from "next-intl";
+import { routing } from "@/i18n/routing";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 
 /**
@@ -6,12 +8,18 @@ import { getRequestUserContext } from "@/server/auth/request-user-context";
  */
 export default async function ChatLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    return null;
+  }
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    redirect("/login?redirect=/chat");
+    redirect(`/${locale}/login?redirect=/${locale}/chat`);
   }
   return <>{children}</>;
 }

@@ -14,13 +14,13 @@ import { jsonError } from "@/server/http/json-response";
 import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
 import { tApiMessage } from "@/server/i18n/t-api-message";
 import { routing } from "@/i18n/routing";
+import { isAppLocale, type AppLocale } from "@/common/constants/i18n";
 
 const AUTH_API_PREFIX = "/api/auth/";
 const intlMiddleware = createIntlMiddleware(routing);
 
-/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；login/register 已迁至 /{locale}/ */
+/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；chat 已迁至 /{locale}/chat */
 const KNOWN_APP_SEGMENTS = new Set([
-  "chat",
   "console",
   "admin",
   "knowledge",
@@ -29,6 +29,15 @@ const KNOWN_APP_SEGMENTS = new Set([
 
 function firstSegment(pathname: string): string | undefined {
   return pathname.split("/").filter(Boolean)[0];
+}
+
+/** 从 /{locale}/... 路径解析 locale；无有效前缀时返回 null */
+function localeFromPathname(pathname: string): AppLocale | null {
+  const seg = firstSegment(pathname);
+  if (seg && isAppLocale(seg)) {
+    return seg;
+  }
+  return null;
 }
 
 /** `/fr`、`/en-US` 等非法 locale 尝试 → 302 `/en` */
@@ -59,14 +68,21 @@ function isI18nPath(pathname: string): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
-  return (
+  if (
     pathname.startsWith("/chat") ||
     pathname.startsWith("/console") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/console") ||
     pathname.startsWith(AUTH_API_PREFIX)
-  );
+  ) {
+    return true;
+  }
+  // 0.1.15：locale 前缀 chat 页受保护
+  if (/^\/(en|zh)\/chat(\/|$)/.test(pathname)) {
+    return true;
+  }
+  return false;
 }
 
 /** 旧版无 locale 前缀的 /login、/register → 302 /{locale}/login|register */
@@ -82,9 +98,25 @@ function handleLegacyAuthPageRedirect(request: NextRequest): NextResponse | null
   return null;
 }
 
+/**
+ * 旧版裸 /chat → 302 /{locale}/chat（优先于受保护逻辑，避免未登录直接进 login 而丢失 locale 前缀）。
+ */
+function handleLegacyChatRedirect(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/chat" || pathname.startsWith("/chat/")) {
+    const locale = resolveRequestLocale(request);
+    const suffix = pathname.slice("/chat".length);
+    const url = new URL(`/${locale}/chat${suffix}`, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 302);
+  }
+  return null;
+}
+
 function handleProtectedRoute(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
-  const locale = resolveRequestLocale(request);
+  // URL 已含 /en|zh 时优先用路径 segment，与 redirect 参数保持一致
+  const locale = localeFromPathname(pathname) ?? resolveRequestLocale(request);
 
   const totalAllowed = allowRate(
     "site",
@@ -141,7 +173,7 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
 }
 
 /**
- * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth 302 → 受保护路径 → next-intl。
+ * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth/chat 302 → 受保护路径 → next-intl。
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -150,9 +182,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/en", request.url), 302);
   }
 
-  const legacy = handleLegacyAuthPageRedirect(request);
-  if (legacy) {
-    return legacy;
+  const legacyAuth = handleLegacyAuthPageRedirect(request);
+  if (legacyAuth) {
+    return legacyAuth;
+  }
+
+  const legacyChat = handleLegacyChatRedirect(request);
+  if (legacyChat) {
+    return legacyChat;
   }
 
   if (isProtectedPath(pathname)) {

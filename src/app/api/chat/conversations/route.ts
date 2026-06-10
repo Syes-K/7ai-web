@@ -10,6 +10,8 @@ import {
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { chatAssistantFields } from "@/server/chat/conversation-dto";
 import { decodeCursor, encodeCursor } from "@/server/chat/cursor";
@@ -38,9 +40,14 @@ function parseLimit(raw: string | null): number | null {
  * GET /api/chat/conversations — 分页列出当前用户会话（updatedAt DESC）
  */
 export const GET = withApiWrapper(async (req: Request) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -49,9 +56,9 @@ export const GET = withApiWrapper(async (req: Request) => {
   if (limit === null) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "limit 参数无效",
+      tApiMessage(locale, "limitParamInvalid"),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "limit", message: "须为 1～50 的正整数" }],
+      [{ field: "limit", message: tApiMessage(locale, "validation.limitRange") }],
     );
   }
 
@@ -180,9 +187,14 @@ function parseAssistantId(raw: unknown): string | undefined {
  * POST /api/chat/conversations — 创建会话（可选绑定助手并注入首条开场消息）
  */
 export const POST = withApiWrapper(async (req: Request) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -193,7 +205,11 @@ export const POST = withApiWrapper(async (req: Request) => {
       body = JSON.parse(text) as PostBody;
     }
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.UNPROCESSABLE_ENTITY);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 
   const title =
@@ -208,7 +224,11 @@ export const POST = withApiWrapper(async (req: Request) => {
   if (assistantId) {
     const asst = await findReadableAssistant(ds, assistantId, user.id);
     if (!asst) {
-      return jsonError(ErrorCode.ASSISTANT_NOT_FOUND, "助手不存在", HttpStatus.NOT_FOUND);
+      return jsonError(
+        ErrorCode.ASSISTANT_NOT_FOUND,
+        tApiMessage(locale, "assistantNotFound"),
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const openingRaw = asst.openingMessage?.trim() ?? "";
@@ -246,7 +266,11 @@ export const POST = withApiWrapper(async (req: Request) => {
     const convRepo = ds.getRepository(Conversation);
     const conv = await convRepo.findOne({ where: { id: convId } });
     if (!conv) {
-      return jsonError(ErrorCode.INTERNAL_ERROR, "创建会话失败", HttpStatus.INTERNAL_SERVER_ERROR);
+      return jsonError(
+        ErrorCode.INTERNAL_ERROR,
+        tApiMessage(locale, "createConversationFailed"),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
 
     const asstFields = chatAssistantFields(conv, true);

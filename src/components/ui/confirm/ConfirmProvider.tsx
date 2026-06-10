@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { registerConfirm } from "./registry";
 import type { ConfirmOptions } from "./types";
@@ -11,6 +12,7 @@ type Pending = {
 };
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations("page.shell");
   const [pending, setPending] = useState<Pending | null>(null);
   const titleId = useId();
   const descId = useId();
@@ -42,7 +44,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       <ModalShell
         open={!!pending}
         onClose={() => close(false)}
-        title={pending?.options.title ?? "确认操作"}
+        title={pending?.options.title ?? t("confirm.defaultTitle")}
         titleId={titleId}
         describedBy={descId}
         initialFocusRef={okRef}
@@ -54,7 +56,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 className="rounded-lg border border-zinc-600 bg-zinc-900/90 px-4 py-2 font-mono text-sm text-zinc-200 transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:ring-offset-0"
                 onClick={() => close(false)}
               >
-                {pending.options.cancelText ?? "取消"}
+                {pending.options.cancelText ?? t("confirm.cancel")}
               </button>
               <button
                 ref={okRef}
@@ -66,7 +68,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 }`}
                 onClick={() => close(true)}
               >
-                {pending.options.okText ?? "确定"}
+                {pending.options.okText ?? t("confirm.ok")}
               </button>
             </div>
           ) : null

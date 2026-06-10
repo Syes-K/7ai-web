@@ -8,12 +8,15 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale;
   }
 
-  const [pageHome, pageLogin, pageRegister, apiMessage] = await Promise.all([
-    import(`../../messages/${locale}/page/home.json`),
-    import(`../../messages/${locale}/page/login.json`),
-    import(`../../messages/${locale}/page/register.json`),
-    import(`../../messages/${locale}/api/message.json`),
-  ]);
+  const [pageHome, pageLogin, pageRegister, pageChat, pageShell, apiMessage] =
+    await Promise.all([
+      import(`../../messages/${locale}/page/home.json`),
+      import(`../../messages/${locale}/page/login.json`),
+      import(`../../messages/${locale}/page/register.json`),
+      import(`../../messages/${locale}/page/chat.json`),
+      import(`../../messages/${locale}/page/shell.json`),
+      import(`../../messages/${locale}/api/message.json`),
+    ]);
 
   return {
     locale,
@@ -22,6 +25,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
         home: pageHome.default,
         login: pageLogin.default,
         register: pageRegister.default,
+        chat: pageChat.default,
+        shell: pageShell.default,
       },
       api: {
         message: apiMessage.default,

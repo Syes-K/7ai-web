@@ -11,7 +11,11 @@
 import { createAgent, summarizationMiddleware } from "langchain";
 import { AIMessageChunk } from "@langchain/core/messages";
 import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
-import { CHAT_SYSTEM_PROMPT, LLM_SUMMARIZATION_TAG } from "@/common/constants";
+import {
+  CHAT_LANGUAGE_REPLY_SUFFIX,
+  CHAT_SYSTEM_PROMPT,
+  LLM_SUMMARIZATION_TAG,
+} from "@/common/constants";
 import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
 import { getChatRuntimeModel, getChatRuntimeSummarizationModel } from "@/server/chat/llm-runtime";
@@ -92,7 +96,7 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions): 
 
   const agent = createAgent({
     model,
-    systemPrompt,
+    systemPrompt: `${systemPrompt}${CHAT_LANGUAGE_REPLY_SUFFIX}`,
     tools,
     middleware: summaryCfg.enabled
       ? [

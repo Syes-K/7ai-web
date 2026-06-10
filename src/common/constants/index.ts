@@ -115,8 +115,12 @@ export const MODEL_CONFIG_TAG_OPTION_SET: ReadonlySet<string> = new Set(
   MODEL_CONFIG_TAG_OPTIONS,
 );
 
-/** 默认系统提示词 */
-export const CHAT_SYSTEM_PROMPT = "你是一个有帮助的中文助手，回答简洁、准确。";
+/** 默认系统提示词（语言中立；具体回复语言由 {@link CHAT_LANGUAGE_REPLY_SUFFIX} 约束） */
+export const CHAT_SYSTEM_PROMPT = "You are a helpful assistant. Be concise and accurate.";
+
+/** 追加到系统提示，使模型随用户最新一条消息的语言回复 */
+export const CHAT_LANGUAGE_REPLY_SUFFIX =
+  " Reply in the same language as the user's latest message.";
 
 /** LangChain 摘要中间件调用标识（用于回调阶段识别摘要子调用）。 */
 export const LLM_SUMMARIZATION_TAG = "summarization";

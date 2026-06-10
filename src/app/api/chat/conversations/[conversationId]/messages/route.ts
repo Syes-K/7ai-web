@@ -5,9 +5,12 @@ import {
   CHAT_MESSAGE_LIST_DEFAULT_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
 } from "@/common/constants";
+import type { AppLocale } from "@/common/constants/i18n";
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { invokeAssistantReply, streamAssistantReply } from "@/server/chat/assistant";
 import {
   createConversationSummaryUpdater,
@@ -104,13 +107,25 @@ function kbDetailsFromInjection(inject: {
   return details;
 }
 
-function mcpSafeMessage(ui: McpTurnUiSnapshot): string {
-  if (ui.assistantMissing) return "未绑定助手，未加载 MCP";
-  if (ui.configs.length === 0) return "助手未挂载 MCP";
+function mcpSafeMessage(locale: AppLocale, ui: McpTurnUiSnapshot): string {
+  if (ui.assistantMissing) return tApiMessage(locale, "turnSafe.mcpNoAssistant");
+  if (ui.configs.length === 0) return tApiMessage(locale, "turnSafe.mcpNotMounted");
   const ok = ui.configs.filter((c) => c.loadOk);
   const toolCount = ui.configs.reduce((n, c) => n + c.toolNames.length, 0);
-  if (ok.length === 0) return `已挂载 ${ui.configs.length} 个 MCP，工具加载失败`;
-  return `已加载 ${ok.length} 个 MCP，共 ${toolCount} 个工具`;
+  if (ok.length === 0) {
+    return tApiMessage(locale, "turnSafe.mcpLoadFailed", { count: ui.configs.length });
+  }
+  return tApiMessage(locale, "turnSafe.mcpLoaded", { loaded: ok.length, toolCount });
+}
+
+function kbHitSafeMessage(
+  locale: AppLocale,
+  kbInjection: { needSearch: boolean; chunks: unknown[] } | null | undefined,
+): string {
+  if (kbInjection?.needSearch) {
+    return tApiMessage(locale, "turnSafe.kbHit", { count: kbInjection.chunks.length });
+  }
+  return tApiMessage(locale, "turnSafe.kbMiss");
 }
 
 function mcpDetailsFromUi(
@@ -178,9 +193,14 @@ function parseMessageLimit(raw: string | null): number | null {
  * GET /api/chat/conversations/:conversationId/messages
  */
 export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -188,7 +208,11 @@ export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const { searchParams } = new URL(req.url);
@@ -196,9 +220,9 @@ export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   if (limit === null) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "limit 参数无效",
+      tApiMessage(locale, "limitParamInvalid"),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "limit", message: "须为正整数" }],
+      [{ field: "limit", message: tApiMessage(locale, "validation.limitPositiveInteger") }],
     );
   }
 
@@ -238,9 +262,14 @@ export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
  * POST /api/chat/conversations/:conversationId/messages
  */
 export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -250,10 +279,14 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   try {
     body = (await req.json()) as PostMessageBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.UNPROCESSABLE_ENTITY);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 
-  const validated = validatePostMessageBody(body);
+  const validated = validatePostMessageBody(body, locale);
   if (!validated.ok) {
     return validated.response;
   }
@@ -262,7 +295,11 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const msgRepo = ds.getRepository(Message);
@@ -307,14 +344,19 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     if (!existing) {
       return jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "重试目标用户消息不存在",
+        tApiMessage(locale, "retryTargetNotFound"),
         HttpStatus.UNPROCESSABLE_ENTITY,
-        [{ field: "retryUserMessageId", message: "无效或无权限" }],
+        [
+          {
+            field: "retryUserMessageId",
+            message: tApiMessage(locale, "validation.retryMessageInvalid"),
+          },
+        ],
       );
     }
     userMsg = existing;
     turnState.updateStep("A2", "completed", {
-      safeMessage: "已复用原用户消息重试",
+      safeMessage: tApiMessage(locale, "turnSafe.retryReused"),
       reasonTag: "retry_without_new_user_message",
     });
   } else {
@@ -334,10 +376,10 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           turnState.updateStep("D1", status, {
             safeMessage:
               status === "running"
-                ? "模型正在生成回复"
+                ? tApiMessage(locale, "turnSafe.modelGenerating")
                 : status === "completed"
-                  ? "模型回复生成完成"
-                  : "模型回复生成失败",
+                  ? tApiMessage(locale, "turnSafe.modelCompleted")
+                  : tApiMessage(locale, "turnSafe.modelFailed"),
             details: [
               {
                 title: "调用上下文",
@@ -369,9 +411,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           });
           turnState.updateStep("B1", "completed");
           turnState.updateStep("C1", "completed", {
-            safeMessage: kbInjection?.needSearch
-              ? `已命中 ${kbInjection.chunks.length} 个知识片段`
-              : "未命中可用知识片段",
+            safeMessage: kbHitSafeMessage(locale, kbInjection),
             details: kbInjection ? kbDetailsFromInjection(kbInjection) : [],
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
@@ -392,7 +432,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             onAgentPrepared: async ({ mcpTurnUi }) => {
               mcpUiForTurn = mcpTurnUi;
               turnState.updateStep("C2", "completed", {
-                safeMessage: mcpSafeMessage(mcpTurnUi),
+                safeMessage: mcpSafeMessage(locale, mcpTurnUi),
                 details: mcpDetailsFromUi(mcpTurnUi),
               });
               await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
@@ -411,7 +451,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             onSummary: async (summary) => {
               turnState.updateReasoning("running");
               turnState.updateStep("E1", "running", {
-                safeMessage: "摘要回调处理中",
+                safeMessage: tApiMessage(locale, "turnSafe.summaryProcessing"),
                 details: [
                   {
                     title: "摘要长度",
@@ -425,7 +465,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
               // 这里的 summary 是会话摘要（供记忆压缩），不是模型推理摘要，避免混用展示。
               turnState.updateReasoning("completed");
               turnState.updateStep("E1", "completed", {
-                safeMessage: "摘要回调已完成",
+                safeMessage: tApiMessage(locale, "turnSafe.summaryCompleted"),
                 details: [
                   {
                     title: "摘要长度",
@@ -445,7 +485,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             send("assistant_delta", { text: delta });
           }
           turnState.updateStep("D1", "completed", {
-            safeMessage: "模型回复生成完成",
+            safeMessage: tApiMessage(locale, "turnSafe.modelCompleted"),
             details: [
               {
                 title: "输出统计",
@@ -455,7 +495,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           });
           const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
           turnState.updateStep("C2", "completed", {
-            safeMessage: mcpSafeMessage(mcpUiDone),
+            safeMessage: mcpSafeMessage(locale, mcpUiDone),
             details: mcpDetailsFromUi(mcpUiDone, toolEvents),
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
@@ -512,12 +552,13 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             reasoning: reasoningDto(serializeTurnSnapshot(completedSnapshot)),
           });
           controller.close();
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : "模型调用失败";
+        } catch {
+          // 不向客户端透传 provider 内部异常信息，统一返回本地化 modelError
+          const modelErrorMessage = tApiMessage(locale, "modelError");
           turnState.updateReasoning("failed");
           turnState.updateStep("D1", "failed", {
             reasonTag: "unknown",
-            error: { code: ErrorCode.MODEL_ERROR, message: msg },
+            error: { code: ErrorCode.MODEL_ERROR, message: modelErrorMessage },
           });
           turnState.freeze("failed", "unknown");
           await turnRepo.update(
@@ -530,7 +571,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
               stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()),
             },
           );
-          send("error", { code: ErrorCode.MODEL_ERROR, message: msg });
+          send("error", { code: ErrorCode.MODEL_ERROR, message: modelErrorMessage });
           send("turn_failed", {
             turnId,
             userMessageId: userMsg.id,
@@ -566,9 +607,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   });
   turnState.updateStep("B1", "completed");
   turnState.updateStep("C1", "completed", {
-    safeMessage: kbInjection?.needSearch
-      ? `已命中 ${kbInjection.chunks.length} 个知识片段`
-      : "未命中可用知识片段",
+    safeMessage: kbHitSafeMessage(locale, kbInjection),
     details: kbInjection ? kbDetailsFromInjection(kbInjection) : [],
   });
   await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
@@ -589,11 +628,11 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       onAgentPrepared: async ({ mcpTurnUi }) => {
         mcpUiForTurn = mcpTurnUi;
         turnState.updateStep("C2", "completed", {
-          safeMessage: mcpSafeMessage(mcpTurnUi),
+          safeMessage: mcpSafeMessage(locale, mcpTurnUi),
           details: mcpDetailsFromUi(mcpTurnUi),
         });
         turnState.updateStep("D1", "running", {
-          safeMessage: "模型正在生成回复",
+          safeMessage: tApiMessage(locale, "turnSafe.modelGenerating"),
           details: [
             {
               title: "调用上下文",
@@ -610,7 +649,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           detail: event.input ?? event.output ?? event.error ?? "",
         });
         turnState.updateStep("D1", "running", {
-          safeMessage: "模型正在生成回复",
+          safeMessage: tApiMessage(locale, "turnSafe.modelGenerating"),
           details: [
             {
               title: "调用上下文",
@@ -623,7 +662,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       onSummary: async (summary) => {
         turnState.updateReasoning("running");
         turnState.updateStep("E1", "running", {
-          safeMessage: "摘要回调处理中",
+          safeMessage: tApiMessage(locale, "turnSafe.summaryProcessing"),
           details: [
             {
               title: "摘要长度",
@@ -636,7 +675,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
         // 这里的 summary 是会话摘要（供记忆压缩），不是模型推理摘要，避免混用展示。
         turnState.updateReasoning("completed");
         turnState.updateStep("E1", "completed", {
-          safeMessage: "摘要回调已完成",
+          safeMessage: tApiMessage(locale, "turnSafe.summaryCompleted"),
           details: [
             {
               title: "摘要长度",
@@ -652,7 +691,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       },
     });
     turnState.updateStep("D1", "completed", {
-      safeMessage: "模型回复生成完成",
+      safeMessage: tApiMessage(locale, "turnSafe.modelCompleted"),
       details: [
         {
           title: "输出统计",
@@ -662,15 +701,15 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     });
     const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
     turnState.updateStep("C2", "completed", {
-      safeMessage: mcpSafeMessage(mcpUiDone),
+      safeMessage: mcpSafeMessage(locale, mcpUiDone),
       details: mcpDetailsFromUi(mcpUiDone, toolEvents),
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "模型调用失败";
+  } catch {
+    const modelErrorMessage = tApiMessage(locale, "modelError");
     turnState.updateReasoning("failed");
     turnState.updateStep("D1", "failed", {
       reasonTag: "unknown",
-      error: { code: ErrorCode.MODEL_ERROR, message: msg },
+      error: { code: ErrorCode.MODEL_ERROR, message: modelErrorMessage },
     });
     turnState.freeze("failed", "unknown");
     await turnRepo.update(
@@ -683,7 +722,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
         stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()),
       },
     );
-    return jsonError(ErrorCode.MODEL_ERROR, msg, HttpStatus.BAD_GATEWAY);
+    return jsonError(ErrorCode.MODEL_ERROR, modelErrorMessage, HttpStatus.BAD_GATEWAY);
   }
 
   turnState.updateStep("F1", "running");
@@ -744,10 +783,15 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
 /**
  * DELETE /api/chat/conversations/:conversationId/messages — 清空该会话下全部消息
  */
-export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
+export const DELETE = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -755,7 +799,11 @@ export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => 
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const msgRepo = ds.getRepository(Message);

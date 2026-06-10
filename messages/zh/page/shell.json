@@ -1,0 +1,21 @@
+{
+  "confirm": {
+    "defaultTitle": "确认操作",
+    "ok": "确定",
+    "cancel": "取消"
+  },
+  "modal": {
+    "closeOverlay": "关闭"
+  },
+  "userMenu": {
+    "logout": "退出登录",
+    "ariaLabel": "用户菜单",
+    "ariaLabelWithName": "用户菜单：{name}"
+  },
+  "forbiddenNotice": {
+    "body": "当前账号不在管理后台白名单中，无法进入系统管理。如需权限请联系管理员配置",
+    "bodySuffix": "。",
+    "stayOnPage": "留在当前页",
+    "dismiss": "知道了"
+  }
+}

@@ -1,38 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   body: string;
   streaming?: boolean;
 };
 
-const STREAMING_WAIT_TIPS = [
-  "正在连接模型服务…",
-  "正在理解你的问题…",
-  "正在组织回复…",
-] as const;
-
 /** 首包未到达：提示文案轮换 + 跳点 */
-function StreamingWaitBlock() {
+function StreamingWaitBlock({ tips }: { tips: readonly string[] }) {
   const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
+    if (tips.length <= 1) {
+      return;
+    }
     const id = window.setInterval(() => {
-      setTipIndex((n) => (n + 1) % STREAMING_WAIT_TIPS.length);
+      setTipIndex((n) => (n + 1) % tips.length);
     }, 2800);
     return () => clearInterval(id);
-  }, []);
+  }, [tips.length]);
+
+  const tip = tips[tipIndex] ?? tips[0] ?? "";
 
   return (
     <div
       className="flex flex-col gap-3 py-0.5"
       role="status"
       aria-live="polite"
-      aria-label={STREAMING_WAIT_TIPS[tipIndex]}
+      aria-label={tip}
     >
       <p key={tipIndex} className="chat-assistant-tip-fade text-sm leading-relaxed text-zinc-400">
-        {STREAMING_WAIT_TIPS[tipIndex]}
+        {tip}
       </p>
       <div className="flex items-center gap-1.5" aria-hidden>
         {[0, 1, 2].map((k) => (
@@ -60,10 +60,15 @@ function StreamingCaret() {
  * 助手纯文本输出（流式：首包前为等待态文案+动画，有内容后为正文+光标）。
  */
 export function AssistantText({ body, streaming }: Props) {
+  const t = useTranslations("page.chat");
+  const tips = useMemo(() => {
+    const raw = t.raw("assistantStreaming.waitTips");
+    return Array.isArray(raw) ? (raw as string[]) : [];
+  }, [t]);
   const waitingForFirstChunk = Boolean(streaming && body.trim() === "");
 
   if (waitingForFirstChunk) {
-    return <StreamingWaitBlock />;
+    return <StreamingWaitBlock tips={tips} />;
   }
 
   return (

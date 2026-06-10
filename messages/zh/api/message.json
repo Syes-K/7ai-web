@@ -13,7 +13,13 @@
     "passwordNeedsLetterAndNumber": "密码须同时包含字母与数字",
     "passwordSameAsEmail": "密码不能与邮箱相同",
     "passwordMismatch": "两次密码不一致",
-    "telNoInvalid": "手机号须为 11 位数字"
+    "telNoInvalid": "手机号须为 11 位数字",
+    "contentInvalid": "须为非空字符串",
+    "contentEmpty": "不能为空",
+    "contentTooLong": "长度不能超过 {max} 个字符",
+    "limitPositiveInteger": "须为正整数",
+    "limitRange": "须为 1～50 的正整数",
+    "retryMessageInvalid": "无效或无权限"
   },
   "captchaRequired": "请完成图形验证码",
   "captchaInvalid": "验证码错误或已过期，请刷新后重试",
@@ -23,5 +29,26 @@
   "authTelTaken": "该手机号已被占用",
   "authAdminLoginRequired": "请先登录管理员账号",
   "authAdminOnly": "仅管理员可创建账号",
-  "authLoginLocked": "登录失败次数过多，请 {minutes} 分钟后再试"
+  "authLoginLocked": "登录失败次数过多，请 {minutes} 分钟后再试",
+  "conversationNotFound": "会话不存在",
+  "assistantNotFound": "助手不存在",
+  "modelError": "模型调用失败，请稍后重试",
+  "readOnlyAccountBlocked": "您访问的是测试账户，不能进行数据的修改和删除",
+  "createConversationFailed": "创建会话失败",
+  "limitParamInvalid": "limit 参数无效",
+  "retryTargetNotFound": "重试目标用户消息不存在",
+  "turnSafe": {
+    "retryReused": "已复用原用户消息重试",
+    "modelGenerating": "模型正在生成回复",
+    "modelCompleted": "模型回复生成完成",
+    "modelFailed": "模型回复生成失败",
+    "kbHit": "已命中 {count} 个知识片段",
+    "kbMiss": "未命中可用知识片段",
+    "summaryProcessing": "摘要回调处理中",
+    "summaryCompleted": "摘要回调已完成",
+    "mcpNoAssistant": "未绑定助手，未加载 MCP",
+    "mcpNotMounted": "助手未挂载 MCP",
+    "mcpLoadFailed": "已挂载 {count} 个 MCP，工具加载失败",
+    "mcpLoaded": "已加载 {loaded} 个 MCP，共 {toolCount} 个工具"
+  }
 }

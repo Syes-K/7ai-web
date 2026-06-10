@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 
 export type ModalShellProps = {
@@ -29,6 +30,8 @@ export type ModalShellProps = {
    * 便于正文区 `min-h-0` + 内部滚动而标题/底栏固定。
    */
   bodyClassName?: string;
+  /** 遮罩关闭按钮 aria-label；默认读 page.shell.modal.closeOverlay */
+  closeOverlayAriaLabel?: string;
 };
 
 /**
@@ -47,7 +50,10 @@ export function ModalShell({
   maxWidthClass = "max-w-md",
   panelClassName,
   bodyClassName,
+  closeOverlayAriaLabel,
 }: ModalShellProps) {
+  const t = useTranslations("page.shell");
+  const closeAria = closeOverlayAriaLabel ?? t("modal.closeOverlay");
   const genTitleId = useId();
   const titleId = titleIdProp ?? genTitleId;
   const prevActive = useRef<HTMLElement | null>(null);
@@ -91,7 +97,7 @@ export function ModalShell({
       <button
         type="button"
         className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
-        aria-label="关闭"
+        aria-label={closeAria}
         onClick={onClose}
       />
       <div

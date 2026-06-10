@@ -5,6 +5,8 @@ import { findOwnedConversation } from "@/server/chat/conversation-access";
 import { getDataSource } from "@/server/db/data-source";
 import { ChatTurn } from "@/server/db/entities/ChatTurn";
 import { jsonError } from "@/server/http/json-response";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
@@ -76,17 +78,26 @@ function turnDto(t: ChatTurn) {
   };
 }
 
-export const GET = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
+export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
   const { conversationId } = await ctx.params;
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
   const turns = await ds.getRepository(ChatTurn).find({
     where: { conversationId: conv.id },

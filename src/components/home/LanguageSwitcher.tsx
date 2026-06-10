@@ -15,13 +15,14 @@ const OTHER_LOCALE: Record<AppLocale, AppLocale> = {
 
 type AuthNamespace = "page.login" | "page.register";
 type HomeNamespace = "page.home";
-type SwitcherNamespace = HomeNamespace | AuthNamespace;
+type ChatNamespace = "page.chat";
+type SwitcherNamespace = HomeNamespace | AuthNamespace | ChatNamespace;
 
 type LanguageSwitcherProps = {
   /** next-intl 命名空间，默认 page.home */
   namespace?: SwitcherNamespace;
-  /** 首页默认样式；认证页使用 auth 次要色 */
-  variant?: "home" | "auth";
+  /** 首页默认样式；认证页 / Chat 顶栏使用次要色 */
+  variant?: "home" | "auth" | "shell";
 };
 
 export function LanguageSwitcher({
@@ -49,7 +50,9 @@ export function LanguageSwitcher({
   const triggerClass =
     variant === "auth"
       ? `${headerActionLinkClass} font-mono text-[#9AA3B2] hover:text-[#00E5FF]`
-      : `${headerActionLinkClass} font-mono text-zinc-300/90 hover:text-cyan-200/90`;
+      : variant === "shell"
+        ? `${headerActionLinkClass} font-mono text-zinc-400/90 hover:text-cyan-200/90`
+        : `${headerActionLinkClass} font-mono text-zinc-300/90 hover:text-cyan-200/90`;
 
   const close = useCallback(() => setOpen(false), []);
 

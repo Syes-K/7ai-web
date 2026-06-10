@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { PublicUser } from "@/common/types";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { USER_SESSION_ENDED_EVENT, UserAvatarMenu } from "@/components/user";
@@ -14,7 +14,6 @@ const headerActionLinkClass =
   "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
 
 export function PunkHomeHeader() {
-  const locale = useLocale();
   const t = useTranslations("page.home");
   const [user, setUser] = useState<PublicUser | null | undefined>(undefined);
 
@@ -44,7 +43,7 @@ export function PunkHomeHeader() {
   }, []);
 
   const displayName = user ? user.nickName?.trim() || user.email : "";
-  const loginRedirect = encodeURIComponent(`/${locale}`);
+  const loginRedirect = encodeURIComponent("/");
 
   return (
     <header className="relative z-20 box-border flex h-14 min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-cyan-500/15 bg-black/30 px-4 backdrop-blur-md">
@@ -87,7 +86,7 @@ export function PunkHomeHeader() {
           />
         ) : (
           <Link
-            href={`/${locale}/login?redirect=${loginRedirect}`}
+            href={`/login?redirect=${loginRedirect}`}
             className={`${headerActionLinkClass} text-white/80 hover:text-white`}
           >
             <IconLogin className="h-4 w-4 shrink-0 text-current" />

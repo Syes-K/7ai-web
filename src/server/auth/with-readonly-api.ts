@@ -1,9 +1,10 @@
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { getCurrentUser } from "./session-user";
 
-const READ_ONLY_BLOCK_MESSAGE =
-  "您访问的是测试账户，不能进行数据的修改和删除";
+/** 只读账号写操作白名单：登录/登出不受拦截 */
 const READ_ONLY_BYPASS_PATHS = new Set<string>([
   "/api/auth/login",
   "/api/auth/logout",
@@ -11,6 +12,7 @@ const READ_ONLY_BYPASS_PATHS = new Set<string>([
 
 /**
  * 统一拦截只读账号的写操作：仅允许 GET，请求方法其余一律拒绝。
+ * 错误文案随请求 locale 双语返回（经 withApiWrapper 包裹的全部写 API）。
  */
 export function withReadOnlyApi<H extends (...args: any[]) => Promise<Response> | Response>(
   handler: H,
@@ -29,7 +31,12 @@ export function withReadOnlyApi<H extends (...args: any[]) => Promise<Response> 
     }
     const user = await getCurrentUser();
     if (user?.readOnly) {
-      return jsonError(ErrorCode.FORBIDDEN, READ_ONLY_BLOCK_MESSAGE, HttpStatus.FORBIDDEN);
+      const locale = resolveRequestLocale(req);
+      return jsonError(
+        ErrorCode.FORBIDDEN,
+        tApiMessage(locale, "readOnlyAccountBlocked"),
+        HttpStatus.FORBIDDEN,
+      );
     }
     return handler(...args);
   }) as H;

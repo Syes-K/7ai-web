@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { chatAssistantFields } from "@/server/chat/conversation-dto";
 import { findOwnedConversation } from "@/server/chat/conversation-access";
 import { getDataSource } from "@/server/db/data-source";
@@ -17,10 +19,15 @@ type RouteParams = { params: Promise<{ conversationId: string }> };
 /**
  * GET /api/chat/conversations/:conversationId — 会话详情
  */
-export const GET = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
+export const GET = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -28,7 +35,11 @@ export const GET = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const msgRepo = ds.getRepository(Message);
@@ -73,10 +84,15 @@ export const GET = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
 /**
  * DELETE /api/chat/conversations/:conversationId — 删除整条会话及其消息
  */
-export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => {
+export const DELETE = withApiWrapper(async (req: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(req);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -84,7 +100,11 @@ export const DELETE = withApiWrapper(async (_req: Request, ctx: RouteParams) => 
   const ds = await getDataSource();
   const conv = await findOwnedConversation(ds, user.id, conversationId);
   if (!conv) {
-    return jsonError(ErrorCode.CONVERSATION_NOT_FOUND, "会话不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.CONVERSATION_NOT_FOUND,
+      tApiMessage(locale, "conversationNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   await ds.transaction(async (manager) => {

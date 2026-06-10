@@ -5,8 +5,10 @@
 import type { DataSource } from "typeorm";
 import { NextResponse } from "next/server";
 import { CHAT_USER_MESSAGE_MAX_LENGTH } from "@/common/constants";
+import type { AppLocale } from "@/common/constants/i18n";
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { getConversationSummaryConfig, getSummaryPromptTemplates } from "@/server/chat/conversation-summary";
 import { titleFromFirstUserMessage } from "@/server/chat/conversation-title";
 import { buildKnowledgeInjectionForChat } from "@/server/knowledge-base/injection";
@@ -24,42 +26,50 @@ export type ValidatePostMessageBodyResult =
   | { ok: true; content: string; stream: boolean; retryUserMessageId: string | null }
   | { ok: false; response: NextResponse };
 
-/** A1：解析并校验 POST body（不含鉴权）。 */
-export function validatePostMessageBody(body: PostMessageBody): ValidatePostMessageBodyResult {
+/** A1：解析并校验 POST body（不含鉴权）；错误 message 随 locale 双语返回。 */
+export function validatePostMessageBody(
+  body: PostMessageBody,
+  locale: AppLocale,
+): ValidatePostMessageBodyResult {
   const contentRaw = body.content;
   if (typeof contentRaw !== "string") {
+    const detail = tApiMessage(locale, "validation.contentInvalid");
     return {
       ok: false,
       response: jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "content 无效",
+        detail,
         HttpStatus.UNPROCESSABLE_ENTITY,
-        [{ field: "content", message: "须为非空字符串" }],
+        [{ field: "content", message: detail }],
       ),
     };
   }
 
   const content = [...contentRaw.trim()].join("");
   if (!content) {
+    const detail = tApiMessage(locale, "validation.contentEmpty");
     return {
       ok: false,
       response: jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "content 不能为空",
+        detail,
         HttpStatus.UNPROCESSABLE_ENTITY,
-        [{ field: "content", message: "不能为空" }],
+        [{ field: "content", message: detail }],
       ),
     };
   }
 
   if ([...content].length > CHAT_USER_MESSAGE_MAX_LENGTH) {
+    const detail = tApiMessage(locale, "validation.contentTooLong", {
+      max: CHAT_USER_MESSAGE_MAX_LENGTH,
+    });
     return {
       ok: false,
       response: jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "content 过长",
+        detail,
         HttpStatus.UNPROCESSABLE_ENTITY,
-        [{ field: "content", message: `长度不能超过 ${CHAT_USER_MESSAGE_MAX_LENGTH} 个字符` }],
+        [{ field: "content", message: detail }],
       ),
     };
   }

@@ -13,7 +13,13 @@
     "passwordNeedsLetterAndNumber": "Password must include both letters and numbers.",
     "passwordSameAsEmail": "Password cannot be the same as your email.",
     "passwordMismatch": "Passwords do not match.",
-    "telNoInvalid": "Phone number must be 11 digits."
+    "telNoInvalid": "Phone number must be 11 digits.",
+    "contentInvalid": "Message must be a non-empty string.",
+    "contentEmpty": "Message cannot be empty.",
+    "contentTooLong": "Message is too long. Maximum {max} characters.",
+    "limitPositiveInteger": "Must be a positive integer.",
+    "limitRange": "Must be an integer from 1 to 50.",
+    "retryMessageInvalid": "Invalid or not allowed."
   },
   "captchaRequired": "Complete the verification code.",
   "captchaInvalid": "Verification code is incorrect or expired. Refresh and try again.",
@@ -23,5 +29,26 @@
   "authTelTaken": "This phone number is already in use.",
   "authAdminLoginRequired": "Sign in with an administrator account first.",
   "authAdminOnly": "Only administrators can create accounts.",
-  "authLoginLocked": "Too many failed sign-in attempts. {minutes, plural, one {Try again in # minute.} other {Try again in # minutes.}}"
+  "authLoginLocked": "Too many failed sign-in attempts. {minutes, plural, one {Try again in # minute.} other {Try again in # minutes.}}",
+  "conversationNotFound": "This conversation does not exist or was removed.",
+  "assistantNotFound": "The selected assistant does not exist or is unavailable.",
+  "modelError": "The model failed to respond. Try again later.",
+  "readOnlyAccountBlocked": "This test account is read-only. You cannot create, edit, or delete data.",
+  "createConversationFailed": "Could not create the conversation. Try again later.",
+  "limitParamInvalid": "Invalid limit parameter.",
+  "retryTargetNotFound": "The message to retry could not be found.",
+  "turnSafe": {
+    "retryReused": "Retrying with the original user message.",
+    "modelGenerating": "Generating model response…",
+    "modelCompleted": "Model response generated.",
+    "modelFailed": "Model response generation failed.",
+    "kbHit": "Matched {count} knowledge chunks.",
+    "kbMiss": "No matching knowledge chunks.",
+    "summaryProcessing": "Processing summary callback…",
+    "summaryCompleted": "Summary callback completed.",
+    "mcpNoAssistant": "No assistant bound; MCP not loaded.",
+    "mcpNotMounted": "Assistant has no MCP mounted.",
+    "mcpLoadFailed": "{count} MCP(s) mounted; tool loading failed.",
+    "mcpLoaded": "Loaded {loaded} MCP(s) with {toolCount} tool(s)."
+  }
 }

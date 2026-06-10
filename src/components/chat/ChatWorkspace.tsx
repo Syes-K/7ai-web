@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { LanguageSwitcher } from "@/components/home/LanguageSwitcher";
 import dayjs from "dayjs";
 import { MessageRole } from "@/common/enums";
 import {
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/icons";
 import {
   ChatApiError,
+  ChatNoResponseBodyError,
   clearMessages,
   createConversation,
   deleteConversation,
@@ -42,6 +45,23 @@ import {
 } from "./chat-api";
 import { BrandMark } from "@/components/brand/BrandMark";
 import type { AssistantListItem } from "@/common/types";
+import enApiMessage from "../../../messages/en/api/message.json";
+import zhApiMessage from "../../../messages/zh/api/message.json";
+
+const TURN_SAFE_KB_MISS = new Set([
+  enApiMessage.turnSafe.kbMiss,
+  zhApiMessage.turnSafe.kbMiss,
+]);
+const TURN_SAFE_MCP_NO_ASSISTANT = new Set([
+  enApiMessage.turnSafe.mcpNoAssistant,
+  zhApiMessage.turnSafe.mcpNoAssistant,
+]);
+const TURN_SAFE_MCP_NOT_MOUNTED = new Set([
+  enApiMessage.turnSafe.mcpNotMounted,
+  zhApiMessage.turnSafe.mcpNotMounted,
+]);
+/** MCP 详情块仍可能含后端硬编码中文（见 deviations） */
+const MCP_DISABLED_MARKERS = ["未启用 MCP", "MCP not enabled"] as const;
 
 /** 侧栏宽度：原 300px 缩小 30% */
 const SIDEBAR_WIDTH = "lg:w-[210px]";
@@ -91,13 +111,14 @@ function MessageBubble({
   /** 已绑定会话时展示「图标 + 助手名」，否则为「助手」 */
   assistantBubbleLabel?: string | null;
 }) {
+  const t = useTranslations("page.chat");
   const isUser = row.role === MessageRole.User;
-  const userShown = userLabel.trim() || "用户";
+  const userShown = userLabel.trim() || t("messages.userFallback");
   const assistantShown =
     !isUser && assistantBubbleLabel?.trim()
       ? assistantBubbleLabel.trim()
       : !isUser
-        ? "助手"
+        ? t("messages.assistantFallback")
         : "";
   return (
     <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -141,53 +162,55 @@ type TurnUiModel = {
   isSnapshotComplete: boolean;
 };
 
-const STATUS_TEXT: Record<TurnStepStatus, string> = {
-  pending: "等待执行",
-  running: "执行中",
-  completed: "已完成",
-  failed: "执行失败",
-  skipped: "已跳过",
-  interrupted: "已中断",
-};
-
-const INTERRUPTION_REASON_TEXT: Record<TurnInterruptionReason, string> = {
-  user_cancelled: "你已停止本轮生成",
-  network_disconnected: "网络中断，本轮未完整返回",
-  server_timeout: "服务响应超时，本轮已中断",
-  unknown: "本轮意外中断，可重试",
+type TurnStepLabels = {
+  status: Record<TurnStepStatus, string>;
+  reasoningStatus: Record<TurnUiModel["reasoning"]["status"], string>;
+  interruption: Record<TurnInterruptionReason, string>;
+  stage: {
+    knowledge: string;
+    mcp: string;
+    skill: string;
+    summary: string;
+    reasoning: string;
+    details: string;
+    reasoningSummary: string;
+  };
 };
 
 /**
  * Turn 步骤中的 `details` 经 JSON 后应为 `{ title, content }[]`。
  * 旧逻辑用 `title && content` 过滤会把 `content === ""`、`0` 等假值整块丢掉，导致 MCP/知识库展开无正文。
  */
-function stepDetailsToBlocks(details: unknown): Array<{ title: string; content: string }> {
+function stepDetailsToBlocks(
+  details: unknown,
+  detailsLabel: string,
+): Array<{ title: string; content: string }> {
   if (typeof details === "string") {
     try {
-      return stepDetailsToBlocks(JSON.parse(details) as unknown);
+      return stepDetailsToBlocks(JSON.parse(details) as unknown, detailsLabel);
     } catch {
-      return details.trim() ? [{ title: "详情", content: details }] : [];
+      return details.trim() ? [{ title: detailsLabel, content: details }] : [];
     }
   }
   /** 单条对象、或类数组对象 {0:{...},1:{...}} 在部分存储/反序列化路径下不是 Array，不能直接丢弃 */
   if (details != null && typeof details === "object" && !Array.isArray(details)) {
     const o = details as Record<string, unknown>;
     if ("title" in o || "Title" in o || "content" in o || "Content" in o) {
-      return stepDetailsToBlocks([details]);
+      return stepDetailsToBlocks([details], detailsLabel);
     }
     const vals = Object.values(o);
     if (
       vals.length > 0 &&
       vals.every((v) => v != null && typeof v === "object" && !Array.isArray(v))
     ) {
-      return stepDetailsToBlocks(vals);
+      return stepDetailsToBlocks(vals, detailsLabel);
     }
   }
   if (!Array.isArray(details)) return [];
   const out: Array<{ title: string; content: string }> = [];
   for (const raw of details) {
     if (typeof raw === "string") {
-      if (raw.trim()) out.push({ title: "详情", content: raw });
+      if (raw.trim()) out.push({ title: detailsLabel, content: raw });
       continue;
     }
     if (raw == null || typeof raw !== "object") continue;
@@ -198,18 +221,10 @@ function stepDetailsToBlocks(details: unknown): Array<{ title: string; content: 
     const content =
       typeof contentRaw === "string" ? contentRaw : contentRaw != null ? String(contentRaw) : "";
     if (!title.trim() && content === "") continue;
-    out.push({ title: title.trim() || "详情", content });
+    out.push({ title: title.trim() || detailsLabel, content });
   }
   return out;
 }
-
-const REASONING_STATUS_TEXT: Record<TurnUiModel["reasoning"]["status"], string> = {
-  not_triggered: "未触发",
-  running: "进行中",
-  completed: "已完成",
-  failed: "异常结束",
-  interrupted: "异常结束",
-};
 
 function normalizeTurnFromSnapshot(
   payload: TurnSnapshotPayload,
@@ -337,23 +352,10 @@ function mergeServerMessagesWithPendingLocal(
   return out;
 }
 
-function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
+function buildTurnProcessRows(turn: TurnUiModel, labels: TurnStepLabels): MessageRow[] {
   const rows: MessageRow[] = [];
-  const statusTone: Record<TurnStepStatus, string> = {
-    pending: "等待中",
-    running: "进行中",
-    completed: "已完成",
-    failed: "失败",
-    skipped: "已跳过",
-    interrupted: "已中断",
-  };
-  const reasoningTone: Record<TurnUiModel["reasoning"]["status"], string> = {
-    not_triggered: "未触发",
-    running: "进行中",
-    completed: "已完成",
-    failed: "失败",
-    interrupted: "已中断",
-  };
+  const statusTone = labels.status;
+  const reasoningTone = labels.reasoningStatus;
   const compact = (text?: string | null) => {
     const t = (text ?? "").trim();
     if (!t) return "";
@@ -373,7 +375,7 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
   if (knowledgeStep) {
     addRow(
       "knowledge",
-      `知识库增强 ${statusTone[knowledgeStep.status]}${compact(knowledgeStep.safeMessage) ? ` · ${compact(knowledgeStep.safeMessage)}` : ""}`,
+      `${labels.stage.knowledge} ${statusTone[knowledgeStep.status]}${compact(knowledgeStep.safeMessage) ? ` · ${compact(knowledgeStep.safeMessage)}` : ""}`,
       knowledgeStep.startedAt ?? knowledgeStep.endedAt,
     );
   }
@@ -381,7 +383,7 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
   if (mcpStep) {
     addRow(
       "mcp",
-      `MCP 工具 ${statusTone[mcpStep.status]}${compact(mcpStep.safeMessage) ? ` · ${compact(mcpStep.safeMessage)}` : ""}`,
+      `${labels.stage.mcp} ${statusTone[mcpStep.status]}${compact(mcpStep.safeMessage) ? ` · ${compact(mcpStep.safeMessage)}` : ""}`,
       mcpStep.startedAt ?? mcpStep.endedAt,
     );
   }
@@ -389,7 +391,7 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
   if (skillStep) {
     addRow(
       "skills",
-      `Skills 调用 ${statusTone[skillStep.status]}${compact(skillStep.safeMessage) ? ` · ${compact(skillStep.safeMessage)}` : ""}`,
+      `${labels.stage.skill} ${statusTone[skillStep.status]}${compact(skillStep.safeMessage) ? ` · ${compact(skillStep.safeMessage)}` : ""}`,
       skillStep.startedAt ?? skillStep.endedAt,
     );
   }
@@ -397,13 +399,13 @@ function buildTurnProcessRows(turn: TurnUiModel): MessageRow[] {
   if (summaryStep) {
     addRow(
       "summary",
-      `摘要回调 ${statusTone[summaryStep.status]}${compact(summaryStep.safeMessage) ? ` · ${compact(summaryStep.safeMessage)}` : ""}`,
+      `${labels.stage.summary} ${statusTone[summaryStep.status]}${compact(summaryStep.safeMessage) ? ` · ${compact(summaryStep.safeMessage)}` : ""}`,
       summaryStep.startedAt ?? summaryStep.endedAt,
     );
   }
   addRow(
     "reasoning",
-    `推理过程 ${reasoningTone[turn.reasoning.status]}${compact(turn.reasoning.safeSummary) ? ` · ${compact(turn.reasoning.safeSummary)}` : ""}`,
+    `${labels.stage.reasoning} ${reasoningTone[turn.reasoning.status]}${compact(turn.reasoning.safeSummary) ? ` · ${compact(turn.reasoning.safeSummary)}` : ""}`,
     turn.endedAt ?? turn.startedAt,
   );
   return rows.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
@@ -423,36 +425,48 @@ type TurnStageItem = {
   order: number;
 };
 
-function shouldHideUnboundMcpStep(step: {
-  safeMessage: string | null;
-  details?: unknown;
-}): boolean {
+function shouldHideUnboundMcpStep(
+  step: {
+    safeMessage: string | null;
+    details?: unknown;
+  },
+  detailsLabel: string,
+): boolean {
   const summary = (step.safeMessage ?? "").trim();
   if (!summary) return false;
-  if (summary.includes("未绑定助手") || summary.includes("未挂载 MCP")) {
+  if (
+    TURN_SAFE_MCP_NO_ASSISTANT.has(summary) ||
+    TURN_SAFE_MCP_NOT_MOUNTED.has(summary) ||
+    [...TURN_SAFE_MCP_NO_ASSISTANT].some((s) => summary.includes(s)) ||
+    [...TURN_SAFE_MCP_NOT_MOUNTED].some((s) => summary.includes(s))
+  ) {
     return true;
   }
-  const blocks = stepDetailsToBlocks(step.details);
+  const blocks = stepDetailsToBlocks(step.details, detailsLabel);
   if (
-    summary.includes("未启用 MCP") &&
     blocks.length === 1 &&
-    blocks[0]?.content.includes("未启用 MCP")
+    MCP_DISABLED_MARKERS.some(
+      (marker) => summary.includes(marker) && blocks[0]?.content.includes(marker),
+    )
   ) {
     return true;
   }
   return false;
 }
 
-function shouldHideUnboundKnowledgeStep(step: {
-  safeMessage: string | null;
-  details?: unknown;
-}): boolean {
+function shouldHideUnboundKnowledgeStep(
+  step: {
+    safeMessage: string | null;
+    details?: unknown;
+  },
+  detailsLabel: string,
+): boolean {
   const summary = (step.safeMessage ?? "").trim();
-  if (summary !== "未命中可用知识片段") return false;
-  return stepDetailsToBlocks(step.details).length === 0;
+  if (!TURN_SAFE_KB_MISS.has(summary)) return false;
+  return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
 }
 
-function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
+function buildTurnStageItems(turn: TurnUiModel, labels: TurnStepLabels): TurnStageItem[] {
   const items: TurnStageItem[] = [];
 
   /** 与旧 `push` 不同：只要 `details` 能解析出分段，就应展示，且避免误把上一行的 `items[items.length-1]` 当成当前步。 */
@@ -464,7 +478,7 @@ function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
     sourceStepKey: string,
   ) => {
     const summaryRaw = step.safeMessage ?? null;
-    const blocks = stepDetailsToBlocks(step.details);
+    const blocks = stepDetailsToBlocks(step.details, labels.stage.details);
     const clean = [step.reasonTag, step.error?.message]
       .map((t) => (t ?? "").trim())
       .filter((t) => t.length > 0)
@@ -494,21 +508,21 @@ function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
 
   const byKey = new Map(turn.steps.subSteps.map((s) => [s.stepKey, s]));
   const knowledge = byKey.get("C1");
-  if (knowledge && !shouldHideUnboundKnowledgeStep(knowledge)) {
-    appendFromStep(10, "knowledge", "知识库增强", knowledge, "C1");
+  if (knowledge && !shouldHideUnboundKnowledgeStep(knowledge, labels.stage.details)) {
+    appendFromStep(10, "knowledge", labels.stage.knowledge, knowledge, "C1");
   }
   const mcp =
     byKey.get("C2") ?? turn.steps.subSteps.find((s) => s.subStage === "mcp_tools_resolution");
-  if (mcp && !shouldHideUnboundMcpStep(mcp)) {
-    appendFromStep(15, "mcp", "MCP 工具", mcp, "C2");
+  if (mcp && !shouldHideUnboundMcpStep(mcp, labels.stage.details)) {
+    appendFromStep(15, "mcp", labels.stage.mcp, mcp, "C2");
   }
   const skill = turn.steps.subSteps.find((s) => s.subStage.toLowerCase().includes("skill"));
   if (skill) {
-    appendFromStep(30, "skill", "Skills 调用", skill, skill.stepKey);
+    appendFromStep(30, "skill", labels.stage.skill, skill, skill.stepKey);
   }
   const summaryStep = byKey.get("E1");
   if (summaryStep) {
-    const summaryBlocks = stepDetailsToBlocks(summaryStep.details);
+    const summaryBlocks = stepDetailsToBlocks(summaryStep.details, labels.stage.details);
     const summaryHasContent =
       Boolean(summaryStep.safeMessage?.trim()) ||
       Boolean(summaryStep.reasonTag?.trim()) ||
@@ -520,7 +534,7 @@ function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
       summaryStep.status === "failed" ||
       summaryStep.status === "interrupted";
     if (summaryTriggered || summaryHasContent) {
-      appendFromStep(50, "summary", "摘要回调", summaryStep, "E1");
+      appendFromStep(50, "summary", labels.stage.summary, summaryStep, "E1");
     }
   }
   const reasoningSummary = turn.reasoning.safeSummary?.trim() ?? "";
@@ -538,13 +552,15 @@ function buildTurnStageItems(turn: TurnUiModel): TurnStageItem[] {
           : turn.reasoning.status === "not_triggered"
             ? "skipped"
             : "failed";
-    const statusLine = REASONING_STATUS_TEXT[turn.reasoning.status];
+    const statusLine = labels.reasoningStatus[turn.reasoning.status];
     const clean = [statusLine].map((t) => t.trim()).filter((t) => t.length > 0);
-    const blocks = reasoningSummary ? [{ title: "推理摘要", content: reasoningSummary }] : [];
+    const blocks = reasoningSummary
+      ? [{ title: labels.stage.reasoningSummary, content: reasoningSummary }]
+      : [];
     items.push({
       key: "reasoning",
       sourceStepKey: null,
-      label: "推理过程",
+      label: labels.stage.reasoning,
       status: reasoningStatus,
       summary: reasoningSummary || null,
       details: clean,
@@ -584,11 +600,13 @@ function resolveSubStepForStageItem(
 }
 
 function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel }) {
+  const t = useTranslations("page.chat");
   const [open, setOpen] = useState(false);
   const rawStep = resolveSubStepForStageItem(turn, item);
   const stepRecord = rawStep != null ? (rawStep as Record<string, unknown>) : undefined;
   const detailsRaw = stepRecord?.details ?? stepRecord?.Details;
-  let fromSnapshot = stepDetailsToBlocks(detailsRaw);
+  const detailsLabel = t("turn.stage.details");
+  let fromSnapshot = stepDetailsToBlocks(detailsRaw, detailsLabel);
   /** 优先用当前 turn 快照解析结果（与 Network 一致）；build 阶段写入的 item 可能曾为空 */
   const detailBlocks =
     fromSnapshot.length > 0 ? fromSnapshot : item.detailBlocks;
@@ -608,7 +626,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
         aria-expanded={hasBody ? open : undefined}
       >
         <span className="min-w-0 flex-1 break-words">
-          {item.label} · {STATUS_TEXT[item.status]}
+          {item.label} · {t(`turn.status.${item.status}`)}
           {item.status === "running" ? (
             <span
               className="ml-1 inline-block h-3 w-3 animate-spin rounded-full border border-cyan-400/50 border-t-cyan-300 align-[-1px]"
@@ -649,7 +667,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
           ) : null}
           {item.details.length === 0 && detailBlocks.length === 0 ? (
             <p className="text-xs leading-relaxed text-zinc-400">
-              {item.summary?.trim() ? item.summary : "暂无结构化分段详情"}
+              {item.summary?.trim() ? item.summary : t("turn.card.noStructuredDetails")}
             </p>
           ) : null}
         </div>
@@ -677,27 +695,59 @@ function AssistantFlowCard({
   retryDisabledReason?: string | null;
   dimmed?: boolean;
 }) {
-  const stageItems = buildTurnStageItems(turn);
-  const statusText =
-    turn.finalStatus === "running"
-      ? "进行中"
-      : turn.finalStatus === "completed"
-        ? "已完成"
-        : turn.finalStatus === "failed"
-          ? "失败"
-          : "已中断";
-  const assistantShown = assistantBubbleLabel?.trim() ? assistantBubbleLabel.trim() : "助手";
+  const t = useTranslations("page.chat");
+  const turnLabels = useMemo(
+    (): TurnStepLabels => ({
+      status: {
+        pending: t("turn.status.pending"),
+        running: t("turn.status.running"),
+        completed: t("turn.status.completed"),
+        failed: t("turn.status.failed"),
+        skipped: t("turn.status.skipped"),
+        interrupted: t("turn.status.interrupted"),
+      },
+      reasoningStatus: {
+        not_triggered: t("turn.reasoningStatus.not_triggered"),
+        running: t("turn.reasoningStatus.running"),
+        completed: t("turn.reasoningStatus.completed"),
+        failed: t("turn.reasoningStatus.failed"),
+        interrupted: t("turn.reasoningStatus.interrupted"),
+      },
+      interruption: {
+        user_cancelled: t("turn.interruption.user_cancelled"),
+        network_disconnected: t("turn.interruption.network_disconnected"),
+        server_timeout: t("turn.interruption.server_timeout"),
+        unknown: t("turn.interruption.unknown"),
+      },
+      stage: {
+        knowledge: t("turn.stage.knowledge"),
+        mcp: t("turn.stage.mcp"),
+        skill: t("turn.stage.skill"),
+        summary: t("turn.stage.summary"),
+        reasoning: t("turn.stage.reasoning"),
+        details: t("turn.stage.details"),
+        reasoningSummary: t("turn.stage.reasoningSummary"),
+      },
+    }),
+    [t],
+  );
+  const stageItems = buildTurnStageItems(turn, turnLabels);
+  const statusText = t(`turn.card.status.${turn.finalStatus}`);
+  const assistantShown =
+    assistantBubbleLabel?.trim()
+      ? assistantBubbleLabel.trim()
+      : t("messages.assistantFallback");
   const d1 = turn.steps.subSteps.find((step) => step.stepKey === "D1");
   const failedReason =
     d1?.error?.message ??
     d1?.safeMessage ??
     (turn.finalStatus === "interrupted"
-      ? INTERRUPTION_REASON_TEXT[turn.interruptionReason ?? "unknown"]
+      ? turnLabels.interruption[turn.interruptionReason ?? "unknown"]
       : null);
   const fallbackFailureText =
     turn.finalStatus === "completed"
       ? ""
-      : `本轮回复失败：${failedReason ?? "模型调用失败，请稍后重试。"}`;
+      : `${t("turn.card.failurePrefix")}${failedReason ?? t("turn.card.modelFallback")}`;
   const finalText = assistantMessage?.content ?? streamingText ?? fallbackFailureText;
   const finalStreaming = !assistantMessage && Boolean(streamingText);
   const isFailed = turn.finalStatus === "failed";
@@ -732,8 +782,8 @@ function AssistantFlowCard({
               {retryDisabledReason
                 ? retryDisabledReason
                 : isFailed
-                  ? "本轮调用失败，可重试。"
-                  : "本轮中断，可重试。"}
+                  ? t("turn.card.retryHintFailed")
+                  : t("turn.card.retryHintInterrupted")}
             </span>
             {onRetry ? (
               <button
@@ -742,7 +792,7 @@ function AssistantFlowCard({
                 disabled={Boolean(sending)}
                 className="ml-auto rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {sending ? "重试中..." : "重试"}
+                {sending ? t("turn.card.retrying") : t("turn.card.retry")}
               </button>
             ) : null}
           </div>
@@ -775,8 +825,49 @@ export function ChatWorkspace({
   /** 只读账号仅可浏览，不允许发送消息 */
   readOnly?: boolean;
 }) {
+  const t = useTranslations("page.chat");
+  const locale = useLocale();
   /** 是否为桌面端 */
   const isDesktop = useIsLg();
+
+  const turnLabels = useMemo(
+    (): TurnStepLabels => ({
+      status: {
+        pending: t("turn.status.pending"),
+        running: t("turn.status.running"),
+        completed: t("turn.status.completed"),
+        failed: t("turn.status.failed"),
+        skipped: t("turn.status.skipped"),
+        interrupted: t("turn.status.interrupted"),
+      },
+      reasoningStatus: {
+        not_triggered: t("turn.reasoningStatus.not_triggered"),
+        running: t("turn.reasoningStatus.running"),
+        completed: t("turn.reasoningStatus.completed"),
+        failed: t("turn.reasoningStatus.failed"),
+        interrupted: t("turn.reasoningStatus.interrupted"),
+      },
+      interruption: {
+        user_cancelled: t("turn.interruption.user_cancelled"),
+        network_disconnected: t("turn.interruption.network_disconnected"),
+        server_timeout: t("turn.interruption.server_timeout"),
+        unknown: t("turn.interruption.unknown"),
+      },
+      stage: {
+        knowledge: t("turn.stage.knowledge"),
+        mcp: t("turn.stage.mcp"),
+        skill: t("turn.stage.skill"),
+        summary: t("turn.stage.summary"),
+        reasoning: t("turn.stage.reasoning"),
+        details: t("turn.stage.details"),
+        reasoningSummary: t("turn.stage.reasoningSummary"),
+      },
+    }),
+    [t],
+  );
+
+  const loginRedirect = encodeURIComponent(`/${locale}/chat`);
+  const loginUrl = `/${locale}/login?redirect=${loginRedirect}`;
 
   const [listLoading, setListLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
@@ -836,15 +927,18 @@ export function ChatWorkspace({
       return items;
     } catch (e) {
       if (e instanceof ChatApiError && e.status === 401) {
-        window.location.href = "/login?redirect=/chat";
+        window.location.href = loginUrl;
         return [];
       }
-      showToast({ type: "err", text: e instanceof Error ? e.message : "加载会话列表失败" });
+      showToast({
+        type: "err",
+        text: e instanceof Error ? e.message : t("toast.loadConversationsFailed"),
+      });
       return [];
     } finally {
       setListLoading(false);
     }
-  }, [showToast]);
+  }, [loginUrl, showToast, t]);
 
   const loadMessagesFor = useCallback(
     async (conversationId: string) => {
@@ -862,14 +956,17 @@ export function ChatWorkspace({
         setTurnHistoryMap(map);
         scrollToBottom();
       } catch (e) {
-        showToast({ type: "err", text: e instanceof Error ? e.message : "加载消息失败" });
+        showToast({
+          type: "err",
+          text: e instanceof Error ? e.message : t("toast.loadMessagesFailed"),
+        });
         setMessages([]);
         setTurnHistoryMap({});
       } finally {
         setMessagesLoading(false);
       }
     },
-    [showToast, scrollToBottom],
+    [showToast, scrollToBottom, t],
   );
 
   useEffect(() => {
@@ -908,7 +1005,10 @@ export function ChatWorkspace({
           setTurnHistoryMap(map);
         } catch (e) {
           if (!cancelled) {
-            showToast({ type: "err", text: e instanceof Error ? e.message : "加载消息失败" });
+            showToast({
+              type: "err",
+              text: e instanceof Error ? e.message : t("toast.loadMessagesFailed"),
+            });
             setMessages([]);
           }
         } finally {
@@ -919,9 +1019,12 @@ export function ChatWorkspace({
       } catch (e) {
         if (!cancelled) {
           if (e instanceof ChatApiError && e.status === 401) {
-            window.location.href = "/login?redirect=/chat";
+            window.location.href = loginUrl;
           } else {
-            showToast({ type: "err", text: e instanceof Error ? e.message : "加载会话列表失败" });
+            showToast({
+              type: "err",
+              text: e instanceof Error ? e.message : t("toast.loadConversationsFailed"),
+            });
           }
         }
       } finally {
@@ -933,7 +1036,7 @@ export function ChatWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [showToast]);
+  }, [loginUrl, showToast, t]);
 
   useEffect(() => {
     scrollToBottom();
@@ -961,13 +1064,13 @@ export function ChatWorkspace({
       const items = await fetchAssistantsForPicker();
       setPickerItems(items);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "加载助手列表失败";
+      const msg = e instanceof Error ? e.message : t("toast.loadAssistantsFailed");
       setPickerError(msg);
       setPickerItems([]);
     } finally {
       setPickerLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const openNewChatModal = useCallback(() => {
     setPickerSelectedId(null);
@@ -995,11 +1098,11 @@ export function ChatWorkspace({
       } catch (e) {
         showToast({
           type: "err",
-          text: e instanceof Error ? e.message : "创建会话失败",
+          text: e instanceof Error ? e.message : t("toast.createConversationFailed"),
         });
       }
     },
-    [isDesktop, loadConversationList, loadMessagesFor, showToast],
+    [isDesktop, loadConversationList, loadMessagesFor, showToast, t],
   );
 
   const handleNewConversation = useCallback(() => {
@@ -1009,10 +1112,10 @@ export function ChatWorkspace({
   const handleDeleteConversation = useCallback(
     async (id: string) => {
       const ok = await confirm({
-        title: "删除会话",
-        content: "确定删除该会话？下属消息将一并删除且不可恢复。",
-        okText: "删除",
-        cancelText: "取消",
+        title: t("confirm.deleteConversation.title"),
+        content: t("confirm.deleteConversation.content"),
+        okText: t("confirm.deleteConversation.ok"),
+        cancelText: t("confirm.deleteConversation.cancel"),
         okDanger: true,
       });
       if (!ok) {
@@ -1044,10 +1147,13 @@ export function ChatWorkspace({
           }
         }
       } catch (e) {
-        showToast({ type: "err", text: e instanceof Error ? e.message : "删除失败" });
+        showToast({
+          type: "err",
+          text: e instanceof Error ? e.message : t("toast.deleteFailed"),
+        });
       }
     },
-    [conversations, loadMessagesFor, selectedId, showToast],
+    [conversations, loadMessagesFor, selectedId, showToast, t],
   );
 
   const sendText = async (
@@ -1055,11 +1161,11 @@ export function ChatWorkspace({
     options?: { retryUserMessageId?: string | null; appendUserMessage?: boolean },
   ) => {
     if (readOnly) {
-      showToast({ type: "err", text: "测试账户仅支持浏览，不支持发送消息" });
+      showToast({ type: "err", text: t("errors.readOnlyBlocked") });
       return;
     }
     if (!selectedId) {
-      showToast({ type: "err", text: "请先新建或选择一个会话" });
+      showToast({ type: "err", text: t("errors.noSession") });
       return;
     }
     if (sendInFlightRef.current) {
@@ -1175,6 +1281,7 @@ export function ChatWorkspace({
         onError: async (msg) => {
           setStreamText("");
           setStreaming(false);
+          const errText = msg.trim() || t("errors.sseUnknown");
           try {
             const pendingId = pendingLocalUserMessageIdRef.current;
             const [{ items }, turnsResp] = await Promise.all([
@@ -1194,7 +1301,7 @@ export function ChatWorkspace({
               {
                 id: errMsgId,
                 role: MessageRole.Assistant,
-                content: `本轮回复失败：${msg}`,
+                content: `${t("turn.card.failurePrefix")}${errText}`,
                 createdAt: new Date().toISOString(),
               },
             ]);
@@ -1204,7 +1311,7 @@ export function ChatWorkspace({
         { retryUserMessageId: options?.retryUserMessageId ?? null },
       );
     } catch (e) {
-      if (e instanceof Error && e.message.includes("响应无 body")) {
+      if (e instanceof ChatNoResponseBodyError) {
         try {
           const fallback = await sendMessage(conversationId, text, {
             retryUserMessageId: options?.retryUserMessageId ?? null,
@@ -1234,13 +1341,14 @@ export function ChatWorkspace({
           setStreaming(false);
           void loadConversationList();
         } catch (fallbackErr) {
-          const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : "发送失败";
+          const fallbackMsg =
+            fallbackErr instanceof Error ? fallbackErr.message : t("toast.sendFailed");
           setMessages((prev) => [
             ...prev,
             {
               id: `__assistant_error__${Date.now()}`,
               role: MessageRole.Assistant,
-              content: `本轮回复失败：${fallbackMsg}`,
+              content: `${t("turn.card.failurePrefix")}${fallbackMsg}`,
               createdAt: new Date().toISOString(),
             },
           ]);
@@ -1248,7 +1356,7 @@ export function ChatWorkspace({
       } else {
         setStreamText("");
         setStreaming(false);
-        const errMsg = e instanceof Error ? e.message : "发送失败";
+        const errMsg = e instanceof Error ? e.message : t("toast.sendFailed");
         try {
           const pendingId = pendingLocalUserMessageIdRef.current;
           const [{ items }, turnsResp] = await Promise.all([
@@ -1277,7 +1385,7 @@ export function ChatWorkspace({
   const handleSend = async () => {
     const text = [...inputValue.trim()].join("");
     if (!text) {
-      showToast({ type: "err", text: "请输入内容" });
+      showToast({ type: "err", text: t("errors.emptyInput") });
       return;
     }
     await sendText(text);
@@ -1288,7 +1396,7 @@ export function ChatWorkspace({
   const assistantBubbleLabel =
     selectedConv?.assistant != null
       ? selectedConv.assistantUnavailable
-        ? "助手"
+        ? t("messages.assistantFallback")
         : `${selectedConv.assistant.icon ?? "🤖"} ${selectedConv.assistant.name}`
       : null;
   const turnStatusLine = useMemo(() => {
@@ -1297,16 +1405,23 @@ export function ChatWorkspace({
     }
     if (turnState.finalStatus === "running") {
       const runningStep = turnState.steps.subSteps.find((item) => item.status === "running");
-      return runningStep
-        ? `当前步骤 ${runningStep.stepKey} ${STATUS_TEXT.running}`
-        : `当前轮次 ${STATUS_TEXT.running}`;
+      if (runningStep) {
+        return t("turn.a11y.currentStep", {
+          stepKey: runningStep.stepKey,
+          status: turnLabels.status.running,
+        });
+      }
+      return t("turn.a11y.currentTurnRunning", { status: turnLabels.status.running });
     }
     if (turnState.finalStatus === "interrupted") {
       const reason = turnState.interruptionReason ?? "unknown";
-      return INTERRUPTION_REASON_TEXT[reason];
+      return turnLabels.interruption[reason];
     }
-    return `当前轮次 ${turnState.finalStatus === "completed" ? "已完成" : "执行失败"}`;
-  }, [turnState]);
+    if (turnState.finalStatus === "completed") {
+      return t("turn.a11y.currentTurnCompleted");
+    }
+    return t("turn.a11y.currentTurnFailed");
+  }, [turnState, turnLabels, t]);
 
   const handleClear = () => {
     if (!selectedId) {
@@ -1314,11 +1429,10 @@ export function ChatWorkspace({
     }
     void (async () => {
       const ok = await confirm({
-        title: "清空消息",
-        content:
-          "将删除本会话中的全部消息，会话仍保留在列表中。清空后无法恢复已删内容，是否继续？",
-        okText: "清空",
-        cancelText: "取消",
+        title: t("confirm.clearMessages.title"),
+        content: t("confirm.clearMessages.content"),
+        okText: t("confirm.clearMessages.ok"),
+        cancelText: t("confirm.clearMessages.cancel"),
         okDanger: true,
       });
       if (!ok) {
@@ -1338,7 +1452,10 @@ export function ChatWorkspace({
         });
         await loadConversationList();
       } catch (e) {
-        showToast({ type: "err", text: e instanceof Error ? e.message : "清空失败" });
+        showToast({
+          type: "err",
+          text: e instanceof Error ? e.message : t("toast.clearFailed"),
+        });
       }
     })();
   };
@@ -1349,12 +1466,12 @@ export function ChatWorkspace({
         <button
           type="button"
           onClick={() => void handleNewConversation()}
-          title="新建对话"
+          title={t("sidebar.newChat.title")}
           className="flex w-full items-center justify-center rounded-lg border border-cyan-400/40 bg-cyan-500/15 py-2.5 text-cyan-200 shadow-[0_0_20px_-6px_rgba(34,211,238,0.5)] transition hover:bg-cyan-500/25"
-          aria-label="新建对话"
+          aria-label={t("sidebar.newChat.ariaLabel")}
         >
           <IconPlus />
-          <span className="text-sm ml-2">新建对话</span>
+          <span className="text-sm ml-2">{t("sidebar.newChat.label")}</span>
         </button>
       </div>
       <div className="chat-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4">
@@ -1363,7 +1480,7 @@ export function ChatWorkspace({
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-400" />
           </div>
         ) : conversations.length === 0 ? (
-          <p className="px-2 text-center font-mono text-xs text-zinc-500">暂无历史会话</p>
+          <p className="px-2 text-center font-mono text-xs text-zinc-500">{t("sidebar.empty")}</p>
         ) : (
           <ul className="space-y-1.5">
             {conversations.map((item: ConversationListItem) => (
@@ -1387,11 +1504,11 @@ export function ChatWorkspace({
                     {item.assistant != null && (
                       <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-snug text-zinc-500">
                         {item.assistantUnavailable ? (
-                          <span className="truncate" title="助手不可用">
+                          <span className="truncate" title={t("sidebar.assistantUnavailableTitle")}>
                             <span className="opacity-70" aria-hidden>
                               🤖
                             </span>
-                            <span className="ml-1">助手不可用</span>
+                            <span className="ml-1">{t("sidebar.assistantUnavailable")}</span>
                           </span>
                         ) : (
                           <>
@@ -1421,8 +1538,8 @@ export function ChatWorkspace({
                     </span>
                     <button
                       type="button"
-                      title="删除会话"
-                      aria-label="删除会话"
+                      title={t("sidebar.deleteConversation.title")}
+                      aria-label={t("sidebar.deleteConversation.ariaLabel")}
                       className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md text-zinc-500 opacity-0 transition hover:bg-zinc-800/50 hover:text-rose-400/90 group-hover/more:pointer-events-auto group-hover/more:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1470,13 +1587,13 @@ export function ChatWorkspace({
         onClose={() => setNewChatOpen(false)}
         title={
           <span className="flex w-full min-w-0 items-center justify-between gap-3">
-            <span className="truncate">新建对话</span>
+            <span className="truncate">{t("newChat.title")}</span>
             <Link
               href="/console/assistants"
               onClick={() => setNewChatOpen(false)}
               className="shrink-0 font-mono text-xs font-normal text-cyan-400/90 underline decoration-cyan-500/35 underline-offset-[3px] transition hover:text-cyan-300"
             >
-              新建助手
+              {t("newChat.createAssistant")}
             </Link>
           </span>
         }
@@ -1493,7 +1610,7 @@ export function ChatWorkspace({
               onClick={() => void finishCreateConversation()}
               className="rounded-lg border border-zinc-600 bg-zinc-900/90 px-4 py-2 font-mono text-sm text-zinc-200 transition hover:bg-zinc-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:ring-offset-0"
             >
-              跳过 · 普通对话
+              {t("newChat.skipGeneral")}
             </button>
             <button
               type="button"
@@ -1501,13 +1618,13 @@ export function ChatWorkspace({
               onClick={() => void finishCreateConversation({ assistantId: pickerSelectedId })}
               className="rounded-lg border border-cyan-500/40 bg-cyan-600/80 px-4 py-2 font-mono text-sm text-white shadow-lg transition hover:bg-cyan-500/85 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300/35 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-900/60 disabled:text-zinc-500 disabled:shadow-none"
             >
-              开始对话
+              {t("newChat.start")}
             </button>
           </div>
         }
       >
         <p id={newChatDescId} className="shrink-0 text-sm leading-relaxed text-zinc-400">
-          选择一个助手并开始对话，或跳过进入普通对话。
+          {t("newChat.description")}
         </p>
         {pickerError && (
           <div
@@ -1521,7 +1638,7 @@ export function ChatWorkspace({
                 onClick={() => void loadPickerAssistants()}
                 className="shrink-0 rounded-md border border-amber-500/35 bg-amber-950/50 px-2 py-1 font-mono text-xs text-amber-200 hover:bg-amber-900/45"
               >
-                重试
+                {t("newChat.retry")}
               </button>
             </div>
           </div>
@@ -1533,20 +1650,18 @@ export function ChatWorkspace({
             </div>
           ) : pickerError ? (
             <p className="px-2 py-5 text-center text-sm text-zinc-500">
-              无法加载助手列表，请重试或跳过进入普通对话。
+              {t("newChat.loadFailedInline")}
             </p>
           ) : pickerItems.length === 0 ? (
             <div className="px-2 py-4 text-center text-sm text-zinc-500">
-              <p className="mb-2">暂无可选助手</p>
-              <p className="mb-3 text-zinc-600">
-                你可使用下方「跳过 · 普通对话」继续；也可点击标题右侧「新建助手」前往控制台创建。
-              </p>
+              <p className="mb-2">{t("newChat.emptyTitle")}</p>
+              <p className="mb-3 text-zinc-600">{t("newChat.emptyHint")}</p>
               <Link
                 href="/console/assistants"
                 onClick={() => setNewChatOpen(false)}
                 className="inline-block text-cyan-400/95 underline decoration-cyan-500/35 underline-offset-2 hover:text-cyan-300"
               >
-                去助手管理
+                {t("newChat.goToAssistants")}
               </Link>
             </div>
           ) : (
@@ -1583,8 +1698,8 @@ export function ChatWorkspace({
           <div className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-cyan-500/20 bg-zinc-950/70 px-2 py-2">
             <button
               type="button"
-              aria-label="打开对话历史"
-              title="历史"
+              aria-label={t("sidebar.drawer.openHistory.title")}
+              title={t("sidebar.drawer.openHistory.label")}
               onClick={() => setDrawerOpen(true)}
               className="inline-flex items-center justify-center rounded-lg border border-zinc-600 bg-zinc-900 p-2 text-zinc-200"
             >
@@ -1592,8 +1707,8 @@ export function ChatWorkspace({
             </button>
             <button
               type="button"
-              title="新建对话"
-              aria-label="新建对话"
+              title={t("sidebar.newChat.title")}
+              aria-label={t("sidebar.newChat.ariaLabel")}
               onClick={() => void handleNewConversation()}
               className="inline-flex items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2 text-cyan-200"
             >
@@ -1608,18 +1723,19 @@ export function ChatWorkspace({
               <BrandMark className="text-left text-sm" />
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
+              <LanguageSwitcher namespace="page.chat" variant="shell" />
               <Link
                 href="/console"
-                title="控制台"
-                aria-label="控制台"
+                title={t("header.console.title")}
+                aria-label={t("header.console.ariaLabel")}
                 className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800/70 hover:text-cyan-200/90"
               >
                 <IconConfig />
               </Link>
               <button
                 type="button"
-                title="清空当前对话内容"
-                aria-label="清空当前对话内容"
+                title={t("header.clearMessages.title")}
+                aria-label={t("header.clearMessages.ariaLabel")}
                 onClick={handleClear}
                 disabled={!selectedId}
                 className="inline-flex shrink-0 items-center justify-center rounded-lg p-2 text-rose-200/90 hover:bg-rose-950/35 disabled:opacity-40"
@@ -1635,11 +1751,11 @@ export function ChatWorkspace({
                 className="mb-4 rounded-lg border border-amber-500/40 bg-amber-950/45 px-3 py-2.5 font-mono text-xs leading-relaxed text-amber-100/95 shadow-[0_0_20px_-8px_rgba(245,158,11,0.25)]"
                 role="status"
               >
-                该助手已无法使用，你可以继续对话或新建对话选用其他助手。
+                {t("messages.assistantUnavailableBanner")}
               </div>
             )}
             {!selectedId ? (
-              <p className="text-center font-mono text-sm text-zinc-500">请新建对话或从侧栏选择历史</p>
+              <p className="text-center font-mono text-sm text-zinc-500">{t("messages.emptySelect")}</p>
             ) : messagesLoading ? (
               <div className="flex justify-center py-16">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-fuchsia-500/30 border-t-fuchsia-400" />
@@ -1649,7 +1765,7 @@ export function ChatWorkspace({
                 <IconEmptyState />
                 <BrandMark className="text-sm" />
                 <p className="max-w-xs text-sm leading-relaxed text-zinc-500">
-                  在下方输入框发送消息，即可开始对话
+                  {t("messages.emptyThread")}
                 </p>
               </div>
             ) : (
@@ -1726,7 +1842,9 @@ export function ChatWorkspace({
                           assistantBubbleLabel={assistantBubbleLabel}
                           sending={sending}
                           retryDisabledReason={
-                            hasSucceededRetry(turn, turnHistoryMap) ? "该问题已重试成功，无需继续重试。" : null
+                            hasSucceededRetry(turn, turnHistoryMap)
+                              ? t("turn.card.retrySucceeded")
+                              : null
                           }
                           dimmed={hasSucceededRetry(turn, turnHistoryMap)}
                           onRetry={
@@ -1766,7 +1884,9 @@ export function ChatWorkspace({
                           assistantBubbleLabel={assistantBubbleLabel}
                           sending={sending}
                           retryDisabledReason={
-                            hasSucceededRetry(turnState, turnHistoryMap) ? "该问题已重试成功，无需继续重试。" : null
+                            hasSucceededRetry(turnState, turnHistoryMap)
+                              ? t("turn.card.retrySucceeded")
+                              : null
                           }
                           dimmed={hasSucceededRetry(turnState, turnHistoryMap)}
                           onRetry={
@@ -1799,14 +1919,14 @@ export function ChatWorkspace({
                 className="mb-2 font-sans text-[11px] leading-snug text-amber-400/90"
                 role="status"
               >
-                当前为免费/共享接入，效果可能不稳定。可在
+                {t("freeTierHint.beforeLink")}
                 <Link
                   href="/console/profile"
                   className="mx-0.5 font-medium text-amber-300/95 underline decoration-amber-500/50 underline-offset-2 hover:text-amber-200"
                 >
-                  个人偏好
+                  {t("freeTierHint.link")}
                 </Link>
-                绑定自有密钥与模型，获得更稳定、更高质量的回答。
+                {t("freeTierHint.afterLink")}
               </p>
             )}
             <div className="relative">
@@ -1815,14 +1935,12 @@ export function ChatWorkspace({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={
-                  selectedId
-                    ? "输入消息 — Enter 发送，Shift+Enter 换行（中文输入法组字时 Enter 用于选字）"
-                    : "请先新建或选择会话"
+                  selectedId ? t("composer.placeholder.ready") : t("composer.placeholder.noSession")
                 }
                 disabled={!selectedId}
                 rows={3}
                 className="min-h-[78px] w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 pb-12 pr-12 font-mono text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
-                aria-label="消息输入框"
+                aria-label={t("composer.inputAriaLabel")}
                 onCompositionStart={() => {
                   imeComposingRef.current = true;
                 }}
@@ -1844,8 +1962,8 @@ export function ChatWorkspace({
               />
               <button
                 type="button"
-                title={sending ? "传输中…" : "发送"}
-                aria-label="发送"
+                title={sending ? t("composer.send.sending") : t("composer.send.title")}
+                aria-label={t("composer.send.ariaLabel")}
                 onClick={() => void handleSend()}
                 disabled={!selectedId || sending}
                 className="absolute bottom-2.5 right-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-400/50 bg-gradient-to-br from-cyan-600/40 to-fuchsia-600/30 p-0 text-cyan-50 shadow-[0_0_20px_-4px_rgba(34,211,238,0.5)] transition hover:from-cyan-500/50 hover:to-fuchsia-500/40 disabled:opacity-40"
@@ -1865,7 +1983,7 @@ export function ChatWorkspace({
               </button>
             </div>
             <p className="px-1 text-center text-[11px] leading-snug text-zinc-600">
-              温馨提示：请勿输入涉密、违法或敏感个人信息；AI 生成内容仅供参考。
+              {t("composer.disclaimer")}
             </p>
           </div>
         </main>
@@ -1876,20 +1994,20 @@ export function ChatWorkspace({
           <button
             type="button"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            aria-label="关闭"
+            aria-label={t("sidebar.drawer.close")}
             onClick={() => setDrawerOpen(false)}
           />
           <div
             className={`relative ml-0 flex h-[100dvh] max-h-[100dvh] min-h-0 ${DRAWER_WIDTH} flex-col border-r border-cyan-500/30 bg-zinc-950 shadow-2xl`}
           >
             <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-3">
-              <span className="font-mono text-sm text-cyan-300">对话历史</span>
+              <span className="font-mono text-sm text-cyan-300">{t("sidebar.drawer.title")}</span>
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 className="rounded px-2 py-1 font-mono text-xs text-zinc-400 hover:text-white"
               >
-                关闭
+                {t("sidebar.drawer.close")}
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">{sidebarInner}</div>

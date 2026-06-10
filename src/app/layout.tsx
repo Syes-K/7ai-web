@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ConfirmProvider } from "@/components/ui/confirm";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,9 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
-        <ConfirmProvider>{children}</ConfirmProvider>
-      </body>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

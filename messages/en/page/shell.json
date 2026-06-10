@@ -1,0 +1,21 @@
+{
+  "confirm": {
+    "defaultTitle": "Confirm action",
+    "ok": "OK",
+    "cancel": "Cancel"
+  },
+  "modal": {
+    "closeOverlay": "Close"
+  },
+  "userMenu": {
+    "logout": "Sign out",
+    "ariaLabel": "User menu",
+    "ariaLabelWithName": "User menu: {name}"
+  },
+  "forbiddenNotice": {
+    "body": "Your account is not on the admin allowlist, so you cannot access system administration. To request access, ask an administrator to configure",
+    "bodySuffix": ".",
+    "stayOnPage": "Stay on this page",
+    "dismiss": "Got it"
+  }
+}
