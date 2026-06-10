@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "7AI·CLUB",
+    "description": "个人 AI AI实验场"
+  },
+  "nav": {
+    "ariaLabel": "主导航",
+    "chat": "对话",
+    "console": "控制台",
+    "signIn": "登录"
+  },
+  "langSwitcher": {
+    "ariaLabel": "语言",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "userMenu": {
+    "ariaLabel": "用户菜单",
+    "ariaLabelWithName": "用户菜单：{name}",
+    "logout": "退出登录"
+  },
+  "hero": {
+    "tag": "PERSONAL · AI LEARNING",
+    "title": "解构智能",
+    "subtitle": "DECONSTRUCT · LEARN · BREAK THINGS",
+    "description": "AI实验场：模型、提示词、管线——只管玩，不管懂，不装腔，只折腾。"
+  },
+  "cta": {
+    "chat": "进入对话",
+    "console": "后台控制"
+  },
+  "features": {
+    "01": "流式对话 · 多模型",
+    "02": "提示词 · 配置",
+    "03": "知识库 · 意图路由",
+    "04": "助手 · 指定人设"
+  },
+  "footer": {
+    "sysLine": "SYS://local · learning mode · no warranty",
+    "emailLabel": "作者邮箱:",
+    "email": "kuangyssky@163.com",
+    "icp": "皖ICP备2026009633号-1"
+  }
+}

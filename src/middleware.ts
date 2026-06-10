@@ -1,3 +1,4 @@
+import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -10,32 +11,76 @@ import {
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { allowRate, clientIp } from "@/common/utils/rate-limit";
 import { jsonError } from "@/server/http/json-response";
+import { routing } from "@/i18n/routing";
 
 const AUTH_API_PREFIX = "/api/auth/";
+const intlMiddleware = createIntlMiddleware(routing);
 
-/**
- * 无会话 Cookie 时拦截受保护路由（完整校验在页面/API 层）。
- */
-export function middleware(request: NextRequest) {
+/** 未接入 i18n 的应用路由首段（不加 locale 前缀） */
+const KNOWN_APP_SEGMENTS = new Set([
+  "chat",
+  "console",
+  "login",
+  "admin",
+  "register",
+  "knowledge",
+  "api",
+]);
+
+function firstSegment(pathname: string): string | undefined {
+  return pathname.split("/").filter(Boolean)[0];
+}
+
+/** `/fr`、`/en-US` 等非法 locale 尝试 → 302 `/en` */
+function isInvalidLocaleAttempt(pathname: string): boolean {
+  const seg = firstSegment(pathname);
+  if (!seg) {
+    return false;
+  }
+  if (seg === "en" || seg === "zh") {
+    return false;
+  }
+  if (KNOWN_APP_SEGMENTS.has(seg)) {
+    return false;
+  }
+  return true;
+}
+
+function isI18nPath(pathname: string): boolean {
+  if (pathname === "/") {
+    return true;
+  }
+  const seg = firstSegment(pathname);
+  return seg === "en" || seg === "zh";
+}
+
+function isProtectedPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/chat") ||
+    pathname.startsWith("/console") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/api/admin") ||
+    pathname.startsWith("/api/console") ||
+    pathname.startsWith(AUTH_API_PREFIX)
+  );
+}
+
+function handleProtectedRoute(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
 
-  let res: any;
-
-  // 整个站点统一限流。
   const totalAllowed = allowRate(
     "site",
     MIDDLEWARE_TOTAL_RATE_LIMIT,
     MIDDLEWARE_TOTAL_RATE_WINDOW_MS,
   );
   if (!totalAllowed) {
-    res = jsonError(
+    return jsonError(
       ErrorCode.RATE_LIMITED,
       "站点访问过于频繁，请稍后再试",
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
 
-  // 统一接口级限流(IP 级)。
   const ip = clientIp(request);
   const allowed = allowRate(
     `${pathname}:${ip}`,
@@ -43,42 +88,62 @@ export function middleware(request: NextRequest) {
     MIDDLEWARE_API_RATE_WINDOW_MS,
   );
   if (!allowed) {
-    res = jsonError(
+    return jsonError(
       ErrorCode.RATE_LIMITED,
       "请求过于频繁，请稍后再试",
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
 
-  // 认证 API 只做限流，不做会话重定向（登录/注册/验证码等必须可匿名访问）。
   if (pathname.startsWith(AUTH_API_PREFIX)) {
-    res = NextResponse.next();
+    return NextResponse.next();
   }
 
   const sid = request.cookies.get(SESSION_COOKIE)?.value;
   if (!sid) {
-    // 管理端 / 控制台 API 保持 JSON 错误体，便于前端与脚本处理（页面路由仍走登录重定向）。
     if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/console")) {
-      res = jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+      return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
     }
     const login = new URL("/login", request.url);
     login.searchParams.set("redirect", `${pathname}${search}`);
-    res = NextResponse.redirect(login);
+    return NextResponse.redirect(login);
   }
 
-  // 供 admin layout 在未登录（会话失效）时带回跳路径；仅页面路由需要。
   if (pathname.startsWith("/admin")) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-admin-login-redirect", `${pathname}${search}`);
-    res = NextResponse.next({ request: { headers: requestHeaders } });
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  res = NextResponse.next();
-  return res;
+  return NextResponse.next();
+}
+
+/**
+ * i18n + 受保护路由合并 middleware：先非法 locale 兜底，再 auth，再 next-intl。
+ */
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isInvalidLocaleAttempt(pathname)) {
+    return NextResponse.redirect(new URL("/en", request.url), 302);
+  }
+
+  if (isProtectedPath(pathname)) {
+    return handleProtectedRoute(request);
+  }
+
+  if (isI18nPath(pathname)) {
+    return intlMiddleware(request);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
+    "/",
+    "/(en|zh)",
+    "/(en|zh)/:path*",
     "/chat",
     "/chat/:path*",
     "/console",
@@ -88,5 +153,6 @@ export const config = {
     "/api/admin/:path*",
     "/api/console/:path*",
     "/api/auth/:path*",
+    "/((?!api|_next|_vercel|chat|console|login|admin|register|knowledge|.*\\..*)[^/]+)",
   ],
 };

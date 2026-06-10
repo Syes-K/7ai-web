@@ -140,3 +140,88 @@
     opacity: 0;
   }
 }
+
+/** Hero 描述：mono 弱化，退居副标题与 CTA 之间 */
+.punk-hero-desc {
+  text-wrap: balance;
+  line-height: 1.6;
+}
+
+/** 首页暗底：选中态略偏 fuchsia，与 cyan 主色区分层次 */
+.punk-landing ::selection {
+  background-color: rgb(34 211 238 / 0.22);
+  color: rgb(236 254 255);
+}
+
+.punk-landing ::-moz-selection {
+  background-color: rgb(34 211 238 / 0.22);
+  color: rgb(236 254 255);
+}
+
+.punk-landing .punk-hero-desc::selection {
+  background-color: rgb(232 121 249 / 0.2);
+  color: rgb(250 232 255);
+}
+
+.punk-landing .punk-hero-desc::-moz-selection {
+  background-color: rgb(232 121 249 / 0.2);
+  color: rgb(250 232 255);
+}
+
+/** 英文首页：长文案排版优化（locale wrapper 由 PunkLanding 注入） */
+.punk-landing-en .punk-hero-title {
+  white-space: pre-line;
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+.punk-landing-en .punk-hero-subtitle {
+  max-width: 36rem;
+  margin-inline: auto;
+  text-wrap: balance;
+  letter-spacing: 0.12em;
+}
+
+@media (min-width: 640px) {
+  .punk-landing-en .punk-hero-subtitle {
+    letter-spacing: 0.16em;
+  }
+}
+
+.punk-landing-en .punk-hero-desc {
+  max-width: 28rem;
+  text-wrap: balance;
+  letter-spacing: 0.08em;
+  color: rgb(113 113 122 / 0.55);
+}
+
+.punk-landing-en .punk-hero-tag {
+  letter-spacing: 0.14em;
+}
+
+.punk-landing-en .punk-feature-grid {
+  max-width: 56rem;
+}
+
+@media (min-width: 1024px) {
+  .punk-landing-en .punk-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .punk-landing-en .punk-feature-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.punk-landing-en .punk-feature-item {
+  line-height: 1.5;
+  padding-block: 0.875rem;
+}
+
+.punk-landing-en .punk-cta {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 600;
+}

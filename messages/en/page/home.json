@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "7AI·CLUB",
+    "description": "Personal AI playground — experiment with models, prompts, and pipelines."
+  },
+  "nav": {
+    "ariaLabel": "Main navigation",
+    "chat": "Chat",
+    "console": "Console",
+    "signIn": "Sign in"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Language",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "userMenu": {
+    "ariaLabel": "User menu",
+    "ariaLabelWithName": "User menu: {name}",
+    "logout": "Sign out"
+  },
+  "hero": {
+    "tag": "PERSONAL · AI LEARNING",
+    "title": "CRACK THE\nSTACK",
+    "subtitle": "DECONSTRUCT · LEARN · BREAK THINGS",
+    "description": "Play first. Pitch never. Break things on purpose."
+  },
+  "cta": {
+    "chat": "Start chat",
+    "console": "Open console"
+  },
+  "features": {
+    "01": "Streaming & models",
+    "02": "Prompts & configs",
+    "03": "Knowledge & routing",
+    "04": "Assistant & personas"
+  },
+  "footer": {
+    "sysLine": "SYS://local · learning mode · no warranty",
+    "emailLabel": "Author email:",
+    "email": "kuangyssky@gmail.com",
+    "icp": "皖ICP备2026009633号-1"
+  }
+}

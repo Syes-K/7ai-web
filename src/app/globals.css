@@ -14,6 +14,17 @@ body {
   background: #ffffff;
 }
 
+/** 全站文本选中：青色系半透明，避免系统默认蓝块与暗色页不协调 */
+::selection {
+  background-color: rgb(34 211 238 / 0.28);
+  color: inherit;
+}
+
+::-moz-selection {
+  background-color: rgb(34 211 238 / 0.28);
+  color: inherit;
+}
+
 /* 对话页：细滚动条（青色系），与侧栏/消息区独立滚动配合 */
 @layer utilities {
   .chat-scroll {

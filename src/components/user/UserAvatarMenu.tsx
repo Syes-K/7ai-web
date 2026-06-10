@@ -21,6 +21,10 @@ export type UserAvatarMenuProps = {
   /** `shell`：控制台 / 管理后台顶栏；`home`：站点首页顶栏 */
   variant?: UserAvatarMenuVariant;
   placement?: DropdownProps["placement"];
+  /** 首页 i18n 登出文案；shell 仍用默认中文 */
+  logoutLabel?: string;
+  /** 首页 i18n 触发器 aria-label */
+  ariaLabel?: string;
 };
 
 /**
@@ -30,6 +34,8 @@ export function UserAvatarMenu({
   displayName,
   variant = "shell",
   placement = "bottomRight",
+  logoutLabel = "退出登录",
+  ariaLabel,
 }: UserAvatarMenuProps) {
   const router = useRouter();
 
@@ -52,7 +58,7 @@ export function UserAvatarMenu({
           {
             key: "logout",
             icon: <LogoutOutlined />,
-            label: "退出登录",
+            label: logoutLabel,
             onClick: () => void handleLogout(),
           },
         ],
@@ -62,7 +68,7 @@ export function UserAvatarMenu({
       <button
         type="button"
         className={TRIGGER_CLASS}
-        aria-label={displayName ? `用户菜单：${displayName}` : "用户菜单"}
+        aria-label={ariaLabel ?? (displayName ? `用户菜单：${displayName}` : "用户菜单")}
       >
         <UserAvatar displayName={displayName} size="sm" />
       </button>
