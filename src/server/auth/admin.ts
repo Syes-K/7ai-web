@@ -1,7 +1,11 @@
+import { headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import type { User } from "../db/entities/User";
+import { LOCALE_COOKIE } from "@/common/constants/i18n";
+import { resolveLocaleFromCookieAndHeader } from "@/common/utils/i18n";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { getRequestUserContext } from "./request-user-context";
 
 /**
@@ -30,6 +34,26 @@ export async function isAdmin(): Promise<boolean> {
   return isAdminEmail(reqCtx?.user.email);
 }
 
+/** 从当前请求 headers 解析 locale（供无 Request 参数的 admin gate 使用） */
+function parseCookieFromHeader(cookieHeader: string | null): string | undefined {
+  if (!cookieHeader) {
+    return undefined;
+  }
+  for (const part of cookieHeader.split(";")) {
+    const [rawKey, ...rest] = part.trim().split("=");
+    if (rawKey?.trim() === LOCALE_COOKIE) {
+      return rest.join("=").trim() || undefined;
+    }
+  }
+  return undefined;
+}
+
+async function localeFromHeaders() {
+  const h = await headers();
+  const cookie = parseCookieFromHeader(h.get("cookie"));
+  return resolveLocaleFromCookieAndHeader(cookie, h.get("accept-language"));
+}
+
 export type AdminGateResult =
   | { ok: true; user: User }
   | { ok: false; response: NextResponse };
@@ -39,12 +63,17 @@ export type AdminGateResult =
  * 路由层请优先使用 {@link withAdminApi} 包装，避免每个 Method 重复调用本函数。
  */
 export async function requireAdminApi(): Promise<AdminGateResult> {
+  const locale = await localeFromHeaders();
   const reqCtx = await getRequestUserContext();
   const user = reqCtx?.user;
   if (!user) {
     return {
       ok: false,
-      response: jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED),
+      response: jsonError(
+        ErrorCode.UNAUTHORIZED,
+        tApiMessage(locale, "unauthorized"),
+        HttpStatus.UNAUTHORIZED,
+      ),
     };
   }
   if (!isAdminEmail(user.email)) {
@@ -52,7 +81,7 @@ export async function requireAdminApi(): Promise<AdminGateResult> {
       ok: false,
       response: jsonError(
         ErrorCode.FORBIDDEN,
-        "无管理员权限",
+        tApiMessage(locale, "forbidden"),
         HttpStatus.FORBIDDEN,
       ),
     };

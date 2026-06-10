@@ -11,18 +11,18 @@ import {
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { allowRate, clientIp } from "@/common/utils/rate-limit";
 import { jsonError } from "@/server/http/json-response";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { routing } from "@/i18n/routing";
 
 const AUTH_API_PREFIX = "/api/auth/";
 const intlMiddleware = createIntlMiddleware(routing);
 
-/** 未接入 i18n 的应用路由首段（不加 locale 前缀） */
+/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；login/register 已迁至 /{locale}/ */
 const KNOWN_APP_SEGMENTS = new Set([
   "chat",
   "console",
-  "login",
   "admin",
-  "register",
   "knowledge",
   "api",
 ]);
@@ -33,6 +33,10 @@ function firstSegment(pathname: string): string | undefined {
 
 /** `/fr`、`/en-US` 等非法 locale 尝试 → 302 `/en` */
 function isInvalidLocaleAttempt(pathname: string): boolean {
+  // 旧版无 locale 前缀的 auth 路径由 handleLegacyAuthPageRedirect 处理，非非法 locale
+  if (pathname === "/login" || pathname === "/register") {
+    return false;
+  }
   const seg = firstSegment(pathname);
   if (!seg) {
     return false;
@@ -65,8 +69,22 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+/** 旧版无 locale 前缀的 /login、/register → 302 /{locale}/login|register */
+function handleLegacyAuthPageRedirect(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/login" || pathname === "/register") {
+    const locale = resolveRequestLocale(request);
+    const target = pathname === "/login" ? "login" : "register";
+    const url = new URL(`/${locale}/${target}`, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 302);
+  }
+  return null;
+}
+
 function handleProtectedRoute(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
+  const locale = resolveRequestLocale(request);
 
   const totalAllowed = allowRate(
     "site",
@@ -76,7 +94,7 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
   if (!totalAllowed) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
-      "站点访问过于频繁，请稍后再试",
+      tApiMessage(locale, "rateLimitedSite"),
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -90,7 +108,7 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
   if (!allowed) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
-      "请求过于频繁，请稍后再试",
+      tApiMessage(locale, "rateLimited"),
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -102,9 +120,13 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
   const sid = request.cookies.get(SESSION_COOKIE)?.value;
   if (!sid) {
     if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/console")) {
-      return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+      return jsonError(
+        ErrorCode.UNAUTHORIZED,
+        tApiMessage(locale, "unauthorized"),
+        HttpStatus.UNAUTHORIZED,
+      );
     }
-    const login = new URL("/login", request.url);
+    const login = new URL(`/${locale}/login`, request.url);
     login.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(login);
   }
@@ -119,13 +141,18 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
 }
 
 /**
- * i18n + 受保护路由合并 middleware：先非法 locale 兜底，再 auth，再 next-intl。
+ * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth 302 → 受保护路径 → next-intl。
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isInvalidLocaleAttempt(pathname)) {
     return NextResponse.redirect(new URL("/en", request.url), 302);
+  }
+
+  const legacy = handleLegacyAuthPageRedirect(request);
+  if (legacy) {
+    return legacy;
   }
 
   if (isProtectedPath(pathname)) {
@@ -144,6 +171,8 @@ export const config = {
     "/",
     "/(en|zh)",
     "/(en|zh)/:path*",
+    "/login",
+    "/register",
     "/chat",
     "/chat/:path*",
     "/console",
@@ -153,6 +182,6 @@ export const config = {
     "/api/admin/:path*",
     "/api/console/:path*",
     "/api/auth/:path*",
-    "/((?!api|_next|_vercel|chat|console|login|admin|register|knowledge|.*\\..*)[^/]+)",
+    "/((?!api|_next|_vercel|chat|console|admin|knowledge|.*\\..*)[^/]+)",
   ],
 };

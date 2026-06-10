@@ -14,6 +14,8 @@ import { CAPTCHA_TTL_MS } from "@/common/constants";
 import { jsonError } from "@/server/http/json-response";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { ErrorCode, HttpStatus } from "@/common/enums";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -21,10 +23,12 @@ export const runtime = "nodejs";
  * GET /api/auth/captcha — 签发图形验证码（JSON + Base64 SVG）
  */
 export const GET = withApiWrapper(async (req: Request) => {
+  const locale = resolveRequestLocale(req);
+
   if (!allowRate(`captcha:${clientIp(req)}`, 60, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
-      "请求过于频繁，请稍后再试",
+      tApiMessage(locale, "rateLimited"),
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }

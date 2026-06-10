@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { CaptchaField } from "./CaptchaField";
+import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { CaptchaField, type CaptchaLabels } from "./CaptchaField";
 import { FieldError } from "./FieldError";
 import {
   mapLoginApiError,
@@ -20,11 +21,26 @@ const inputError =
  * 登录表单：邮箱 + 密码 + 图形验证码（错误就近展示）
  */
 export function LoginForm() {
+  const t = useTranslations("page.login");
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") ?? "";
 
-  const [email, setEmail] = useState("test@7ai.club");
+  const captchaLabels: CaptchaLabels = useMemo(
+    () => ({
+      label: t("captcha.label"),
+      placeholder: t("captcha.placeholder"),
+      refresh: t("captcha.refresh"),
+      loading: t("captcha.loading"),
+      empty: t("captcha.empty"),
+      imageAlt: t("captcha.imageAlt"),
+      loadFailed: t("captcha.loadFailed"),
+      networkRetry: t("errors.networkRetry"),
+    }),
+    [t],
+  );
+
+  const [email, setEmail] = useState(() => t("testAccount.email"));
   const [password, setPassword] = useState("test1234");
   const [captchaId, setCaptchaId] = useState("");
   const [captcha, setCaptcha] = useState("");
@@ -55,7 +71,7 @@ export function LoginForm() {
         setErrors(
           mapLoginApiError(
             data.error?.code,
-            data.error?.message ?? "登录失败",
+            data.error?.message ?? t("errors.loginFailed"),
           ),
         );
         return;
@@ -64,7 +80,7 @@ export function LoginForm() {
       router.push(next);
       router.refresh();
     } catch {
-      setErrors({ general: "网络异常，请重试" });
+      setErrors({ general: t("errors.networkRetry") });
     } finally {
       setLoading(false);
     }
@@ -73,7 +89,7 @@ export function LoginForm() {
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-5">
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        邮箱
+        {t("form.email.label")}
         <input
           type="email"
           name="email"
@@ -92,7 +108,7 @@ export function LoginForm() {
       </label>
 
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        密码
+        {t("form.password.label")}
         <input
           type="password"
           name="password"
@@ -124,6 +140,7 @@ export function LoginForm() {
           }}
           disabled={loading}
           serverError={errors.captcha}
+          labels={captchaLabels}
         />
       </div>
 
@@ -134,17 +151,16 @@ export function LoginForm() {
         disabled={loading}
         className="flex h-12 w-full items-center justify-center rounded-lg bg-[#00E5FF] text-sm font-semibold text-[#050608] shadow-[0_0_24px_rgba(0,229,255,0.25)] transition hover:brightness-110 disabled:opacity-60"
       >
-        {loading ? "登录中…" : "登录"}
+        {loading ? t("form.submitting") : t("form.submit")}
       </button>
 
       <p className="text-center text-xs text-[#7E8796]">
-        站点暂时不直接提供注册功能，可以使用默认的测试账户登录。如果有特殊需求请联系站点管理员
-        {" "}
+        {t("testAccount.intro")}{" "}
         <a
-          href="mailto:kuangyssky@163.com"
+          href={`mailto:${t("testAccount.adminEmail")}`}
           className="text-[#78A9B2] hover:underline"
         >
-          kuangyssky@163.com
+          {t("testAccount.adminEmail")}
         </a>
       </p>
     </form>

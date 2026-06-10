@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "title": "Create account | 7ai-web",
+    "description": "Create a new user account (admin only)."
+  },
+  "shell": {
+    "title": "Create account",
+    "backToHome": "Back to home",
+    "loading": "Loading…"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Language",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "form": {
+    "email": { "label": "Email" },
+    "telNo": {
+      "label": "Phone (optional)",
+      "placeholder": "11 digits, optional"
+    },
+    "nickName": { "label": "Display name" },
+    "password": { "label": "Password" },
+    "passwordConfirm": { "label": "Confirm password" },
+    "submit": "Create account",
+    "submitting": "Submitting…",
+    "redirecting": "Redirecting…",
+    "success": "Account created. Redirecting…",
+    "hasAccount": "Already have an account?",
+    "signInLink": "Sign in"
+  },
+  "captcha": {
+    "label": "Verification code",
+    "placeholder": "Not case-sensitive",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "empty": "—",
+    "imageAlt": "Verification code image",
+    "loadFailed": "Could not load verification code."
+  },
+  "errors": {
+    "networkRetry": "Network error. Please try again.",
+    "registerFailed": "Registration failed."
+  }
+}

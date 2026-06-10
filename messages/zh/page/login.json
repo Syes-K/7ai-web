@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "title": "登录 | 7ai-web",
+    "description": "使用邮箱登录"
+  },
+  "shell": {
+    "title": "登录",
+    "subtitle": "使用邮箱与密码登录",
+    "backToHome": "返回首页",
+    "loading": "加载中…"
+  },
+  "langSwitcher": {
+    "ariaLabel": "语言",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "form": {
+    "email": { "label": "邮箱" },
+    "password": { "label": "密码" },
+    "submit": "登录",
+    "submitting": "登录中…"
+  },
+  "captcha": {
+    "label": "验证码",
+    "placeholder": "不区分大小写",
+    "refresh": "刷新",
+    "loading": "加载中…",
+    "empty": "—",
+    "imageAlt": "图形验证码",
+    "loadFailed": "验证码加载失败"
+  },
+  "errors": {
+    "networkRetry": "网络异常，请重试",
+    "loginFailed": "登录失败"
+  },
+  "testAccount": {
+    "intro": "站点暂时不直接提供注册功能，可以使用默认的测试账户登录。如果有特殊需求请联系站点管理员",
+    "email": "test@7ai.club",
+    "adminEmail": "kuangyssky@163.com"
+  }
+}

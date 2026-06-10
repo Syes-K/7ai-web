@@ -47,15 +47,25 @@ export function mapLoginApiError(
     case "AUTH_ACCOUNT_DISABLED":
       return { general: m };
     case "RATE_LIMITED":
+    case "UNAUTHORIZED":
+    case "FORBIDDEN":
       return { general: m };
     case "VALIDATION_ERROR":
-      if (m.includes("邮箱")) {
-        return { email: m };
-      }
-      return { general: m };
+      return mapLoginValidationMessage(m);
     default:
-      return { general: m || "登录失败" };
+      return { general: m };
   }
+}
+
+function mapLoginValidationMessage(m: string): LoginFieldErrors {
+  const lower = m.toLowerCase();
+  if (m.includes("邮箱") || lower.includes("email")) {
+    return { email: m };
+  }
+  if (m.includes("密码") || lower.includes("password")) {
+    return { password: m };
+  }
+  return { general: m };
 }
 
 export type RegisterFieldErrors = {
@@ -82,23 +92,35 @@ export function mapRegisterApiError(
     case "AUTH_TEL_TAKEN":
       return { telNo: msg };
     case "RATE_LIMITED":
+    case "UNAUTHORIZED":
+    case "FORBIDDEN":
       return { general: msg };
     case "VALIDATION_ERROR":
       return mapRegisterValidationMessage(msg);
     default:
-      return { general: msg || "注册失败" };
+      return { general: msg };
   }
 }
 
-/** 解析 VALIDATION_ERROR 文案到字段（与后端中文提示保持一致） */
+/** 解析 VALIDATION_ERROR 文案到字段（中英 keyword 渐进补强，Q4-B） */
 function mapRegisterValidationMessage(m: string): RegisterFieldErrors {
-  if (m.includes("两次密码")) {
+  const lower = m.toLowerCase();
+
+  if (
+    m.includes("两次密码") ||
+    lower.includes("mismatch") ||
+    lower.includes("confirm")
+  ) {
     return { passwordConfirm: m };
   }
-  if (m.includes("手机号")) {
+  if (m.includes("手机号") || lower.includes("phone") || lower.includes("tel")) {
     return { telNo: m };
   }
-  if (m.includes("昵称")) {
+  if (
+    m.includes("昵称") ||
+    lower.includes("display name") ||
+    lower.includes("nick")
+  ) {
     return { nickName: m };
   }
   if (
@@ -106,14 +128,24 @@ function mapRegisterValidationMessage(m: string): RegisterFieldErrors {
     (m.includes("密码") &&
       (m.includes("至少") ||
         m.includes("字母") ||
-        m.includes("数字")))
+        m.includes("数字"))) ||
+    (lower.includes("password") &&
+      (lower.includes("at least") ||
+        lower.includes("letter") ||
+        lower.includes("number") ||
+        lower.includes("same as") ||
+        lower.includes("cannot be")))
   ) {
     return { password: m };
   }
-  if (m.includes("有效邮箱") || (m.includes("邮箱") && !m.includes("密码"))) {
+  if (
+    m.includes("有效邮箱") ||
+    (m.includes("邮箱") && !m.includes("密码")) ||
+    (lower.includes("email") && !lower.includes("password"))
+  ) {
     return { email: m };
   }
-  if (m.includes("密码")) {
+  if (m.includes("密码") || lower.includes("password")) {
     return { password: m };
   }
   return { general: m };

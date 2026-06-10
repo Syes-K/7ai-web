@@ -13,11 +13,25 @@ const OTHER_LOCALE: Record<AppLocale, AppLocale> = {
   zh: "en",
 };
 
-export function LanguageSwitcher() {
+type AuthNamespace = "page.login" | "page.register";
+type HomeNamespace = "page.home";
+type SwitcherNamespace = HomeNamespace | AuthNamespace;
+
+type LanguageSwitcherProps = {
+  /** next-intl 命名空间，默认 page.home */
+  namespace?: SwitcherNamespace;
+  /** 首页默认样式；认证页使用 auth 次要色 */
+  variant?: "home" | "auth";
+};
+
+export function LanguageSwitcher({
+  namespace = "page.home",
+  variant = "home",
+}: LanguageSwitcherProps) {
   const locale = useLocale() as AppLocale;
   const router = useRouter();
   const pathname = usePathname();
-  const t = useTranslations("page.home");
+  const t = useTranslations(namespace);
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -31,6 +45,11 @@ export function LanguageSwitcher() {
     locale === "en" ? t("langSwitcher.label.enShort") : t("langSwitcher.label.zhShort");
   const optionLabel =
     otherLocale === "en" ? t("langSwitcher.label.en") : t("langSwitcher.label.zh");
+
+  const triggerClass =
+    variant === "auth"
+      ? `${headerActionLinkClass} font-mono text-[#9AA3B2] hover:text-[#00E5FF]`
+      : `${headerActionLinkClass} font-mono text-zinc-300/90 hover:text-cyan-200/90`;
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -64,7 +83,7 @@ export function LanguageSwitcher() {
     <div ref={containerRef} className="relative shrink-0">
       <button
         type="button"
-        className={`${headerActionLinkClass} font-mono text-zinc-300/90 hover:text-cyan-200/90`}
+        className={triggerClass}
         aria-label={t("langSwitcher.ariaLabel")}
         aria-expanded={open}
         aria-haspopup="listbox"

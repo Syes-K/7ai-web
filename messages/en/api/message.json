@@ -1,1 +1,27 @@
-{}
+{
+  "rateLimited": "Too many requests. Please try again later.",
+  "rateLimitedSite": "Too many visits to this site. Please try again later.",
+  "unauthorized": "You are not signed in.",
+  "forbidden": "You do not have permission to access this resource.",
+  "validationError": "Invalid request.",
+  "validation": {
+    "invalidEmail": "Enter a valid email address.",
+    "passwordRequired": "Enter your password.",
+    "invalidJson": "Request body must be JSON.",
+    "nickNameLength": "Display name must be 1–32 characters.",
+    "passwordMinLength": "Password must be at least 8 characters.",
+    "passwordNeedsLetterAndNumber": "Password must include both letters and numbers.",
+    "passwordSameAsEmail": "Password cannot be the same as your email.",
+    "passwordMismatch": "Passwords do not match.",
+    "telNoInvalid": "Phone number must be 11 digits."
+  },
+  "captchaRequired": "Complete the verification code.",
+  "captchaInvalid": "Verification code is incorrect or expired. Refresh and try again.",
+  "authInvalidCredentials": "Incorrect email or password. Please check and try again.",
+  "authAccountDisabled": "This account is unavailable. Contact an administrator.",
+  "authEmailTaken": "This email is already registered. Sign in instead.",
+  "authTelTaken": "This phone number is already in use.",
+  "authAdminLoginRequired": "Sign in with an administrator account first.",
+  "authAdminOnly": "Only administrators can create accounts.",
+  "authLoginLocked": "Too many failed sign-in attempts. {minutes, plural, one {Try again in # minute.} other {Try again in # minutes.}}"
+}

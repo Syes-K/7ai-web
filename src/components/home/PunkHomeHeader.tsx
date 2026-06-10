@@ -87,7 +87,7 @@ export function PunkHomeHeader() {
           />
         ) : (
           <Link
-            href={`/login?redirect=${loginRedirect}`}
+            href={`/${locale}/login?redirect=${loginRedirect}`}
             className={`${headerActionLinkClass} text-white/80 hover:text-white`}
           >
             <IconLogin className="h-4 w-4 shrink-0 text-current" />

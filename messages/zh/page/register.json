@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "title": "注册 | 7ai-web",
+    "description": "注册账号"
+  },
+  "shell": {
+    "title": "注册账号",
+    "backToHome": "返回首页",
+    "loading": "加载中…"
+  },
+  "langSwitcher": {
+    "ariaLabel": "语言",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "form": {
+    "email": { "label": "邮箱" },
+    "telNo": {
+      "label": "手机号（可选）",
+      "placeholder": "11 位数字，可留空"
+    },
+    "nickName": { "label": "昵称" },
+    "password": { "label": "密码" },
+    "passwordConfirm": { "label": "确认密码" },
+    "submit": "注册",
+    "submitting": "提交中…",
+    "redirecting": "即将跳转…",
+    "success": "注册成功，正在跳转…",
+    "hasAccount": "已有账号？",
+    "signInLink": "登录"
+  },
+  "captcha": {
+    "label": "验证码",
+    "placeholder": "不区分大小写",
+    "refresh": "刷新",
+    "loading": "加载中…",
+    "empty": "—",
+    "imageAlt": "图形验证码",
+    "loadFailed": "验证码加载失败"
+  },
+  "errors": {
+    "networkRetry": "网络异常，请重试",
+    "registerFailed": "注册失败"
+  }
+}

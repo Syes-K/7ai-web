@@ -1,1 +1,27 @@
-{}
+{
+  "rateLimited": "请求过于频繁，请稍后再试",
+  "rateLimitedSite": "站点访问过于频繁，请稍后再试",
+  "unauthorized": "未登录",
+  "forbidden": "无权访问该资源",
+  "validationError": "请求参数不合法",
+  "validation": {
+    "invalidEmail": "请输入有效邮箱",
+    "passwordRequired": "请输入密码",
+    "invalidJson": "请求体须为 JSON",
+    "nickNameLength": "昵称为 1～32 个字符",
+    "passwordMinLength": "密码至少 8 位",
+    "passwordNeedsLetterAndNumber": "密码须同时包含字母与数字",
+    "passwordSameAsEmail": "密码不能与邮箱相同",
+    "passwordMismatch": "两次密码不一致",
+    "telNoInvalid": "手机号须为 11 位数字"
+  },
+  "captchaRequired": "请完成图形验证码",
+  "captchaInvalid": "验证码错误或已过期，请刷新后重试",
+  "authInvalidCredentials": "邮箱或密码错误，请检查后重试",
+  "authAccountDisabled": "账号不可用，请联系管理员",
+  "authEmailTaken": "该邮箱已注册，请直接登录",
+  "authTelTaken": "该手机号已被占用",
+  "authAdminLoginRequired": "请先登录管理员账号",
+  "authAdminOnly": "仅管理员可创建账号",
+  "authLoginLocked": "登录失败次数过多，请 {minutes} 分钟后再试"
+}

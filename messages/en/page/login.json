@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "title": "Sign in | 7ai-web",
+    "description": "Sign in with your email and password."
+  },
+  "shell": {
+    "title": "Sign in",
+    "subtitle": "Use your email and password to sign in.",
+    "backToHome": "Back to home",
+    "loading": "Loading…"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Language",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "form": {
+    "email": { "label": "Email" },
+    "password": { "label": "Password" },
+    "submit": "Sign in",
+    "submitting": "Signing in…"
+  },
+  "captcha": {
+    "label": "Verification code",
+    "placeholder": "Not case-sensitive",
+    "refresh": "Refresh",
+    "loading": "Loading…",
+    "empty": "—",
+    "imageAlt": "Verification code image",
+    "loadFailed": "Could not load verification code."
+  },
+  "errors": {
+    "networkRetry": "Network error. Please try again.",
+    "loginFailed": "Sign-in failed."
+  },
+  "testAccount": {
+    "intro": "Self-service registration is not available. You can sign in with the default test account below. For special requests, contact the site admin at",
+    "email": "test2@7ai.club",
+    "adminEmail": "kuangyssky@gmail.com"
+  }
+}

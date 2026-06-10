@@ -8,7 +8,6 @@ import {
   isValidEmail,
   isValidTelNo,
   validateNickName,
-  validatePasswordPolicy,
   allowRate,
   clientIp,
 } from "@/common/utils";
@@ -18,6 +17,8 @@ import { toPublicUser } from "@/server/auth/user-dto";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/server/auth/session-user";
 import { isAdminEmail } from "@/server/auth/admin";
@@ -28,18 +29,28 @@ export const runtime = "nodejs";
  * POST /api/auth/register
  */
 export const POST = withApiWrapper(async (req: Request) => {
+  const locale = resolveRequestLocale(req);
+
   const currentUser = await getCurrentUser();
   if (!currentUser) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "请先登录管理员账号", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "authAdminLoginRequired"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   if (!isAdminEmail(currentUser.email)) {
-    return jsonError(ErrorCode.FORBIDDEN, "仅管理员可创建账号", HttpStatus.FORBIDDEN);
+    return jsonError(
+      ErrorCode.FORBIDDEN,
+      tApiMessage(locale, "authAdminOnly"),
+      HttpStatus.FORBIDDEN,
+    );
   }
 
   if (!allowRate(`register:${clientIp(req)}`, 20, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
-      "请求过于频繁，请稍后再试",
+      tApiMessage(locale, "rateLimited"),
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -50,7 +61,7 @@ export const POST = withApiWrapper(async (req: Request) => {
   } catch {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求体须为 JSON",
+      tApiMessage(locale, "validation.invalidJson"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -62,14 +73,14 @@ export const POST = withApiWrapper(async (req: Request) => {
   if (captchaResult === "missing") {
     return jsonError(
       ErrorCode.CAPTCHA_REQUIRED,
-      "请完成图形验证码",
+      tApiMessage(locale, "captchaRequired"),
       HttpStatus.BAD_REQUEST,
     );
   }
   if (captchaResult === "invalid") {
     return jsonError(
       ErrorCode.CAPTCHA_INVALID,
-      "验证码错误或已过期，请刷新后重试",
+      tApiMessage(locale, "captchaInvalid"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -82,25 +93,47 @@ export const POST = withApiWrapper(async (req: Request) => {
   if (!isValidEmail(email)) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请输入有效邮箱",
+      tApiMessage(locale, "validation.invalidEmail"),
       HttpStatus.BAD_REQUEST,
     );
   }
 
   const nickErr = validateNickName(nickName);
   if (nickErr) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, nickErr, HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.nickNameLength"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
-  const pwdErr = validatePasswordPolicy(password, email);
-  if (pwdErr) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, pwdErr, HttpStatus.BAD_REQUEST);
+  // 内联密码策略校验，返回 i18n key 对应译文（validatePasswordPolicy 仍供控制台 API 使用）
+  if (password.length < 8) {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.passwordMinLength"),
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.passwordNeedsLetterAndNumber"),
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  if (password.toLowerCase() === email) {
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.passwordSameAsEmail"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   if (password !== passwordConfirm) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "两次密码不一致",
+      tApiMessage(locale, "validation.passwordMismatch"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -112,7 +145,7 @@ export const POST = withApiWrapper(async (req: Request) => {
     if (!isValidTelNo(t)) {
       return jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "手机号须为 11 位数字",
+        tApiMessage(locale, "validation.telNoInvalid"),
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -126,7 +159,7 @@ export const POST = withApiWrapper(async (req: Request) => {
   if (emailTaken) {
     return jsonError(
       ErrorCode.AUTH_EMAIL_TAKEN,
-      "该邮箱已注册，请直接登录",
+      tApiMessage(locale, "authEmailTaken"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -136,7 +169,7 @@ export const POST = withApiWrapper(async (req: Request) => {
     if (telTaken) {
       return jsonError(
         ErrorCode.AUTH_TEL_TAKEN,
-        "该手机号已被占用",
+        tApiMessage(locale, "authTelTaken"),
         HttpStatus.BAD_REQUEST,
       );
     }

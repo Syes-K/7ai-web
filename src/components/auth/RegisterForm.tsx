@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { CaptchaField } from "./CaptchaField";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { CaptchaField, type CaptchaLabels } from "./CaptchaField";
 import { FieldError } from "./FieldError";
 import {
   mapRegisterApiError,
@@ -21,9 +22,24 @@ const inputError =
  * 注册表单：错误就近展示在各字段下
  */
 export function RegisterForm() {
+  const t = useTranslations("page.register");
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") ?? "";
+
+  const captchaLabels: CaptchaLabels = useMemo(
+    () => ({
+      label: t("captcha.label"),
+      placeholder: t("captcha.placeholder"),
+      refresh: t("captcha.refresh"),
+      loading: t("captcha.loading"),
+      empty: t("captcha.empty"),
+      imageAlt: t("captcha.imageAlt"),
+      loadFailed: t("captcha.loadFailed"),
+      networkRetry: t("errors.networkRetry"),
+    }),
+    [t],
+  );
 
   const redirectTimerRef = useRef<number | null>(null);
 
@@ -74,19 +90,19 @@ export function RegisterForm() {
         setErrors(
           mapRegisterApiError(
             data.error?.code,
-            data.error?.message ?? "注册失败",
+            data.error?.message ?? t("errors.registerFailed"),
           ),
         );
         return;
       }
-      setSuccess("注册成功，正在跳转…");
+      setSuccess(t("form.success"));
       const next = data.redirectUrl ?? "/";
       redirectTimerRef.current = window.setTimeout(() => {
         router.push(next);
         router.refresh();
       }, 2000);
     } catch {
-      setErrors({ general: "网络异常，请重试" });
+      setErrors({ general: t("errors.networkRetry") });
     } finally {
       setLoading(false);
     }
@@ -95,7 +111,7 @@ export function RegisterForm() {
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="space-y-5">
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        邮箱 <span className="text-[#FF5C7A]">*</span>
+        {t("form.email.label")} <span className="text-[#FF5C7A]">*</span>
         <input
           type="email"
           name="email"
@@ -114,13 +130,13 @@ export function RegisterForm() {
       </label>
 
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        手机号（可选）
+        {t("form.telNo.label")}
         <input
           type="tel"
           name="telNo"
           inputMode="numeric"
           autoComplete="tel"
-          placeholder="11 位数字，可留空"
+          placeholder={t("form.telNo.placeholder")}
           value={telNo}
           onChange={(e) => {
             setTelNo(e.target.value.replace(/\D/g, "").slice(0, 11));
@@ -134,7 +150,7 @@ export function RegisterForm() {
       </label>
 
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        昵称 <span className="text-[#FF5C7A]">*</span>
+        {t("form.nickName.label")} <span className="text-[#FF5C7A]">*</span>
         <input
           type="text"
           name="nickName"
@@ -153,7 +169,7 @@ export function RegisterForm() {
       </label>
 
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        密码 <span className="text-[#FF5C7A]">*</span>
+        {t("form.password.label")} <span className="text-[#FF5C7A]">*</span>
         <input
           type="password"
           name="password"
@@ -172,7 +188,7 @@ export function RegisterForm() {
       </label>
 
       <label className="block text-sm font-medium text-[#9AA3B2]">
-        确认密码 <span className="text-[#FF5C7A]">*</span>
+        {t("form.passwordConfirm.label")} <span className="text-[#FF5C7A]">*</span>
         <input
           type="password"
           name="passwordConfirm"
@@ -204,6 +220,7 @@ export function RegisterForm() {
           }}
           disabled={loading || Boolean(success)}
           serverError={errors.captcha}
+          labels={captchaLabels}
         />
       </div>
 
@@ -219,16 +236,20 @@ export function RegisterForm() {
         disabled={loading || Boolean(success)}
         className="flex h-12 w-full items-center justify-center rounded-lg bg-[#00E5FF] text-sm font-semibold text-[#050608] shadow-[0_0_24px_rgba(0,229,255,0.25)] transition hover:brightness-110 disabled:opacity-60"
       >
-        {success ? "即将跳转…" : loading ? "提交中…" : "注册"}
+        {success
+          ? t("form.redirecting")
+          : loading
+            ? t("form.submitting")
+            : t("form.submit")}
       </button>
 
       <p className="text-center text-sm text-[#9AA3B2]">
-        已有账号？{" "}
+        {t("form.hasAccount")}{" "}
         <Link
           href="/login"
           className="font-medium text-[#00E5FF] hover:underline"
         >
-          登录
+          {t("form.signInLink")}
         </Link>
       </p>
     </form>
