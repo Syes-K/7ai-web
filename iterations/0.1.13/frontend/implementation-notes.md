@@ -3,6 +3,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 版本 | `0.1.13` |
+| 状态 | **已完成** |
 | 范围 | 首页双语 + 顶栏语言选择器 |
 
 ## 组件变更
@@ -22,15 +23,16 @@
 - Hero 英文 slogan：`CRACK THE STACK`
 - features `[01]`–`[04]` 序号在组件内渲染
 
+## 布局与视觉（实现后微调）
+
+- Hero **居中** + features **贴底**（`flex-1` + `mt-auto`）
+- 英文描述：单行 punch line + mono 弱化
+- 全站 `::selection` cyan 主题色；首页 hero 描述 fuchsia 选中态
+
 ## 偏差
 
 无。
 
 ## 自测清单
 
-- [ ] `/en`、`/zh` 首页文案完整
-- [ ] 语言切换后刷新保持
-- [ ] 顶栏键盘 Tab / Enter / Esc 可操作语言下拉
-- [ ] 备案链接、mailto 可点击
-- [ ] 从 `/en` 进 `/chat` 仍为中文（静默，无 banner）
-- [ ] 登录 redirect 回 `/{locale}` 首页
+见 [`test-checklist.md`](test-checklist.md)（均已通过 build / 冒烟）。

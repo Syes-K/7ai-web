@@ -3,7 +3,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 版本 | `0.1.13` |
-| 阶段 | **3A — 服务端/架构文档**（本文档）；**3B — 代码实现**（待用户确认后执行） |
+| 阶段 | **3A + 3B 已完成**（2026-06-10） |
 | 范围 | middleware + next-intl + App Router；**无 REST API / 数据库变更** |
 | 上游 | `../product/prd.md`、`../design/design-spec-i18n.md` |
 
