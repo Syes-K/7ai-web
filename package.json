@@ -19,6 +19,7 @@
     "@langchain/openai": "^1.4.4",
     "@langchain/textsplitters": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@swc/helpers": "0.5.23",
     "antd": "^5.29.3",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.8.1",
@@ -36,6 +37,9 @@
     "remark-gfm": "^4.0.1",
     "typeorm": "^0.3.20",
     "uuid": "^13.0.0"
+  },
+  "overrides": {
+    "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
