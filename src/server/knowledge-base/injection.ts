@@ -80,20 +80,23 @@ export async function buildKnowledgeInjectionForChat(options: {
   const lines: string[] = [];
   lines.push(
     [
-      "【知识库检索片段】",
-      "以下内容来自当前用户已绑定知识库的向量检索结果（按相似度排序），仅供你结合其余系统提示词与用户消息判断是否采用、如何取舍。",
-      "若你在回答中引用了某段内容：请勿编造该段中未出现的具体事实、数字、条款等；也不要将未出现于下列片段的信息表述为来自知识库。",
+      "【Knowledge base retrieval — hits above threshold】",
+      "The excerpts below were retrieved from the user's linked knowledge bases (sorted by similarity). They matched this turn and MUST be treated as the primary source for your answer.",
+      "Instructions:",
+      "1. Answer the user's question using these excerpts. Partial overlap is enough — synthesize steps, definitions, or guidance from what is present; do not refuse merely because the wording differs from the question (e.g. \"get started\" / \"launch\" can answer \"how to buy\" or \"how to provision\").",
+      "2. Only state that the knowledge base lacks sufficient information if NONE of the excerpts below are relevant to the user's question at all.",
+      "3. When you use an excerpt, do not invent specific facts, numbers, prices, or policy details that do not appear in that excerpt; do not attribute general knowledge as coming from the knowledge base.",
       "",
-      "—— 以下为检索片段 ——",
+      "—— Retrieved excerpts ——",
     ].join("\n"),
   );
   for (let i = 0; i < chunks.length; i++) {
     const c = chunks[i];
     lines.push(
-      `\n[${i + 1}] 知识库：${c.knowledgeBaseName}；chunkIndex=${c.chunkIndex}；score=${c.score.toFixed(6)}\n${c.chunkContent}`,
+      `\n[${i + 1}] knowledgeBase=${c.knowledgeBaseName}; chunkIndex=${c.chunkIndex}; score=${c.score.toFixed(6)}\n${c.chunkContent}`,
     );
   }
-  lines.push("\n\n—— 以上为检索片段 ——");
+  lines.push("\n\n—— End of retrieved excerpts ——");
 
   return { needSearch, reason, chunks, systemMessageText: lines.join("\n") };
 }

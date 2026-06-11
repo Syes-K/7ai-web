@@ -5,7 +5,6 @@ import {
   CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE,
   CHAT_CONVERSATION_LIST_DEFAULT_LIMIT,
   CHAT_CONVERSATION_LIST_MAX_LIMIT,
-  CHAT_DEFAULT_CONVERSATION_TITLE,
 } from "@/common/constants";
 import { ErrorCode, HttpStatus, MessageRole } from "@/common/enums";
 import { jsonError } from "@/server/http/json-response";
@@ -20,6 +19,7 @@ import { Assistant } from "@/server/db/entities/Assistant";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
+import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
 
 export const runtime = "nodejs";
 
@@ -215,7 +215,7 @@ export const POST = withApiWrapper(async (req: Request) => {
   const title =
     typeof body.title === "string" && body.title.trim()
       ? body.title.trim().slice(0, 255)
-      : CHAT_DEFAULT_CONVERSATION_TITLE;
+      : defaultConversationTitle(locale);
 
   const assistantId = parseAssistantId(body.assistantId);
 

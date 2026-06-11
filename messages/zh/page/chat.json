@@ -47,6 +47,7 @@
   "messages": {
     "userFallback": "用户",
     "assistantFallback": "助手",
+    "defaultConversationTitle": "新对话",
     "emptySelect": "请新建对话或从侧栏选择历史",
     "emptyThread": "在下方输入框发送消息，即可开始对话",
     "assistantUnavailableBanner": "该助手已无法使用，你可以继续对话或新建对话选用其他助手。"
@@ -169,6 +170,20 @@
       "retrying": "重试中...",
       "retrySucceeded": "该问题已重试成功，无需继续重试。",
       "noStructuredDetails": "暂无结构化分段详情"
+    },
+    "detail": {
+      "kbMatchedBases": "命中知识库",
+      "kbMatchedChunks": "命中片段",
+      "mcpNote": "说明",
+      "mcpNoAssistantBody": "当前会话未绑定助手，本轮未启用 MCP 工具。",
+      "mcpNotMountedBody": "助手侧未挂载 MCP 配置，或配置已禁用。",
+      "mcpMounted": "已挂载 MCP",
+      "mcpTools": "工具 · {name}",
+      "mcpLoadFailedTitle": "加载失败 · {name}",
+      "mcpRoundCalls": "本轮工具调用",
+      "mcpNoTools": "（list_tools 未返回可用工具）",
+      "mcpNoToolCalls": "未触发工具调用",
+      "mcpUnknownError": "未知错误"
     },
     "a11y": {
       "currentStep": "当前步骤 {stepKey} {status}",

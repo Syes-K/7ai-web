@@ -155,6 +155,9 @@
   "createConversationFailed": "Could not create the conversation. Try again later.",
   "limitParamInvalid": "Invalid limit parameter.",
   "retryTargetNotFound": "The message to retry could not be found.",
+  "chat": {
+    "defaultConversationTitle": "New chat"
+  },
   "turnSafe": {
     "retryReused": "Retrying with the original user message.",
     "modelGenerating": "Generating model response…",
@@ -167,6 +170,20 @@
     "mcpNoAssistant": "No assistant bound; MCP not loaded.",
     "mcpNotMounted": "Assistant has no MCP mounted.",
     "mcpLoadFailed": "{count} MCP(s) mounted; tool loading failed.",
-    "mcpLoaded": "Loaded {loaded} MCP(s) with {toolCount} tool(s)."
+    "mcpLoaded": "Loaded {loaded} MCP(s) with {toolCount} tool(s).",
+    "detail": {
+      "kbMatchedBases": "Matched knowledge bases",
+      "kbMatchedChunks": "Matched segments",
+      "mcpNote": "Note",
+      "mcpNoAssistantBody": "This conversation has no assistant; MCP tools were not loaded for this turn.",
+      "mcpNotMountedBody": "The assistant has no MCP configuration mounted, or it is disabled.",
+      "mcpMounted": "Mounted MCP",
+      "mcpTools": "Tools · {name}",
+      "mcpLoadFailedTitle": "Load failed · {name}",
+      "mcpRoundCalls": "Tool calls this turn",
+      "mcpNoTools": "(list_tools returned no available tools)",
+      "mcpNoToolCalls": "No tool calls this turn",
+      "mcpUnknownError": "Unknown error"
+    }
   }
 }

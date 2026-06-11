@@ -155,6 +155,9 @@
   "createConversationFailed": "创建会话失败",
   "limitParamInvalid": "limit 参数无效",
   "retryTargetNotFound": "重试目标用户消息不存在",
+  "chat": {
+    "defaultConversationTitle": "新对话"
+  },
   "turnSafe": {
     "retryReused": "已复用原用户消息重试",
     "modelGenerating": "模型正在生成回复",
@@ -167,6 +170,20 @@
     "mcpNoAssistant": "未绑定助手，未加载 MCP",
     "mcpNotMounted": "助手未挂载 MCP",
     "mcpLoadFailed": "已挂载 {count} 个 MCP，工具加载失败",
-    "mcpLoaded": "已加载 {loaded} 个 MCP，共 {toolCount} 个工具"
+    "mcpLoaded": "已加载 {loaded} 个 MCP，共 {toolCount} 个工具",
+    "detail": {
+      "kbMatchedBases": "命中知识库",
+      "kbMatchedChunks": "命中片段",
+      "mcpNote": "说明",
+      "mcpNoAssistantBody": "当前会话未绑定助手，本轮未启用 MCP 工具。",
+      "mcpNotMountedBody": "助手侧未挂载 MCP 配置，或配置已禁用。",
+      "mcpMounted": "已挂载 MCP",
+      "mcpTools": "工具 · {name}",
+      "mcpLoadFailedTitle": "加载失败 · {name}",
+      "mcpRoundCalls": "本轮工具调用",
+      "mcpNoTools": "（list_tools 未返回可用工具）",
+      "mcpNoToolCalls": "未触发工具调用",
+      "mcpUnknownError": "未知错误"
+    }
   }
 }

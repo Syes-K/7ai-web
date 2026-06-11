@@ -47,6 +47,7 @@
   "messages": {
     "userFallback": "You",
     "assistantFallback": "Assistant",
+    "defaultConversationTitle": "New chat",
     "emptySelect": "Start a new chat or pick one from the sidebar",
     "emptyThread": "Send a message below to start chatting",
     "assistantUnavailableBanner": "This assistant is no longer available. You can keep chatting or start a new chat with another assistant."
@@ -169,6 +170,20 @@
       "retrying": "Retrying…",
       "retrySucceeded": "This question was answered successfully after a retry.",
       "noStructuredDetails": "No structured details yet"
+    },
+    "detail": {
+      "kbMatchedBases": "Matched knowledge bases",
+      "kbMatchedChunks": "Matched segments",
+      "mcpNote": "Note",
+      "mcpNoAssistantBody": "This conversation has no assistant; MCP tools were not loaded for this turn.",
+      "mcpNotMountedBody": "The assistant has no MCP configuration mounted, or it is disabled.",
+      "mcpMounted": "Mounted MCP",
+      "mcpTools": "Tools · {name}",
+      "mcpLoadFailedTitle": "Load failed · {name}",
+      "mcpRoundCalls": "Tool calls this turn",
+      "mcpNoTools": "(list_tools returned no available tools)",
+      "mcpNoToolCalls": "No tool calls this turn",
+      "mcpUnknownError": "Unknown error"
     },
     "a11y": {
       "currentStep": "Current step {stepKey} {status}",

@@ -48,6 +48,10 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import type { AssistantListItem } from "@/common/types";
 import enApiMessage from "../../../messages/en/api/message.json";
 import zhApiMessage from "../../../messages/zh/api/message.json";
+import {
+  localizeConversationTitle,
+  localizeDetailBlock,
+} from "@/common/chat/localize-turn-detail";
 
 const TURN_SAFE_KB_MISS = new Set([
   enApiMessage.turnSafe.kbMiss,
@@ -61,7 +65,7 @@ const TURN_SAFE_MCP_NOT_MOUNTED = new Set([
   enApiMessage.turnSafe.mcpNotMounted,
   zhApiMessage.turnSafe.mcpNotMounted,
 ]);
-/** MCP 详情块仍可能含后端硬编码中文（见 deviations） */
+/** MCP 详情块历史数据可能为另一 locale，展示层会映射为当前语言 */
 const MCP_DISABLED_MARKERS = ["未启用 MCP", "MCP not enabled"] as const;
 
 /** 侧栏宽度：原 300px 缩小 30% */
@@ -611,6 +615,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
   /** 优先用当前 turn 快照解析结果（与 Network 一致）；build 阶段写入的 item 可能曾为空 */
   const detailBlocks =
     fromSnapshot.length > 0 ? fromSnapshot : item.detailBlocks;
+  const localizedDetailBlocks = detailBlocks.map((block) => localizeDetailBlock(block, t));
   const hasBody =
     item.details.length > 0 ||
     detailBlocks.length > 0 ||
@@ -651,9 +656,9 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
               ))}
             </ul>
           ) : null}
-          {detailBlocks.length > 0 ? (
+          {localizedDetailBlocks.length > 0 ? (
             <div className="space-y-2">
-              {detailBlocks.map((block, idx) => (
+              {localizedDetailBlocks.map((block, idx) => (
                 <div
                   key={`${item.key}-block-${idx}`}
                   className="rounded border border-zinc-700/70 bg-zinc-900/60 px-2 py-1.5"
@@ -666,7 +671,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
               ))}
             </div>
           ) : null}
-          {item.details.length === 0 && detailBlocks.length === 0 ? (
+          {item.details.length === 0 && localizedDetailBlocks.length === 0 ? (
             <p className="text-xs leading-relaxed text-zinc-400">
               {item.summary?.trim() ? item.summary : t("turn.card.noStructuredDetails")}
             </p>
@@ -1500,7 +1505,7 @@ export function ChatWorkspace({
                   {/* 层次：标题最亮 → 助手次弱 → 时间最弱；间距略松避免挤成一团 */}
                   <div className="flex min-w-0 flex-col">
                     <div className="truncate text-[13px] font-medium leading-snug tracking-tight text-zinc-50">
-                      {item.title}
+                      {localizeConversationTitle(item.title, t)}
                     </div>
                     {item.assistant != null && (
                       <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-snug text-zinc-500">

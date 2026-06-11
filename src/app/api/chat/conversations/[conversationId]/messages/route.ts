@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import {
-  CHAT_DEFAULT_CONVERSATION_TITLE,
   CHAT_MESSAGE_LIST_DEFAULT_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
 } from "@/common/constants";
@@ -34,6 +33,7 @@ import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import type { McpTurnUiSnapshot } from "@/server/chat/turn-capabilities";
+import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
 
 export const runtime = "nodejs";
 
@@ -75,7 +75,9 @@ function reasoningDto(snapshotText: string) {
   }
 }
 
-function kbDetailsFromInjection(inject: {
+function kbDetailsFromInjection(
+  locale: AppLocale,
+  inject: {
   needSearch: boolean;
   chunks: Array<{
     knowledgeBaseName: string;
@@ -88,13 +90,13 @@ function kbDetailsFromInjection(inject: {
   if (inject.chunks.length > 0) {
     const kbNames = Array.from(new Set(inject.chunks.map((c) => c.knowledgeBaseName)));
     details.push({
-      title: "命中知识库",
+      title: tApiMessage(locale, "turnSafe.detail.kbMatchedBases"),
       content: kbNames.join("、"),
     });
   }
   if (inject.chunks.length > 0) {
     details.push({
-      title: "命中片段",
+      title: tApiMessage(locale, "turnSafe.detail.kbMatchedChunks"),
       content: inject.chunks
         .slice(0, 5)
         .map(
@@ -129,50 +131,54 @@ function kbHitSafeMessage(
 }
 
 function mcpDetailsFromUi(
+  locale: AppLocale,
   ui: McpTurnUiSnapshot,
   toolEvents?: Array<{ phase: string; name: string; detail: string }>,
 ): Array<{ title: string; content: string }> {
   const details: Array<{ title: string; content: string }> = [];
   if (ui.assistantMissing) {
     details.push({
-      title: "说明",
-      content: "当前会话未绑定助手，本轮未启用 MCP 工具。",
+      title: tApiMessage(locale, "turnSafe.detail.mcpNote"),
+      content: tApiMessage(locale, "turnSafe.detail.mcpNoAssistantBody"),
     });
     return details;
   }
   if (ui.configs.length === 0) {
     details.push({
-      title: "说明",
-      content: "助手侧未挂载 MCP 配置，或配置已禁用。",
+      title: tApiMessage(locale, "turnSafe.detail.mcpNote"),
+      content: tApiMessage(locale, "turnSafe.detail.mcpNotMountedBody"),
     });
     return details;
   }
   details.push({
-    title: "已挂载 MCP",
+    title: tApiMessage(locale, "turnSafe.detail.mcpMounted"),
     content: ui.configs.map((c) => `${c.displayName}（${c.mcpConfigId}）`).join("、"),
   });
   for (const c of ui.configs) {
     if (c.loadOk) {
       details.push({
-        title: `工具 · ${c.displayName}`,
-        content: c.toolNames.length > 0 ? c.toolNames.join("\n") : "（list_tools 未返回可用工具）",
+        title: tApiMessage(locale, "turnSafe.detail.mcpTools", { name: c.displayName }),
+        content:
+          c.toolNames.length > 0
+            ? c.toolNames.join("\n")
+            : tApiMessage(locale, "turnSafe.detail.mcpNoTools"),
       });
     } else {
       details.push({
-        title: `加载失败 · ${c.displayName}`,
-        content: c.errorSummary ?? "未知错误",
+        title: tApiMessage(locale, "turnSafe.detail.mcpLoadFailedTitle", { name: c.displayName }),
+        content: c.errorSummary ?? tApiMessage(locale, "turnSafe.detail.mcpUnknownError"),
       });
     }
   }
   if (toolEvents !== undefined) {
     details.push({
-      title: "本轮工具调用",
+      title: tApiMessage(locale, "turnSafe.detail.mcpRoundCalls"),
       content:
         toolEvents.length > 0
           ? toolEvents
               .map((event, index) => `#${index + 1} [${event.phase}] ${event.name} — ${event.detail}`)
               .join("\n\n")
-          : "未触发工具调用",
+          : tApiMessage(locale, "turnSafe.detail.mcpNoToolCalls"),
     });
   }
   return details;
@@ -360,7 +366,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       reasonTag: "retry_without_new_user_message",
     });
   } else {
-    userMsg = await persistUserMessageAndTouchConversation({ ds, conv, user, content, turnId });
+    userMsg = await persistUserMessageAndTouchConversation({ ds, conv, user, content, turnId, locale });
     turnState.updateStep("A2", "completed");
   }
   await turnRepo.update({ id: turnId }, { userMessageId: userMsg.id });
@@ -412,7 +418,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           turnState.updateStep("B1", "completed");
           turnState.updateStep("C1", "completed", {
             safeMessage: kbHitSafeMessage(locale, kbInjection),
-            details: kbInjection ? kbDetailsFromInjection(kbInjection) : [],
+            details: kbInjection ? kbDetailsFromInjection(locale, kbInjection) : [],
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
           const updateConversationSummary = createConversationSummaryUpdater({
@@ -433,7 +439,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
               mcpUiForTurn = mcpTurnUi;
               turnState.updateStep("C2", "completed", {
                 safeMessage: mcpSafeMessage(locale, mcpTurnUi),
-                details: mcpDetailsFromUi(mcpTurnUi),
+                details: mcpDetailsFromUi(locale, mcpTurnUi),
               });
               await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
               await emitTurnDelta("C2", "completed");
@@ -496,7 +502,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
           turnState.updateStep("C2", "completed", {
             safeMessage: mcpSafeMessage(locale, mcpUiDone),
-            details: mcpDetailsFromUi(mcpUiDone, toolEvents),
+            details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
           await emitTurnDelta("C2", "completed");
@@ -608,7 +614,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   turnState.updateStep("B1", "completed");
   turnState.updateStep("C1", "completed", {
     safeMessage: kbHitSafeMessage(locale, kbInjection),
-    details: kbInjection ? kbDetailsFromInjection(kbInjection) : [],
+    details: kbInjection ? kbDetailsFromInjection(locale, kbInjection) : [],
   });
   await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
 
@@ -629,7 +635,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
         mcpUiForTurn = mcpTurnUi;
         turnState.updateStep("C2", "completed", {
           safeMessage: mcpSafeMessage(locale, mcpTurnUi),
-          details: mcpDetailsFromUi(mcpTurnUi),
+          details: mcpDetailsFromUi(locale, mcpTurnUi),
         });
         turnState.updateStep("D1", "running", {
           safeMessage: tApiMessage(locale, "turnSafe.modelGenerating"),
@@ -702,7 +708,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
     turnState.updateStep("C2", "completed", {
       safeMessage: mcpSafeMessage(locale, mcpUiDone),
-      details: mcpDetailsFromUi(mcpUiDone, toolEvents),
+      details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),
     });
   } catch {
     const modelErrorMessage = tApiMessage(locale, "modelError");
@@ -817,10 +823,12 @@ export const DELETE = withApiWrapper(async (req: Request, ctx: RouteParams) => {
 
   const deletedCount = typeof del.affected === "number" ? del.affected : 0;
 
+  const resetTitle = defaultConversationTitle(locale);
+
   await convRepo.update(
     { id: conv.id },
     {
-      title: CHAT_DEFAULT_CONVERSATION_TITLE,
+      title: resetTitle,
       updatedAt: new Date(),
       contextSummary: null,
       contextSummaryUpdatedAt: null,
@@ -834,7 +842,7 @@ export const DELETE = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     {
       conversation: {
         id: conv.id,
-        title: convOut?.title ?? CHAT_DEFAULT_CONVERSATION_TITLE,
+        title: convOut?.title ?? resetTitle,
         updatedAt: (convOut?.updatedAt ?? new Date()).toISOString(),
         messageCount: 0,
       },

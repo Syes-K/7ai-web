@@ -164,10 +164,10 @@ export async function injectKbSystemIntoHistoryForModel(options: {
       const noKbHitGuard = {
         role: MessageRole.System,
         content: [
-          "【知识库检索结果】",
-          "本轮未命中可用知识片段。",
-          "回答中禁止使用“根据知识库”“依据知识库检索片段”等表述。",
-          "如需给出结论，请明确来源为通用知识或用户提供信息，避免误导为知识库命中。",
+          "【Knowledge base retrieval — no hits above threshold】",
+          "No knowledge-base excerpts matched this turn.",
+          "Do NOT claim answers are \"from the knowledge base\" or \"based on retrieved snippets\".",
+          "If you answer, state clearly that you are using general knowledge or information the user provided.",
         ].join("\n"),
       } as Message;
       const insertAt = historyForModel[0]?.role === MessageRole.System ? 1 : 0;
@@ -263,10 +263,10 @@ export async function prepareModelInputForPostMessage(
         : ({
             role: MessageRole.System,
             content: [
-              "【知识库检索结果】",
-              "本轮未命中可用知识片段。",
-              "回答中禁止使用“根据知识库”“依据知识库检索片段”等表述。",
-              "如需给出结论，请明确来源为通用知识或用户提供信息，避免误导为知识库命中。",
+              "【Knowledge base retrieval — no hits above threshold】",
+              "No knowledge-base excerpts matched this turn.",
+              "Do NOT claim answers are \"from the knowledge base\" or \"based on retrieved snippets\".",
+              "If you answer, state clearly that you are using general knowledge or information the user provided.",
             ].join("\n"),
           } as Message);
       const historyForModel = [
@@ -325,8 +325,9 @@ export async function persistUserMessageAndTouchConversation(options: {
   user: User;
   content: string;
   turnId?: string | null;
+  locale: AppLocale;
 }): Promise<Message> {
-  const { ds, conv, user, content, turnId = null } = options;
+  const { ds, conv, user, content, turnId = null, locale } = options;
   const msgRepo = ds.getRepository(Message);
   const convRepo = ds.getRepository(Conversation);
 
@@ -348,7 +349,7 @@ export async function persistUserMessageAndTouchConversation(options: {
   if (userMsgCount === 1) {
     await convRepo.update(
       { id: conv.id },
-      { title: titleFromFirstUserMessage(content), updatedAt: new Date() },
+      { title: titleFromFirstUserMessage(content, locale), updatedAt: new Date() },
     );
   } else {
     await convRepo.update({ id: conv.id }, { updatedAt: new Date() });
