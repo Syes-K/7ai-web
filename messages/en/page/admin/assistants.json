@@ -1,0 +1,98 @@
+{
+  "meta": {
+    "title": "System assistants | Admin",
+    "description": "Built-in assistants available to all users."
+  },
+  "title": "System assistants",
+  "search": {
+    "placeholder": "Search by name"
+  },
+  "toolbar": {
+    "create": "New assistant",
+    "refresh": "Refresh"
+  },
+  "empty": {
+    "noAssistants": "No system assistants yet. Click New system assistant to add one.",
+    "createCta": "New system assistant"
+  },
+  "columns": {
+    "type": "Type",
+    "icon": "Icon",
+    "name": "Name",
+    "tags": "Tags",
+    "openingMessage": "Opening message",
+    "updatedAt": "Last updated",
+    "actions": "Actions"
+  },
+  "tag": {
+    "system": "System"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "modal": {
+    "create": {
+      "title": "New system assistant"
+    },
+    "edit": {
+      "title": "Edit system assistant"
+    },
+    "ok": {
+      "create": "Create",
+      "save": "Save"
+    },
+    "cancel": "Cancel"
+  },
+  "form": {
+    "name": {
+      "label": "Name",
+      "rules": {
+        "required": "Enter a name.",
+        "max": "At most {max} characters."
+      },
+      "placeholder": "Assistant name"
+    },
+    "prompt": {
+      "label": "Prompt",
+      "rules": {
+        "required": "Enter prompt.",
+        "max": "At most {max} characters."
+      },
+      "placeholder": "System / behavior instructions"
+    },
+    "icon": {
+      "label": "Icon (emoji)",
+      "rules": {
+        "max": "At most {max} characters."
+      },
+      "placeholder": "e.g. 🤖"
+    },
+    "openingMessage": {
+      "label": "Opening message",
+      "rules": {
+        "max": "At most {max} characters."
+      },
+      "placeholder": "Optional"
+    },
+    "tags": {
+      "label": "Tags",
+      "placeholder": "Type and press Enter"
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this system assistant?",
+      "description": "Deleting 「{name}」 cannot be undone.",
+      "ok": "Delete"
+    }
+  },
+  "toast": {
+    "created": "System assistant created",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  },
+  "pagination": {
+    "total": "{count} total"
+  }
+}

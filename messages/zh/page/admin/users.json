@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "title": "用户管理 | 管理后台",
+    "description": "系统账号运维：状态、可用性与密码。"
+  },
+  "title": "用户管理",
+  "subTitle": "系统账号运维：查看状态、调整可用性、重置密码。",
+  "search": {
+    "placeholder": "搜索邮箱或用户名",
+    "button": "搜索"
+  },
+  "toolbar": {
+    "refresh": "刷新"
+  },
+  "columns": {
+    "user": "用户",
+    "status": "状态",
+    "accessMode": "访问模式",
+    "loginLock": "登录失败锁",
+    "updatedAt": "最近更新",
+    "actions": "操作"
+  },
+  "tag": {
+    "active": "启用",
+    "disabled": "停用",
+    "readOnly": "只读",
+    "readWrite": "读写",
+    "locked": "已锁定",
+    "normal": "正常"
+  },
+  "actions": {
+    "setReadOnly": "设为只读",
+    "unsetReadOnly": "取消只读",
+    "enable": "启用",
+    "disable": "停用",
+    "resetPassword": "重置密码",
+    "retry": "重试"
+  },
+  "tooltip": {
+    "cannotChangeOwnReadOnly": "不能变更当前登录账号的只读状态，请使用其他管理员操作",
+    "cannotChangeOwnStatus": "不能变更当前登录账号的状态，请使用其他管理员操作",
+    "cannotResetOwnPassword": "不能通过管理端重置当前登录账号的密码"
+  },
+  "lockRemain": {
+    "aboutMinutes": "约 {minutes} 分钟",
+    "lessThanOneMinute": "不到 1 分钟"
+  },
+  "confirm": {
+    "disableUser": {
+      "title": "停用用户账号？",
+      "content": "将对「{label}」执行「停用」。停用后该用户将无法登录系统（具体以系统策略为准）。",
+      "ok": "确认停用"
+    },
+    "enableUser": {
+      "title": "启用用户账号？",
+      "content": "将对「{label}」执行「启用」。",
+      "ok": "确认启用"
+    },
+    "setReadOnly": {
+      "title": "设为只读账号？",
+      "content": "将对「{label}」开启只读限制：登录后仅允许 GET 请求。",
+      "ok": "确认设为只读"
+    },
+    "unsetReadOnly": {
+      "title": "取消只读账号？",
+      "content": "将对「{label}」关闭只读限制：恢复新增/修改/删除等写操作能力。",
+      "ok": "确认取消只读"
+    },
+    "resetPassword": {
+      "title": "重置该用户的密码？",
+      "content": "将为「{label}」生成新的登录密码。请仅在安全渠道告知用户；请勿在公共场合展示。",
+      "ok": "确认重置"
+    }
+  },
+  "toast": {
+    "disabled": "已停用",
+    "enabled": "已启用",
+    "readOnlyOn": "已设为只读账号",
+    "readOnlyOff": "已取消只读账号",
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制密码"
+  },
+  "alert": {
+    "listFailed": "用户列表加载失败"
+  },
+  "empty": {
+    "loading": "加载中…",
+    "noUsers": "暂无用户"
+  },
+  "pagination": {
+    "total": "共 {count} 条"
+  },
+  "modal": {
+    "resetPassword": {
+      "title": "密码已重置",
+      "body": "「{label}」的临时密码如下。此密码仅显示一次，关闭窗口后请通过安全渠道告知用户。",
+      "warning": "请勿通过即时通讯公群发送；建议用户首次登录后尽快修改密码。",
+      "close": "关闭",
+      "copyAndClose": "复制密码并关闭"
+    }
+  },
+  "hint": {
+    "lockDistributed": "登录失败锁为进程内状态，多实例部署下列表展示可能与实际命中节点不一致。"
+  }
+}

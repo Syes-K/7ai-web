@@ -97,15 +97,15 @@ export const CONSOLE_MODEL_LIST_MAX_PAGE_SIZE = 100;
 /** 模型名称最大长度（与实体 `modelName` 列一致） */
 export const CONSOLE_MODEL_NAME_MAX_LENGTH = 255;
 
-/** 模型配置可选标签（仅允许下列值，可多选；可不选） */
+/** 模型配置可选标签（英文 key，存库与 API 校验；展示走 i18n `tag.model.*`） */
 export const MODEL_CONFIG_TAG_OPTIONS = [
-  "免费",
-  "文本",
-  "视频",
-  "声音",
-  "嵌入",
-  "重排",
-  "对话",
+  "free",
+  "text",
+  "video",
+  "audio",
+  "embedding",
+  "rerank",
+  "chat",
 ] as const;
 
 export type ModelConfigTag = (typeof MODEL_CONFIG_TAG_OPTIONS)[number];

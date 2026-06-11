@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "title": "管理后台 | 7ai-web",
+    "description": "系统管理：用户、配置、模型、提示词与系统助手。"
+  },
+  "title": "管理后台",
+  "skipToMain": "跳到主要内容",
+  "chatLink": "对话",
+  "consoleLink": "控制台",
+  "menu": {
+    "config": "配置管理",
+    "users": "用户管理",
+    "models": "模型管理",
+    "prompts": "提示词模版",
+    "logs": "日志查询",
+    "assistants": "系统助手管理"
+  },
+  "langSwitcher": {
+    "ariaLabel": "语言",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "errors": {
+    "requestFailed": "请求失败（{status}）",
+    "networkRetry": "网络异常，请稍后重试",
+    "noAdminPermission": "无管理员权限"
+  }
+}

@@ -123,3 +123,25 @@ body {
     }
   }
 }
+
+/**
+ * ProLayout 顶栏 actions：禁用 ant 对子元素的 padding/hover（与自定义 header action 冲突、易溢出 header）。
+ * 交互样式统一由 HEADER_ACTION_* 类承担。
+ */
+@layer components {
+  .ant-pro-global-header-header-actions-item {
+    align-self: center;
+    height: 2rem;
+  }
+
+  .ant-pro-global-header-header-actions-item > * {
+    padding-inline: 0 !important;
+    padding-block: 0 !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+  }
+
+  .ant-pro-global-header-header-actions-item > *:hover {
+    background-color: transparent !important;
+  }
+}

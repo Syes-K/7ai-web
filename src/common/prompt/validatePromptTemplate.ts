@@ -1,23 +1,23 @@
 /**
  * 提示词模版占位符：`{paramName}`，paramName 为 ASCII 标识符。
  * 校验：无非法 `{`、每个占位符须在声明的参数列表中。
+ * 错误返回 code 枚举（Q4-B），由 route / 前端分别映射 i18n 文案。
  */
 const PLACEHOLDER_RE = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
 
 export type PromptParamLike = { name: string };
 
+/** 模版校验失败类型，对应 api.message `validation.promptConfig.template.*` */
+export type PromptTemplateValidationCode = "invalidBrace" | "undeclaredParam";
+
 export function validatePromptTemplate(
   value: string,
   allowedParams: readonly PromptParamLike[],
-): { valid: true } | { valid: false; message: string } {
+): { valid: true } | { valid: false; code: PromptTemplateValidationCode; param?: string } {
   const allowed = new Set(allowedParams.map((p) => p.name));
-  let stripped = value.replace(PLACEHOLDER_RE, "");
+  const stripped = value.replace(PLACEHOLDER_RE, "");
   if (stripped.includes("{")) {
-    return {
-      valid: false,
-      message:
-        "模版中存在非法的「{」占位符，请仅使用 {参数名} 形式（参数名为英文、数字、下划线，且须与下方已声明参数一致）",
-    };
+    return { valid: false, code: "invalidBrace" };
   }
   const used = new Set<string>();
   let m: RegExpExecArray | null;
@@ -27,10 +27,7 @@ export function validatePromptTemplate(
   }
   for (const name of used) {
     if (!allowed.has(name)) {
-      return {
-        valid: false,
-        message: `模版中使用了未声明的参数：{${name}}`,
-      };
+      return { valid: false, code: "undeclaredParam", param: name };
     }
   }
   return { valid: true };

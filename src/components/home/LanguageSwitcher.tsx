@@ -2,26 +2,23 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import type { AppLocale } from "@/common/constants/i18n";
+import { SUPPORTED_LOCALES, type AppLocale } from "@/common/constants/i18n";
+import {
+  HEADER_ACTION_BUTTON_CLASS,
+} from "@/components/layout/header-action-link";
 import { usePathname, useRouter } from "@/i18n/navigation";
-
-const headerActionLinkClass =
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
-
-const OTHER_LOCALE: Record<AppLocale, AppLocale> = {
-  en: "zh",
-  zh: "en",
-};
 
 type AuthNamespace = "page.login" | "page.register";
 type HomeNamespace = "page.home";
 type ChatNamespace = "page.chat";
 type ConsoleShellNamespace = "page.console.shell";
+type AdminShellNamespace = "page.admin.shell";
 type SwitcherNamespace =
   | HomeNamespace
   | AuthNamespace
   | ChatNamespace
-  | ConsoleShellNamespace;
+  | ConsoleShellNamespace
+  | AdminShellNamespace;
 
 type LanguageSwitcherProps = {
   /** next-intl 命名空间，默认 page.home */
@@ -43,31 +40,30 @@ export function LanguageSwitcher({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const otherLocale = OTHER_LOCALE[locale];
-
   const triggerFullLabel =
     locale === "en" ? t("langSwitcher.label.en") : t("langSwitcher.label.zh");
   const triggerShortLabel =
     locale === "en" ? t("langSwitcher.label.enShort") : t("langSwitcher.label.zhShort");
-  const optionLabel =
-    otherLocale === "en" ? t("langSwitcher.label.en") : t("langSwitcher.label.zh");
 
   const triggerClass =
     variant === "auth"
-      ? `${headerActionLinkClass} font-mono text-[#9AA3B2] hover:text-[#00E5FF]`
+      ? `${HEADER_ACTION_BUTTON_CLASS} font-mono text-[#9AA3B2] hover:text-[#00E5FF]`
       : variant === "shell"
-        ? `${headerActionLinkClass} font-mono text-zinc-400/90 hover:text-cyan-200/90`
-        : `${headerActionLinkClass} font-mono text-zinc-300/90 hover:text-cyan-200/90`;
+        ? `${HEADER_ACTION_BUTTON_CLASS} font-mono text-zinc-400/90 hover:text-cyan-200/90`
+        : `${HEADER_ACTION_BUTTON_CLASS} font-mono text-zinc-300/90 hover:text-cyan-200/90`;
 
   const close = useCallback(() => setOpen(false), []);
 
   const switchLocale = useCallback(
     (target: AppLocale) => {
-      if (target === locale || busy) {
+      if (busy) {
+        return;
+      }
+      close();
+      if (target === locale) {
         return;
       }
       setBusy(true);
-      close();
       router.replace(pathname, { locale: target });
       window.setTimeout(() => setBusy(false), 300);
     },
@@ -88,7 +84,7 @@ export function LanguageSwitcher({
   }, [close, open]);
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
+    <div ref={containerRef} className="relative flex h-8 shrink-0 items-center">
       <button
         type="button"
         className={triggerClass}
@@ -126,19 +122,28 @@ export function LanguageSwitcher({
           id={listboxId}
           role="listbox"
           aria-label={t("langSwitcher.ariaLabel")}
-          className="absolute right-0 z-30 mt-1 min-w-[8.5rem] rounded-md border border-cyan-500/20 bg-zinc-950/95 py-1 shadow-lg backdrop-blur-md"
+          className="absolute right-0 top-full z-30 mt-1 min-w-[8.5rem] rounded-md border border-cyan-500/20 bg-zinc-950/95 py-1 shadow-lg backdrop-blur-md"
         >
-          <li role="presentation">
-            <button
-              type="button"
-              role="option"
-              aria-selected={false}
-              className="block w-full px-3 py-2 text-left font-mono text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-100 focus-visible:bg-cyan-500/15 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-cyan-400/50"
-              onClick={() => switchLocale(otherLocale)}
-            >
-              {optionLabel}
-            </button>
-          </li>
+          {SUPPORTED_LOCALES.map((target) => {
+            const selected = target === locale;
+            return (
+              <li key={target} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={`block w-full px-3 py-2 text-left font-mono text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-cyan-400/50 ${
+                    selected
+                      ? "cursor-default bg-cyan-500/15 text-cyan-100"
+                      : "text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-100 focus-visible:bg-cyan-500/15"
+                  }`}
+                  onClick={() => switchLocale(target)}
+                >
+                  {t(`langSwitcher.label.${target}`)}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

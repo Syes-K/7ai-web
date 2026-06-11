@@ -39,7 +39,15 @@
     "public": "Public",
     "private": "Private",
     "dataError": "Data error",
-    "embedding": "Embedding"
+    "model": {
+      "free": "Free",
+      "text": "Text",
+      "video": "Video",
+      "audio": "Audio",
+      "embedding": "Embedding",
+      "rerank": "Rerank",
+      "chat": "Chat"
+    }
   },
   "tooltip": {
     "publicEditAdmin": "Public models are edited in the admin console",

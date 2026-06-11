@@ -9,6 +9,8 @@ import { User } from "@/server/db/entities/User";
 import { hashPassword } from "@/server/auth/password";
 import { allowRate, clientIp } from "@/common/utils";
 import { userToAdminRow } from "@/server/user-admin/map-to-dto";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -18,14 +20,15 @@ function generateTemporaryPassword(): string {
 }
 
 /**
- * POST：重置目标用户密码（方案 A：仅本响应返回明文临时密码）。
+ * POST：重置目标用户密码（方案 A：仅本响应返回明文临时密码）；错误 message 随 locale 双语。
  */
 export const POST = withApiWrapper([withAdminApi], async (admin, request, ctx) => {
+  const locale = resolveRequestLocale(request);
   const ip = clientIp(request);
   if (!allowRate(`admin-reset-password:${ip}`, 30, 60_000)) {
     return jsonError(
       ErrorCode.RATE_LIMITED,
-      "请求过于频繁，请稍后再试",
+      tApiMessage(locale, "rateLimited"),
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -35,20 +38,28 @@ export const POST = withApiWrapper([withAdminApi], async (admin, request, ctx) =
     try {
       JSON.parse(raw);
     } catch {
-      return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+      return jsonError(
+        ErrorCode.VALIDATION_ERROR,
+        tApiMessage(locale, "validation.invalidJson"),
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
   const { id } = await ctx.params;
   const userId = Array.isArray(id) ? id[0] : id;
   if (!userId || typeof userId !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "用户 id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   if (admin.id === userId) {
     return jsonError(
       ErrorCode.FORBIDDEN,
-      "不能通过管理端重置当前登录账号的密码，请使用忘记密码等用户自助流程",
+      tApiMessage(locale, "admin.cannotResetOwnPassword"),
       HttpStatus.FORBIDDEN,
     );
   }
@@ -57,7 +68,11 @@ export const POST = withApiWrapper([withAdminApi], async (admin, request, ctx) =
   const repo = ds.getRepository(User);
   const target = await repo.findOne({ where: { id: userId } });
   if (!target) {
-    return jsonError(ErrorCode.USER_NOT_FOUND, "用户不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.USER_NOT_FOUND,
+      tApiMessage(locale, "userNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const temporaryPassword = generateTemporaryPassword();

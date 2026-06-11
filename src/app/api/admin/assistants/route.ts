@@ -19,6 +19,8 @@ import { parseAssistantTags } from "@/server/assistant/parse-assistant-tags";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
 import type { User } from "@/server/db/entities/User";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -53,16 +55,19 @@ type PostBody = {
 };
 
 /**
- * GET：分页列出系统助手。
+ * GET：分页列出系统助手；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper([withAdminApi], async (_admin: User, request: NextRequest, _ctx) => {
+  const locale = resolveRequestLocale(request);
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), CONSOLE_ASSISTANT_LIST_DEFAULT_PAGE);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));
   if (page === null || pageSize === null) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      `分页参数非法：page 须为 ≥1 的整数，pageSize 须为 1–${CONSOLE_ASSISTANT_LIST_MAX_PAGE_SIZE} 的整数`,
+      tApiMessage(locale, "validation.paginationParamsInvalid", {
+        maxPageSize: CONSOLE_ASSISTANT_LIST_MAX_PAGE_SIZE,
+      }),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -99,45 +104,50 @@ export const GET = withApiWrapper([withAdminApi], async (_admin: User, request: 
  * POST：新建系统助手。
  */
 export const POST = withApiWrapper([withAdminApi], async (_admin: User, request: NextRequest, _ctx) => {
+  const locale = resolveRequestLocale(request);
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
 
   const nameRaw = typeof body.name === "string" ? body.name.trim() : "";
   if (!nameRaw) {
-    details.push({ field: "name", message: "不能为空" });
+    details.push({ field: "name", message: tApiMessage(locale, "validation.required") });
   } else if (nameRaw.length > ASSISTANT_NAME_MAX_LENGTH) {
     details.push({
       field: "name",
-      message: `长度不能超过 ${ASSISTANT_NAME_MAX_LENGTH}`,
+      message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_NAME_MAX_LENGTH }),
     });
   }
 
   const promptRaw = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!promptRaw) {
-    details.push({ field: "prompt", message: "不能为空" });
+    details.push({ field: "prompt", message: tApiMessage(locale, "validation.required") });
   } else if (promptRaw.length > ASSISTANT_PROMPT_MAX_LENGTH) {
     details.push({
       field: "prompt",
-      message: `长度不能超过 ${ASSISTANT_PROMPT_MAX_LENGTH}`,
+      message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_PROMPT_MAX_LENGTH }),
     });
   }
 
   let iconOut: string | null = null;
   if (body.icon !== undefined && body.icon !== null) {
     if (typeof body.icon !== "string") {
-      details.push({ field: "icon", message: "须为字符串或 null" });
+      details.push({ field: "icon", message: tApiMessage(locale, "validation.stringOrNull") });
     } else {
       const i = body.icon.trim();
       if (i.length > ASSISTANT_ICON_MAX_LENGTH) {
         details.push({
           field: "icon",
-          message: `长度不能超过 ${ASSISTANT_ICON_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_ICON_MAX_LENGTH }),
         });
       } else {
         iconOut = i.length > 0 ? i : null;
@@ -148,13 +158,18 @@ export const POST = withApiWrapper([withAdminApi], async (_admin: User, request:
   let openingOut: string | null = null;
   if (body.openingMessage !== undefined && body.openingMessage !== null) {
     if (typeof body.openingMessage !== "string") {
-      details.push({ field: "openingMessage", message: "须为字符串或 null" });
+      details.push({
+        field: "openingMessage",
+        message: tApiMessage(locale, "validation.stringOrNull"),
+      });
     } else {
       const o = body.openingMessage.trim();
       if (o.length > ASSISTANT_OPENING_MESSAGE_MAX_LENGTH) {
         details.push({
           field: "openingMessage",
-          message: `长度不能超过 ${ASSISTANT_OPENING_MESSAGE_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", {
+            max: ASSISTANT_OPENING_MESSAGE_MAX_LENGTH,
+          }),
         });
       } else {
         openingOut = o.length > 0 ? o : null;
@@ -164,7 +179,7 @@ export const POST = withApiWrapper([withAdminApi], async (_admin: User, request:
 
   let tagsToSave: string[] = [];
   if (body.tags !== undefined) {
-    const parsed = parseAssistantTags(body.tags);
+    const parsed = parseAssistantTags(body.tags, locale);
     if (!parsed.ok) {
       details.push({ field: "tags", message: parsed.message });
     } else {
@@ -175,7 +190,7 @@ export const POST = withApiWrapper([withAdminApi], async (_admin: User, request:
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -204,7 +219,7 @@ export const POST = withApiWrapper([withAdminApi], async (_admin: User, request:
     );
     return jsonError(
       ErrorCode.INTERNAL_ERROR,
-      "保存失败，请稍后重试",
+      tApiMessage(locale, "saveFailedRetry"),
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }

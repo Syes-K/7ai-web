@@ -8,10 +8,7 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { USER_SESSION_ENDED_EVENT, UserAvatarMenu } from "@/components/user";
 import { IconConfig, IconEmptyState, IconLogin } from "@/components/ui/icons";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-
-/** 与 ConsoleShell / AdminShell 顶栏操作链一致（无边框） */
-const headerActionLinkClass =
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
+import { HEADER_ACTION_LINK_CLASS } from "@/components/layout/header-action-link";
 
 export function PunkHomeHeader() {
   const t = useTranslations("page.home");
@@ -55,14 +52,14 @@ export function PunkHomeHeader() {
         >
           <Link
             href="/chat"
-            className={`${headerActionLinkClass} text-cyan-400/90 hover:text-cyan-300`}
+            className={`${HEADER_ACTION_LINK_CLASS} text-cyan-400/90 hover:text-cyan-300`}
           >
             <IconEmptyState className="h-4 w-4 shrink-0 text-current" />
             {t("nav.chat")}
           </Link>
           <Link
             href="/console/profile"
-            className={`${headerActionLinkClass} text-white/80 hover:text-white`}
+            className={`${HEADER_ACTION_LINK_CLASS} text-white/80 hover:text-white`}
           >
             <IconConfig className="h-4 w-4 shrink-0 text-current" />
             {t("nav.console")}
@@ -87,7 +84,7 @@ export function PunkHomeHeader() {
         ) : (
           <Link
             href={`/login?redirect=${loginRedirect}`}
-            className={`${headerActionLinkClass} text-white/80 hover:text-white`}
+            className={`${HEADER_ACTION_LINK_CLASS} text-white/80 hover:text-white`}
           >
             <IconLogin className="h-4 w-4 shrink-0 text-current" />
             {t("nav.signIn")}

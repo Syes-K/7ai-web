@@ -19,10 +19,8 @@ import { isAppLocale, type AppLocale } from "@/common/constants/i18n";
 const AUTH_API_PREFIX = "/api/auth/";
 const intlMiddleware = createIntlMiddleware(routing);
 
-/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；chat/console 已迁至 /{locale}/… */
+/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；chat/console/admin/knowledge 已迁至 /{locale}/… */
 const KNOWN_APP_SEGMENTS = new Set([
-  "admin",
-  "knowledge",
   "api",
 ]);
 
@@ -71,6 +69,7 @@ function isProtectedPath(pathname: string): boolean {
     pathname.startsWith("/chat") ||
     pathname.startsWith("/console") ||
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/knowledge") ||
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/console") ||
     pathname.startsWith(AUTH_API_PREFIX)
@@ -83,6 +82,13 @@ function isProtectedPath(pathname: string): boolean {
   }
   // 0.1.16：locale 前缀 console 页受保护
   if (/^\/(en|zh)\/console(\/|$)/.test(pathname)) {
+    return true;
+  }
+  // 0.1.17：locale 前缀 admin / knowledge 页受保护
+  if (/^\/(en|zh)\/admin(\/|$)/.test(pathname)) {
+    return true;
+  }
+  if (/^\/(en|zh)\/knowledge(\/|$)/.test(pathname)) {
     return true;
   }
   return false;
@@ -125,6 +131,36 @@ function handleLegacyConsoleRedirect(request: NextRequest): NextResponse | null 
     const locale = resolveRequestLocale(request);
     const suffix = pathname.slice("/console".length);
     const url = new URL(`/${locale}/console${suffix}`, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 302);
+  }
+  return null;
+}
+
+/**
+ * 旧版裸 /admin → 302 /{locale}/admin（优先于受保护逻辑，保留 query 与 locale）。
+ */
+function handleLegacyAdminRedirect(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    const locale = resolveRequestLocale(request);
+    const suffix = pathname.slice("/admin".length);
+    const url = new URL(`/${locale}/admin${suffix}`, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 302);
+  }
+  return null;
+}
+
+/**
+ * 旧版裸 /knowledge → 302 /{locale}/knowledge（知识库预览等，与 admin 并列）。
+ */
+function handleLegacyKnowledgeRedirect(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/knowledge" || pathname.startsWith("/knowledge/")) {
+    const locale = resolveRequestLocale(request);
+    const suffix = pathname.slice("/knowledge".length);
+    const url = new URL(`/${locale}/knowledge${suffix}`, request.url);
     url.search = search;
     return NextResponse.redirect(url, 302);
   }
@@ -181,17 +217,11 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
     return NextResponse.redirect(login);
   }
 
-  if (pathname.startsWith("/admin")) {
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-admin-login-redirect", `${pathname}${search}`);
-    return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-
   return NextResponse.next();
 }
 
 /**
- * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth/chat/console 302 → 受保护路径 → next-intl。
+ * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth/chat/console/admin/knowledge 302 → 受保护路径 → next-intl。
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -213,6 +243,16 @@ export function middleware(request: NextRequest) {
   const legacyConsole = handleLegacyConsoleRedirect(request);
   if (legacyConsole) {
     return legacyConsole;
+  }
+
+  const legacyAdmin = handleLegacyAdminRedirect(request);
+  if (legacyAdmin) {
+    return legacyAdmin;
+  }
+
+  const legacyKnowledge = handleLegacyKnowledgeRedirect(request);
+  if (legacyKnowledge) {
+    return legacyKnowledge;
   }
 
   if (isProtectedPath(pathname)) {
@@ -239,6 +279,8 @@ export const config = {
     "/console/:path*",
     "/admin",
     "/admin/:path*",
+    "/knowledge",
+    "/knowledge/:path*",
     "/api/admin/:path*",
     "/api/console/:path*",
     "/api/auth/:path*",

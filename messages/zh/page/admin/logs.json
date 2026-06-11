@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "日志查询 | 管理后台",
+    "description": "系统日志检索（开发中）。"
+  },
+  "title": "日志查询",
+  "placeholder": {
+    "description": "日志检索与审计开发中。",
+    "emptyDescription": "本模块开发中，后续将提供系统管理能力。"
+  }
+}

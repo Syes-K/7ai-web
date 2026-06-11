@@ -88,7 +88,44 @@
     "mcpEndpointArgsStringArray": "须为字符串数组",
     "mcpEndpointUrlRequired": "须提供非空 url",
     "mcpEndpointUrlInvalid": "url 格式无效",
-    "mcpMetadataObjectOrNull": "须为 JSON 对象或 null"
+    "mcpMetadataObjectOrNull": "须为 JSON 对象或 null",
+    "invalidUserStatus": "status 须为 Active 或 Disabled。",
+    "readOnlyMustBeBoolean": "readOnly 须为布尔值。",
+    "atLeastOneUpdateField": "至少提供一个可更新字段。",
+    "promptConfig": {
+      "itemsRequired": "items 须为非空数组",
+      "itemMustBeObject": "items[i] 须为对象",
+      "keyStringRequired": "key 须为字符串",
+      "valueStringRequired": "value 须为字符串",
+      "onlyKeyValueAllowed": "仅允许 key、value 字段",
+      "duplicateKey": "key 重复",
+      "exactItemCount": "须恰好包含 {count} 个配置项",
+      "missingKey": "缺少配置项：{key}",
+      "valueRequired": "{key} 的 value 不能为空",
+      "valueEmpty": "value 不能为空",
+      "unknownKey": "未知配置项：{key}",
+      "template": {
+        "invalidBrace": "模版中存在非法的「{」占位符，请仅使用 {参数名} 形式（参数名须与已声明参数一致）。",
+        "undeclaredParam": "模版中使用了未声明的参数：{{{param}}}。"
+      }
+    },
+    "conversationSummary": {
+      "configMustBeObject": "config 须为对象",
+      "unsupportedField": "不支持的字段：{field}",
+      "enabledBoolean": "enabled 须为 boolean",
+      "integerRange": "须为 {min}~{max} 的整数",
+      "modeEnum": "须为 tokens 或 messages"
+    },
+    "knowledgeBase": {
+      "tagsArrayRequired": "须为字符串数组",
+      "tagsMaxCount": "最多 {max} 个",
+      "tagMaxLength": "单个标签最长 {max} 字",
+      "contentFormatEnum": "须为 markdown 或 plain",
+      "sourceTypeTextOnly": "本期仅支持 text",
+      "nameConflict": "名称已存在，请更换名称",
+      "topKRange": "须为 1–20 的整数",
+      "thresholdRange": "须为 0–1 的数字"
+    }
   },
   "captchaRequired": "请完成图形验证码",
   "captchaInvalid": "验证码错误或已过期，请刷新后重试",
@@ -101,6 +138,18 @@
   "authLoginLocked": "登录失败次数过多，请 {minutes} 分钟后再试",
   "conversationNotFound": "会话不存在",
   "assistantNotFound": "助手不存在",
+  "knowledgeBaseNotFound": "知识库不存在",
+  "knowledgeBaseReferencedByAssistant": "该知识库仍被助手引用，请先在「助手管理」中解除知识库绑定后再删除。",
+  "knowledgeBaseChunkTestUnavailable": "向量化未完成，暂不可测试",
+  "admin": {
+    "cannotResetOwnPassword": "不能通过管理端重置当前登录账号的密码，请使用其他管理员账号或账号设置。",
+    "cannotChangeOwnStatus": "不能变更当前登录账号的只读或启用状态，请使用其他管理员操作。",
+    "readPromptConfigFailed": "读取提示词配置文件失败。",
+    "readConversationSummaryFailed": "读取对话摘要配置失败。",
+    "saveFailedCheckPermissions": "保存失败，请稍后重试或检查磁盘权限。",
+    "conversationSummarySaveFailed": "保存对话摘要配置失败。",
+    "writeVerifyFailed": "写入后读取验证失败。"
+  },
   "modelError": "模型调用失败，请稍后重试",
   "readOnlyAccountBlocked": "您访问的是测试账户，不能进行数据的修改和删除",
   "createConversationFailed": "创建会话失败",

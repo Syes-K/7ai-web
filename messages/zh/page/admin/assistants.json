@@ -1,0 +1,98 @@
+{
+  "meta": {
+    "title": "系统助手管理 | 管理后台",
+    "description": "全站内置系统助手。"
+  },
+  "title": "系统助手管理",
+  "search": {
+    "placeholder": "搜索名称"
+  },
+  "toolbar": {
+    "create": "新建助手",
+    "refresh": "刷新"
+  },
+  "empty": {
+    "noAssistants": "暂无系统助手，可点击「新建系统助手」添加。",
+    "createCta": "新建系统助手"
+  },
+  "columns": {
+    "type": "类型",
+    "icon": "图标",
+    "name": "名称",
+    "tags": "标签",
+    "openingMessage": "开场白",
+    "updatedAt": "最近更新",
+    "actions": "操作"
+  },
+  "tag": {
+    "system": "系统"
+  },
+  "actions": {
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "modal": {
+    "create": {
+      "title": "新建系统助手"
+    },
+    "edit": {
+      "title": "编辑系统助手"
+    },
+    "ok": {
+      "create": "创建",
+      "save": "保存"
+    },
+    "cancel": "取消"
+  },
+  "form": {
+    "name": {
+      "label": "名称",
+      "rules": {
+        "required": "请输入名称",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "助手名称"
+    },
+    "prompt": {
+      "label": "提示词",
+      "rules": {
+        "required": "请输入提示词",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "模型 system / 行为说明"
+    },
+    "icon": {
+      "label": "图标（emoji）",
+      "rules": {
+        "max": "最多 {max} 字符"
+      },
+      "placeholder": "例如 🤖"
+    },
+    "openingMessage": {
+      "label": "开场白",
+      "rules": {
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "可选"
+    },
+    "tags": {
+      "label": "标签",
+      "placeholder": "输入后回车添加"
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该系统助手？",
+      "description": "「{name}」删除后不可恢复。",
+      "ok": "删除"
+    }
+  },
+  "toast": {
+    "created": "已创建系统助手",
+    "saved": "已保存",
+    "deleted": "已删除"
+  },
+  "pagination": {
+    "total": "共 {count} 条"
+  }
+}

@@ -3,8 +3,6 @@ import {
   KNOWLEDGE_BASE_CONTENT_MAX_LENGTH,
   KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH,
   KNOWLEDGE_BASE_NAME_MAX_LENGTH,
-  KNOWLEDGE_BASE_TAG_MAX_LENGTH,
-  KNOWLEDGE_BASE_TAGS_MAX_COUNT,
 } from "@/common/constants";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
@@ -15,6 +13,9 @@ import { AssistantKnowledgeBase } from "@/server/db/entities/AssistantKnowledgeB
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { KnowledgeBaseVectorChunk } from "@/server/db/entities/KnowledgeBaseVectorChunk";
 import { vectorizeKnowledgeBase } from "@/server/knowledge-base/vectorize";
+import { validateKnowledgeBaseTags } from "@/server/knowledge-base/validate-tags";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -36,32 +37,6 @@ function codePointLen(s: string): number {
   return [...s].length;
 }
 
-function normalizeTags(raw: unknown): { ok: true; tags: string[] } | { ok: false; message: string } {
-  if (raw === undefined || raw === null) return { ok: true, tags: [] };
-  if (!Array.isArray(raw)) return { ok: false, message: "须为字符串数组" };
-  const tags = raw
-    .filter((t) => typeof t === "string")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-  if (tags.length > KNOWLEDGE_BASE_TAGS_MAX_COUNT) {
-    return { ok: false, message: `最多 ${KNOWLEDGE_BASE_TAGS_MAX_COUNT} 个` };
-  }
-  for (const t of tags) {
-    if (t.length > KNOWLEDGE_BASE_TAG_MAX_LENGTH) {
-      return { ok: false, message: `单个标签最长 ${KNOWLEDGE_BASE_TAG_MAX_LENGTH} 字` };
-    }
-  }
-  const out: string[] = [];
-  const set = new Set<string>();
-  for (const t of tags) {
-    if (!set.has(t)) {
-      set.add(t);
-      out.push(t);
-    }
-  }
-  return { ok: true, tags: out };
-}
-
 function kbDto(row: KnowledgeBase, includeContent: boolean) {
   return {
     id: row.id,
@@ -80,23 +55,36 @@ function kbDto(row: KnowledgeBase, includeContent: boolean) {
   };
 }
 
-export const GET = withApiWrapper(async (_request: Request, ctx: RouteParams) => {
+export const GET = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await ctx.params;
   if (!id) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
   const repo = ds.getRepository(KnowledgeBase);
   const row = await repo.findOne({ where: { id, userId: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.KNOWLEDGE_BASE_NOT_FOUND,
+      tApiMessage(locale, "knowledgeBaseNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   return NextResponse.json(
@@ -106,29 +94,46 @@ export const GET = withApiWrapper(async (_request: Request, ctx: RouteParams) =>
 });
 
 export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await ctx.params;
   if (!id) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   let body: PatchBody;
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
   const repo = ds.getRepository(KnowledgeBase);
   const row = await repo.findOne({ where: { id, userId: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.KNOWLEDGE_BASE_NOT_FOUND,
+      tApiMessage(locale, "knowledgeBaseNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
@@ -140,21 +145,29 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
 
   if ("name" in body) {
     const name = trimString(body.name);
-    if (!name) details.push({ field: "name", message: "不能为空" });
-    else if (name.length > KNOWLEDGE_BASE_NAME_MAX_LENGTH) {
-      details.push({ field: "name", message: `长度不能超过 ${KNOWLEDGE_BASE_NAME_MAX_LENGTH}` });
-    } else nextName = name;
+    if (!name) {
+      details.push({ field: "name", message: tApiMessage(locale, "validation.required") });
+    } else if (name.length > KNOWLEDGE_BASE_NAME_MAX_LENGTH) {
+      details.push({
+        field: "name",
+        message: tApiMessage(locale, "validation.maxLength", { max: KNOWLEDGE_BASE_NAME_MAX_LENGTH }),
+      });
+    } else {
+      nextName = name;
+    }
   }
 
   if ("description" in body) {
     if (body.description !== null && body.description !== undefined && typeof body.description !== "string") {
-      details.push({ field: "description", message: "须为字符串或 null" });
+      details.push({ field: "description", message: tApiMessage(locale, "validation.stringOrNull") });
     } else {
       const d = trimString(body.description);
       if (d.length > KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH) {
         details.push({
           field: "description",
-          message: `长度不能超过 ${KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", {
+            max: KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH,
+          }),
         });
       } else {
         nextDescription = d.length > 0 ? d : null;
@@ -163,33 +176,44 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
   }
 
   if ("tags" in body) {
-    const parsed = normalizeTags(body.tags);
-    if (!parsed.ok) details.push({ field: "tags", message: parsed.message });
-    else nextTags = parsed.tags;
+    const parsed = validateKnowledgeBaseTags(body.tags, locale);
+    if (!parsed.ok) {
+      details.push({ field: "tags", message: parsed.message });
+    } else {
+      nextTags = parsed.tags;
+    }
   }
 
   if ("contentFormat" in body) {
     const f = trimString(body.contentFormat);
     if (f !== "markdown" && f !== "plain") {
-      details.push({ field: "contentFormat", message: "须为 markdown 或 plain" });
-    } else nextFormat = f as any;
+      details.push({
+        field: "contentFormat",
+        message: tApiMessage(locale, "validation.knowledgeBase.contentFormatEnum"),
+      });
+    } else {
+      nextFormat = f as "markdown" | "plain";
+    }
   }
 
   if ("content" in body) {
     const c = trimString(body.content);
-    if (!c) details.push({ field: "content", message: "不能为空" });
-    else if (codePointLen(c) > KNOWLEDGE_BASE_CONTENT_MAX_LENGTH) {
+    if (!c) {
+      details.push({ field: "content", message: tApiMessage(locale, "validation.required") });
+    } else if (codePointLen(c) > KNOWLEDGE_BASE_CONTENT_MAX_LENGTH) {
       details.push({
         field: "content",
-        message: `长度不能超过 ${KNOWLEDGE_BASE_CONTENT_MAX_LENGTH} 个字符`,
+        message: tApiMessage(locale, "validation.maxLength", { max: KNOWLEDGE_BASE_CONTENT_MAX_LENGTH }),
       });
-    } else nextContent = c;
+    } else {
+      nextContent = c;
+    }
   }
 
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -205,7 +229,7 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
   if (!touched) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求体为空：请至少提供一项可更新字段",
+      tApiMessage(locale, "validation.atLeastOneUpdateField"),
       HttpStatus.UNPROCESSABLE_ENTITY,
     );
   }
@@ -213,7 +237,7 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
   row.name = nextName;
   row.description = nextDescription;
   row.tags = nextTags.length > 0 ? nextTags : null;
-  row.contentFormat = nextFormat as any;
+  row.contentFormat = nextFormat;
   row.content = nextContent;
   row.vectorStatus = "pending";
   row.vectorError = null;
@@ -236,35 +260,48 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
 /**
  * DELETE：删除知识库及其向量分片、助手绑定关系（仅本人）。
  */
-export const DELETE = withApiWrapper(async (_request: Request, ctx: RouteParams) => {
+export const DELETE = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await ctx.params;
   if (!id) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
   const kbRepo = ds.getRepository(KnowledgeBase);
   const row = await kbRepo.findOne({ where: { id, userId: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.KNOWLEDGE_BASE_NOT_FOUND,
+      tApiMessage(locale, "knowledgeBaseNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const relRepo = ds.getRepository(AssistantKnowledgeBase);
   const chunkRepo = ds.getRepository(KnowledgeBaseVectorChunk);
 
   const refCount = await relRepo.count({
-    where: { knowledgeBaseId: id, userId: user.id } as any,
+    where: { knowledgeBaseId: id, userId: user.id } as { knowledgeBaseId: string; userId: string },
   });
   if (refCount > 0) {
     return jsonError(
       ErrorCode.KNOWLEDGE_BASE_REFERENCED_BY_ASSISTANT,
-      "该知识库仍被助手引用，请先在「助手管理」中解除知识库绑定后再删除。",
+      tApiMessage(locale, "knowledgeBaseReferencedByAssistant"),
       HttpStatus.CONFLICT,
     );
   }

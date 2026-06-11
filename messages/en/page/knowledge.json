@@ -1,0 +1,8 @@
+{
+  "meta": {
+    "title": "{name} | Knowledge preview",
+    "titleFallback": "Knowledge preview",
+    "description": "Preview knowledge base content."
+  },
+  "backToKnowledgeBases": "Back to knowledge bases"
+}

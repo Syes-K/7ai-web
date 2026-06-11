@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "title": "配置管理 | 管理后台",
+    "description": "对话摘要与系统配置。"
+  },
+  "title": "配置管理",
+  "section": {
+    "conversationSummary": "对话摘要"
+  },
+  "form": {
+    "enabled": {
+      "label": "启用对话摘要",
+      "hint": "关闭后对话链路不再挂载摘要中间件；开启后按下方参数与提示词模版生成会话级摘要。",
+      "rules": {
+        "required": "请选择是否启用"
+      },
+      "option": {
+        "on": "启用",
+        "off": "关闭"
+      }
+    },
+    "maxChars": {
+      "label": "摘要最大字数",
+      "hint": "对应提示词中的 {maxChars}，用于约束模型生成摘要时的正文长度（按字符计，含标点与空格）。仅作提示词参数，服务端不会对摘要结果做二次截断。",
+      "rules": {
+        "required": "请输入摘要最大字数",
+        "range": "请输入 1~{max} 的整数"
+      }
+    },
+    "mode": {
+      "label": "摘要触发模式",
+      "hint": "按消息条数：累计若干条对话后触发摘要；按 Token：按估算 token 量触发。触发后较早内容会折叠进摘要，与「保留窗口」配合使用。",
+      "rules": {
+        "required": "请选择模式"
+      },
+      "option": {
+        "messages": "按消息条数",
+        "tokens": "按 Token 估算"
+      }
+    },
+    "triggerMessages": {
+      "label": "触发阈值（消息条数）",
+      "hint": "当消息条数达到该值时触发摘要，将更早的消息折叠进摘要。",
+      "rules": {
+        "required": "请输入触发阈值",
+        "range": "请输入 1~{max} 的整数"
+      }
+    },
+    "keepMessages": {
+      "label": "保留窗口（消息条数）",
+      "hint": "在最近对话中保留多少条消息不折叠；与摘要中间件的 keep.messages 一致。",
+      "rules": {
+        "required": "请输入保留窗口",
+        "range": "请输入 1~{max} 的整数"
+      }
+    },
+    "triggerTokens": {
+      "label": "触发阈值（Token）",
+      "hint": "当累计上下文 token 估算超过该值时触发摘要，将更早的消息折叠进摘要。",
+      "rules": {
+        "required": "请输入触发阈值",
+        "range": "请输入 1~{max} 的整数"
+      }
+    },
+    "keepTokens": {
+      "label": "保留窗口（Token）",
+      "hint": "在最近对话中保留约多少 token 规模的原文不折叠；与 LangChain 摘要中间件的 keep.tokens 一致。",
+      "rules": {
+        "required": "请输入保留窗口",
+        "range": "请输入 1~{max} 的整数"
+      }
+    },
+    "minRecentMessages": {
+      "label": "最少保留消息条数",
+      "hint": "摘要后至少保留最近多少条原文消息（无论当前模式是 messages 还是 tokens），用于保留近几轮细节。",
+      "rules": {
+        "required": "请输入最少保留消息条数",
+        "range": "请输入 1~{max} 的整数"
+      }
+    }
+  },
+  "actions": {
+    "resetDefaults": "恢复默认",
+    "save": "保存"
+  },
+  "toast": {
+    "saved": "保存成功",
+    "loadFailed": "加载对话摘要配置失败",
+    "saveFailed": "保存失败"
+  },
+  "fileState": {
+    "invalidJson": {
+      "title": "配置文件无法解析",
+      "description": "已回退到默认配置，保存后将覆盖为合法 JSON。"
+    }
+  },
+  "hint": {
+    "promptTemplates": "摘要提示词请在 <link>提示词模版</link> 页面维护（`contextSummarySystem` / `summarySystemPrefix`）。"
+  }
+}

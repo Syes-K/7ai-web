@@ -19,7 +19,6 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Space,
   Tag,
   Tooltip,
 } from "antd";
@@ -36,6 +35,10 @@ import {
 import type { AssistantListItem } from "@/common/types";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
+import {
+  TABLE_ACTION_BTN_CLASS,
+  TableRowActions,
+} from "@/components/ui/table-row-actions";
 import { Link } from "@/i18n/navigation";
 
 const API_BASE = "/api/console/assistants";
@@ -147,12 +150,12 @@ function getAssistantColumns(
         const isSystem = row.scope === "system";
         const systemTip = t("tooltip.systemMaintainAdmin");
         return (
-          <Space size="small">
+          <TableRowActions>
             {isSystem ? (
               <Button
                 type="link"
                 size="small"
-                className="px-0"
+                className={TABLE_ACTION_BTN_CLASS}
                 icon={<EyeOutlined />}
                 onClick={() => openView(row)}
               >
@@ -164,7 +167,7 @@ function getAssistantColumns(
                 <Button
                   type="link"
                   size="small"
-                  className="px-0"
+                  className={TABLE_ACTION_BTN_CLASS}
                   icon={<EditOutlined />}
                   disabled={isSystem}
                   onClick={() => openEdit(row)}
@@ -188,7 +191,7 @@ function getAssistantColumns(
                     type="link"
                     danger
                     size="small"
-                    className="px-0"
+                    className={TABLE_ACTION_BTN_CLASS}
                     icon={<DeleteOutlined />}
                     loading={busy}
                     disabled={isSystem}
@@ -198,7 +201,7 @@ function getAssistantColumns(
                 </Popconfirm>
               </span>
             </Tooltip>
-          </Space>
+          </TableRowActions>
         );
       },
     },

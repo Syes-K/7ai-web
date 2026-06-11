@@ -4,8 +4,6 @@ import {
   KNOWLEDGE_BASE_CONTENT_MAX_LENGTH,
   KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH,
   KNOWLEDGE_BASE_NAME_MAX_LENGTH,
-  KNOWLEDGE_BASE_TAG_MAX_LENGTH,
-  KNOWLEDGE_BASE_TAGS_MAX_COUNT,
 } from "@/common/constants";
 import { ErrorCode, HttpStatus } from "@/common/enums";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
@@ -14,6 +12,9 @@ import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { vectorizeKnowledgeBase } from "@/server/knowledge-base/vectorize";
+import { validateKnowledgeBaseTags } from "@/server/knowledge-base/validate-tags";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -25,32 +26,6 @@ type PostBody = {
   content?: unknown;
   sourceType?: unknown;
 };
-
-function normalizeTags(raw: unknown): { ok: true; tags: string[] } | { ok: false; message: string } {
-  if (raw === undefined || raw === null) return { ok: true, tags: [] };
-  if (!Array.isArray(raw)) return { ok: false, message: "须为字符串数组" };
-  const tags = raw
-    .filter((t) => typeof t === "string")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-  if (tags.length > KNOWLEDGE_BASE_TAGS_MAX_COUNT) {
-    return { ok: false, message: `最多 ${KNOWLEDGE_BASE_TAGS_MAX_COUNT} 个` };
-  }
-  for (const t of tags) {
-    if (t.length > KNOWLEDGE_BASE_TAG_MAX_LENGTH) {
-      return { ok: false, message: `单个标签最长 ${KNOWLEDGE_BASE_TAG_MAX_LENGTH} 字` };
-    }
-  }
-  const out: string[] = [];
-  const set = new Set<string>();
-  for (const t of tags) {
-    if (!set.has(t)) {
-      set.add(t);
-      out.push(t);
-    }
-  }
-  return { ok: true, tags: out };
-}
 
 function trimString(raw: unknown): string {
   return typeof raw === "string" ? raw.trim() : "";
@@ -79,12 +54,17 @@ function kbDto(row: KnowledgeBase, includeContent: boolean) {
 }
 
 /**
- * GET /api/knowledge-bases
+ * GET /api/knowledge-bases — 列出当前用户知识库；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -109,12 +89,17 @@ export const GET = withApiWrapper(async (request: Request) => {
 });
 
 /**
- * POST /api/knowledge-bases
+ * POST /api/knowledge-bases — 新建知识库并触发向量化。
  */
 export const POST = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -122,27 +107,37 @@ export const POST = withApiWrapper(async (request: Request) => {
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
   const name = trimString(body.name);
-  if (!name) details.push({ field: "name", message: "不能为空" });
-  else if (name.length > KNOWLEDGE_BASE_NAME_MAX_LENGTH) {
-    details.push({ field: "name", message: `长度不能超过 ${KNOWLEDGE_BASE_NAME_MAX_LENGTH}` });
+  if (!name) {
+    details.push({ field: "name", message: tApiMessage(locale, "validation.required") });
+  } else if (name.length > KNOWLEDGE_BASE_NAME_MAX_LENGTH) {
+    details.push({
+      field: "name",
+      message: tApiMessage(locale, "validation.maxLength", { max: KNOWLEDGE_BASE_NAME_MAX_LENGTH }),
+    });
   }
 
   const descriptionRaw = body.description;
   let description: string | null = null;
   if (descriptionRaw !== undefined && descriptionRaw !== null) {
     if (typeof descriptionRaw !== "string") {
-      details.push({ field: "description", message: "须为字符串或 null" });
+      details.push({ field: "description", message: tApiMessage(locale, "validation.stringOrNull") });
     } else {
       const d = descriptionRaw.trim();
       if (d.length > KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH) {
         details.push({
           field: "description",
-          message: `长度不能超过 ${KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", {
+            max: KNOWLEDGE_BASE_DESCRIPTION_MAX_LENGTH,
+          }),
         });
       } else {
         description = d.length > 0 ? d : null;
@@ -150,32 +145,41 @@ export const POST = withApiWrapper(async (request: Request) => {
     }
   }
 
-  const tagsParsed = normalizeTags(body.tags);
-  if (!tagsParsed.ok) details.push({ field: "tags", message: tagsParsed.message });
+  const tagsParsed = validateKnowledgeBaseTags(body.tags, locale);
+  if (!tagsParsed.ok) {
+    details.push({ field: "tags", message: tagsParsed.message });
+  }
 
   const contentFormat = trimString(body.contentFormat);
   if (contentFormat !== "markdown" && contentFormat !== "plain") {
-    details.push({ field: "contentFormat", message: "须为 markdown 或 plain" });
+    details.push({
+      field: "contentFormat",
+      message: tApiMessage(locale, "validation.knowledgeBase.contentFormatEnum"),
+    });
   }
 
   const content = trimString(body.content);
-  if (!content) details.push({ field: "content", message: "不能为空" });
-  else if (codePointLen(content) > KNOWLEDGE_BASE_CONTENT_MAX_LENGTH) {
+  if (!content) {
+    details.push({ field: "content", message: tApiMessage(locale, "validation.required") });
+  } else if (codePointLen(content) > KNOWLEDGE_BASE_CONTENT_MAX_LENGTH) {
     details.push({
       field: "content",
-      message: `长度不能超过 ${KNOWLEDGE_BASE_CONTENT_MAX_LENGTH} 个字符`,
+      message: tApiMessage(locale, "validation.maxLength", { max: KNOWLEDGE_BASE_CONTENT_MAX_LENGTH }),
     });
   }
 
   const sourceType = trimString(body.sourceType || "text");
   if (sourceType !== "text") {
-    details.push({ field: "sourceType", message: "本期仅支持 text" });
+    details.push({
+      field: "sourceType",
+      message: tApiMessage(locale, "validation.knowledgeBase.sourceTypeTextOnly"),
+    });
   }
 
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -189,7 +193,7 @@ export const POST = withApiWrapper(async (request: Request) => {
     name,
     description,
     tags: tagsParsed.ok && tagsParsed.tags.length > 0 ? tagsParsed.tags : null,
-    contentFormat: contentFormat as any,
+    contentFormat: contentFormat as "markdown" | "plain",
     content,
     sourceType: "text",
     vectorStatus: "pending",
@@ -204,14 +208,19 @@ export const POST = withApiWrapper(async (request: Request) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.toLowerCase().includes("unique")) {
+      const conflictMsg = tApiMessage(locale, "validation.knowledgeBase.nameConflict");
       return jsonError(
         ErrorCode.VALIDATION_ERROR,
-        "名称已存在",
+        conflictMsg,
         HttpStatus.UNPROCESSABLE_ENTITY,
-        [{ field: "name", message: "名称已存在，请更换名称" }],
+        [{ field: "name", message: conflictMsg }],
       );
     }
-    return jsonError(ErrorCode.INTERNAL_ERROR, "保存失败，请稍后重试", HttpStatus.INTERNAL_SERVER_ERROR);
+    return jsonError(
+      ErrorCode.INTERNAL_ERROR,
+      tApiMessage(locale, "saveFailedRetry"),
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
 
   try {

@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "title": "Users | Admin",
+    "description": "Manage accounts, access mode, and passwords."
+  },
+  "title": "Users",
+  "subTitle": "Account operations: view status, adjust availability, reset passwords.",
+  "search": {
+    "placeholder": "Search by email or display name",
+    "button": "Search"
+  },
+  "toolbar": {
+    "refresh": "Refresh"
+  },
+  "columns": {
+    "user": "User",
+    "status": "Status",
+    "accessMode": "Access mode",
+    "loginLock": "Login failure lock",
+    "updatedAt": "Last updated",
+    "actions": "Actions"
+  },
+  "tag": {
+    "active": "Active",
+    "disabled": "Disabled",
+    "readOnly": "Read-only",
+    "readWrite": "Read-write",
+    "locked": "Locked",
+    "normal": "Normal"
+  },
+  "actions": {
+    "setReadOnly": "Set read-only",
+    "unsetReadOnly": "Remove read-only",
+    "enable": "Enable",
+    "disable": "Disable",
+    "resetPassword": "Reset password",
+    "retry": "Retry"
+  },
+  "tooltip": {
+    "cannotChangeOwnReadOnly": "You cannot change read-only for your own account. Use another admin.",
+    "cannotChangeOwnStatus": "You cannot change status for your own account. Use another admin.",
+    "cannotResetOwnPassword": "You cannot reset your own password from here."
+  },
+  "lockRemain": {
+    "aboutMinutes": "~{minutes} min left",
+    "lessThanOneMinute": "Less than 1 min"
+  },
+  "confirm": {
+    "disableUser": {
+      "title": "Disable this user?",
+      "content": "Disable 「{label}」. The user may not be able to sign in (per system policy).",
+      "ok": "Confirm disable"
+    },
+    "enableUser": {
+      "title": "Enable this user?",
+      "content": "Enable 「{label}」.",
+      "ok": "Confirm enable"
+    },
+    "setReadOnly": {
+      "title": "Set read-only account?",
+      "content": "Enable read-only for 「{label}」: only GET requests after sign-in.",
+      "ok": "Confirm read-only"
+    },
+    "unsetReadOnly": {
+      "title": "Remove read-only?",
+      "content": "Disable read-only for 「{label}」: restore write access.",
+      "ok": "Confirm remove read-only"
+    },
+    "resetPassword": {
+      "title": "Reset password for this user?",
+      "content": "Generate a new password for 「{label}」. Share only over a secure channel; do not display in public.",
+      "ok": "Confirm reset"
+    }
+  },
+  "toast": {
+    "disabled": "User disabled",
+    "enabled": "User enabled",
+    "readOnlyOn": "Read-only enabled",
+    "readOnlyOff": "Read-only removed",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed. Copy the password manually."
+  },
+  "alert": {
+    "listFailed": "Failed to load user list"
+  },
+  "empty": {
+    "loading": "Loading…",
+    "noUsers": "No users"
+  },
+  "pagination": {
+    "total": "{count} total"
+  },
+  "modal": {
+    "resetPassword": {
+      "title": "Password reset",
+      "body": "Temporary password for 「{label}」. Shown once only; share securely before closing.",
+      "warning": "Do not send via public chat groups. Ask the user to change password after first sign-in.",
+      "close": "Close",
+      "copyAndClose": "Copy password and close"
+    }
+  },
+  "hint": {
+    "lockDistributed": "Login failure lock is in-process state; in multi-instance deployments the list may not match the node that enforced the lock."
+  }
+}

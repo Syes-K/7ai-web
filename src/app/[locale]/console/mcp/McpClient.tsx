@@ -34,6 +34,10 @@ import { ErrorCode } from "@/common/enums";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
 import { readApiErrorPayload } from "@/components/auth/map-api-errors";
+import {
+  TABLE_ACTION_BTN_CLASS,
+  TableRowActions,
+} from "@/components/ui/table-row-actions";
 import { Link } from "@/i18n/navigation";
 
 type McpListItem = {
@@ -191,11 +195,11 @@ function getMcpColumns(t: McpT, ctx: McpColumnsCtx): ProColumns<McpListItem>[] {
         const testing = testingRowId === row.id;
         const loadingDetail = detailLoadingId === row.id;
         return (
-          <Space size="small">
+          <TableRowActions>
             <Button
               type="link"
               size="small"
-              className="px-0"
+              className={TABLE_ACTION_BTN_CLASS}
               icon={<ThunderboltOutlined />}
               loading={testing}
               disabled={loadingDetail}
@@ -206,7 +210,7 @@ function getMcpColumns(t: McpT, ctx: McpColumnsCtx): ProColumns<McpListItem>[] {
             <Button
               type="link"
               size="small"
-              className="px-0"
+              className={TABLE_ACTION_BTN_CLASS}
               icon={<EditOutlined />}
               loading={loadingDetail}
               onClick={() => void openEdit(row)}
@@ -226,14 +230,14 @@ function getMcpColumns(t: McpT, ctx: McpColumnsCtx): ProColumns<McpListItem>[] {
                 type="link"
                 danger
                 size="small"
-                className="px-0"
+                className={TABLE_ACTION_BTN_CLASS}
                 icon={<DeleteOutlined />}
                 loading={busy}
               >
                 {t("columns.delete")}
               </Button>
             </Popconfirm>
-          </Space>
+          </TableRowActions>
         );
       },
     },

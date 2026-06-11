@@ -6,15 +6,23 @@ import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { vectorizeKnowledgeBase } from "@/server/knowledge-base/vectorize";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) => {
+/** POST：重试知识库向量化；错误 message 随 locale 双语。 */
+export const POST = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -23,7 +31,11 @@ export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) =
   const repo = ds.getRepository(KnowledgeBase);
   const row = await repo.findOne({ where: { id, userId: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.KNOWLEDGE_BASE_NOT_FOUND,
+      tApiMessage(locale, "knowledgeBaseNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   try {
@@ -43,4 +55,3 @@ export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) =
     { status: HttpStatus.ACCEPTED, headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
 });
-

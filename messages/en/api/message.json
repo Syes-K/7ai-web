@@ -88,7 +88,44 @@
     "mcpEndpointArgsStringArray": "endpoint.args must be an array of strings.",
     "mcpEndpointUrlRequired": "A non-empty url is required.",
     "mcpEndpointUrlInvalid": "Invalid url format.",
-    "mcpMetadataObjectOrNull": "metadata must be a JSON object or null."
+    "mcpMetadataObjectOrNull": "metadata must be a JSON object or null.",
+    "invalidUserStatus": "status must be Active or Disabled.",
+    "readOnlyMustBeBoolean": "readOnly must be a boolean.",
+    "atLeastOneUpdateField": "Provide at least one field to update.",
+    "promptConfig": {
+      "itemsRequired": "items must be a non-empty array.",
+      "itemMustBeObject": "Each item must be an object.",
+      "keyStringRequired": "key must be a string.",
+      "valueStringRequired": "value must be a string.",
+      "onlyKeyValueAllowed": "Only key and value fields are allowed.",
+      "duplicateKey": "Duplicate key.",
+      "exactItemCount": "Must contain exactly {count} configuration items.",
+      "missingKey": "Missing configuration item: {key}.",
+      "valueRequired": "value for {key} cannot be empty.",
+      "valueEmpty": "value cannot be empty.",
+      "unknownKey": "Unknown configuration item: {key}.",
+      "template": {
+        "invalidBrace": "Template contains invalid \"{\" placeholders. Use {paramName} only; names must match declared parameters below.",
+        "undeclaredParam": "Template uses undeclared parameter: {{{param}}}."
+      }
+    },
+    "conversationSummary": {
+      "configMustBeObject": "config must be an object.",
+      "unsupportedField": "Unsupported field: {field}.",
+      "enabledBoolean": "enabled must be a boolean.",
+      "integerRange": "Must be an integer from {min} to {max}.",
+      "modeEnum": "mode must be tokens or messages."
+    },
+    "knowledgeBase": {
+      "tagsArrayRequired": "tags must be an array of strings.",
+      "tagsMaxCount": "At most {max} tags allowed.",
+      "tagMaxLength": "Each tag must be at most {max} characters.",
+      "contentFormatEnum": "contentFormat must be markdown or plain.",
+      "sourceTypeTextOnly": "Only sourceType \"text\" is supported in this release.",
+      "nameConflict": "A knowledge base with this name already exists.",
+      "topKRange": "topK must be an integer from 1 to 20.",
+      "thresholdRange": "threshold must be a number from 0 to 1."
+    }
   },
   "captchaRequired": "Complete the verification code.",
   "captchaInvalid": "Verification code is incorrect or expired. Refresh and try again.",
@@ -101,6 +138,18 @@
   "authLoginLocked": "Too many failed sign-in attempts. {minutes, plural, one {Try again in # minute.} other {Try again in # minutes.}}",
   "conversationNotFound": "This conversation does not exist or was removed.",
   "assistantNotFound": "The selected assistant does not exist or is unavailable.",
+  "knowledgeBaseNotFound": "Knowledge base not found.",
+  "knowledgeBaseReferencedByAssistant": "Cannot delete: this knowledge base is still linked to one or more assistants. Remove it from Assistant management first.",
+  "knowledgeBaseChunkTestUnavailable": "Vectorization is not complete; chunk test is unavailable.",
+  "admin": {
+    "cannotResetOwnPassword": "You cannot reset your own password from the admin panel. Use account settings or another admin account.",
+    "cannotChangeOwnStatus": "You cannot change read-only or status for your own account. Use another admin account.",
+    "readPromptConfigFailed": "Could not read prompt configuration file.",
+    "readConversationSummaryFailed": "Could not read conversation summary configuration.",
+    "saveFailedCheckPermissions": "Could not save. Check disk permissions or try again later.",
+    "conversationSummarySaveFailed": "Could not save conversation summary configuration.",
+    "writeVerifyFailed": "Save appeared to succeed but verification read failed."
+  },
   "modelError": "The model failed to respond. Try again later.",
   "readOnlyAccountBlocked": "This test account is read-only. You cannot create, edit, or delete data.",
   "createConversationFailed": "Could not create the conversation. Try again later.",

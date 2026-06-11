@@ -39,7 +39,15 @@
     "public": "公有",
     "private": "私有",
     "dataError": "数据异常",
-    "embedding": "嵌入"
+    "model": {
+      "free": "免费",
+      "text": "文本",
+      "video": "视频",
+      "audio": "声音",
+      "embedding": "嵌入",
+      "rerank": "重排",
+      "chat": "对话"
+    }
   },
   "tooltip": {
     "publicEditAdmin": "公有模型请在管理后台编辑",

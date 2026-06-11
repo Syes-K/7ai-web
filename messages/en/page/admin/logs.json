@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "title": "Logs | Admin",
+    "description": "System log search (in development)."
+  },
+  "title": "Logs",
+  "placeholder": {
+    "description": "Log search and audit is in development.",
+    "emptyDescription": "This module is under development; system management capabilities will follow."
+  }
+}

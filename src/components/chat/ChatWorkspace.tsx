@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { LanguageSwitcher } from "@/components/home/LanguageSwitcher";
+import { HEADER_ACTION_ICON_CLASS } from "@/components/layout/header-action-link";
 import dayjs from "dayjs";
 import { MessageRole } from "@/common/enums";
 import {
@@ -1722,13 +1723,13 @@ export function ChatWorkspace({
             <div className="min-w-0 shrink">
               <BrandMark className="text-left text-sm" />
             </div>
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-1">
               <LanguageSwitcher namespace="page.chat" variant="shell" />
               <Link
                 href="/console/profile"
                 title={t("header.console.title")}
                 aria-label={t("header.console.ariaLabel")}
-                className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800/70 hover:text-cyan-200/90"
+                className={`${HEADER_ACTION_ICON_CLASS} text-zinc-400 hover:text-cyan-200/90`}
               >
                 <IconConfig />
               </Link>
@@ -1738,7 +1739,7 @@ export function ChatWorkspace({
                 aria-label={t("header.clearMessages.ariaLabel")}
                 onClick={handleClear}
                 disabled={!selectedId}
-                className="inline-flex shrink-0 items-center justify-center rounded-lg p-2 text-rose-200/90 hover:bg-rose-950/35 disabled:opacity-40"
+                className={`${HEADER_ACTION_ICON_CLASS} text-rose-200/90 hover:bg-rose-950/35 disabled:opacity-40`}
               >
                 <IconTrash />
               </button>

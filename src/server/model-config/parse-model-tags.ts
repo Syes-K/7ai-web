@@ -1,12 +1,12 @@
 import {
-  MODEL_CONFIG_TAG_OPTION_SET,
   MODEL_CONFIG_TAG_OPTIONS,
   type ModelConfigTag,
-} from "@/common/constants";
+  resolveModelConfigTagKey,
+} from "@/common/model-config/model-tags";
 import type { AppLocale } from "@/common/constants/i18n";
 import { tApiMessage } from "@/server/i18n/t-api-message";
 
-/** 从库中读出的 JSON 数组规范为合法标签（过滤未知值、去重保序） */
+/** 从库中读出的 JSON 数组规范为合法标签（兼容旧中文、过滤未知值、去重保序） */
 export function normalizeStoredModelTags(
   raw: string[] | null | undefined,
 ): ModelConfigTag[] {
@@ -14,14 +14,15 @@ export function normalizeStoredModelTags(
   const out: ModelConfigTag[] = [];
   const seen = new Set<string>();
   for (const t of tagsRaw) {
-    if (typeof t !== "string" || !MODEL_CONFIG_TAG_OPTION_SET.has(t)) {
+    if (typeof t !== "string") {
       continue;
     }
-    if (seen.has(t)) {
+    const key = resolveModelConfigTagKey(t);
+    if (!key || seen.has(key)) {
       continue;
     }
-    seen.add(t);
-    out.push(t as ModelConfigTag);
+    seen.add(key);
+    out.push(key);
   }
   return out;
 }
@@ -48,7 +49,7 @@ export function parseModelConfigTags(
   }
   const out: ModelConfigTag[] = [];
   const seen = new Set<string>();
-  const allowedHint = MODEL_CONFIG_TAG_OPTIONS.join("、");
+  const allowedHint = MODEL_CONFIG_TAG_OPTIONS.join(", ");
   for (const raw of input) {
     if (typeof raw !== "string") {
       return {
@@ -56,21 +57,18 @@ export function parseModelConfigTags(
         message: tApiMessage(locale, "validation.tagMustBeString"),
       };
     }
-    const t = raw.trim();
-    if (t.length === 0) {
-      continue;
-    }
-    if (!MODEL_CONFIG_TAG_OPTION_SET.has(t)) {
+    const key = resolveModelConfigTagKey(raw);
+    if (!key) {
       return {
         ok: false,
         message: tApiMessage(locale, "validation.modelTagsAllowed", { allowed: allowedHint }),
       };
     }
-    if (seen.has(t)) {
+    if (seen.has(key)) {
       continue;
     }
-    seen.add(t);
-    out.push(t as ModelConfigTag);
+    seen.add(key);
+    out.push(key);
   }
   return { ok: true, tags: out };
 }

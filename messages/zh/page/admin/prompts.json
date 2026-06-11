@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "title": "提示词模版 | 管理后台",
+    "description": "系统提示词模版配置。"
+  },
+  "title": "提示词模版",
+  "actions": {
+    "reset": "重置",
+    "save": "保存"
+  },
+  "label": {
+    "configKey": "配置 key：{key}",
+    "supportedParams": "支持参数："
+  },
+  "form": {
+    "template": {
+      "rules": {
+        "required": "请输入模版正文",
+        "invalidBrace": "模版中存在非法的「{」占位符，请仅使用 {参数名} 形式（参数名为英文、数字、下划线，且须与下方已声明参数一致）",
+        "undeclaredParam": "模版中使用了未声明的参数：{param}"
+      }
+    },
+    "item": {
+      "ariaViewDesc": "查看说明：{name}"
+    }
+  },
+  "fileState": {
+    "invalidJson": {
+      "title": "配置文件无法解析",
+      "description": "已使用内置默认文案；保存后将写入合法 JSON 文件。"
+    }
+  },
+  "confirm": {
+    "reset": {
+      "title": "确认重置",
+      "content": "将把表单恢复为代码内置默认；当前未保存的编辑将丢失。若需使用重置的配置，请再点「保存」。",
+      "ok": "确认重置"
+    },
+    "save": {
+      "title": "确认保存",
+      "content": "将把当前表单中的提示词模版写入服务器。是否继续？",
+      "ok": "确认保存"
+    }
+  },
+  "toast": {
+    "saved": "保存成功",
+    "loadFailed": "加载配置失败",
+    "saveFailed": "保存失败"
+  },
+  "hint": {
+    "dev": {
+      "persistPath": "开发提示：持久化路径为项目根目录下 data/promptConfig.json（目录已加入 .gitignore）。"
+    }
+  },
+  "items": {
+    "contextSummarySystem": {
+      "name": "摘要生成",
+      "desc": "用于生成会话滚动摘要时的后台系统提示词。该提示仅在后台自动刷新会话摘要时使用，非用户与模型直接对话时调用。",
+      "params": {
+        "maxChars": "摘要的总字符数限制（服务端注入）",
+        "messages": "待摘要的多轮对话正文；由 LangChain summarizationMiddleware 在运行时注入，勿删占位符"
+      },
+      "defaultValue": "你是对话摘要助手。用户将提供当前会话的全部多轮对话（与后续对话请求里单独传入的「最近若干条原文」在内容上会有重叠，属预期行为）。请用简洁中文压缩为一段连续摘要，保留：关键事实、专有名词、用户约束与已达成共识的决策。不要编造。不要使用 markdown 标题。\n\n【长度】输出正文总长度必须不超过 {maxChars} 个字符（与常见语言中字符串的字符长度计数一致，含标点与空格）。若难以在限制内覆盖全部细节，请优先保留最关键信息，并自然收尾，避免像在句子中途被截断。不要输出字数统计或任何与摘要正文无关的说明。\n\n【待摘要的多轮对话】\n{messages}"
+    },
+    "summarySystemPrefix": {
+      "name": "摘要注入前缀",
+      "desc": "会话内容超出「最近N条/tokens」窗口后，服务端会在传给模型的消息最前插入一条 system 摘要消息，帮助模型补充对更早上下文的理解，从而减少因上下文裁剪导致的信息缺失。此摘要只作为上下文提示使用，用户界面的消息列表仍可查看所有原文。",
+      "defaultValue": "以下是本对话更早内容的摘要，供你理解上下文（用户界面上的消息列表中仍有完整原文可供其查阅）："
+    }
+  }
+}

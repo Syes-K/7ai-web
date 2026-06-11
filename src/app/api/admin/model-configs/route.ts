@@ -18,6 +18,8 @@ import { encryptApiKey } from "@/server/model-config/api-key-crypto";
 import { parseModelProvider } from "@/server/model-config/parse-provider";
 import { parseModelConfigTags } from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -51,16 +53,19 @@ type PostBody = {
 };
 
 /**
- * GET：分页列出公有模型配置（管理后台）。
+ * GET：分页列出公有模型配置（管理后台）；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper([withAdminApi], async (_admin, request, _ctx) => {
+  const locale = resolveRequestLocale(request);
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), CONSOLE_MODEL_LIST_DEFAULT_PAGE);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));
   if (page === null || pageSize === null) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      `分页参数非法：page 须为 ≥1 的整数，pageSize 须为 1–${CONSOLE_MODEL_LIST_MAX_PAGE_SIZE} 的整数`,
+      tApiMessage(locale, "validation.paginationParamsInvalid", {
+        maxPageSize: CONSOLE_MODEL_LIST_MAX_PAGE_SIZE,
+      }),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -90,11 +95,16 @@ export const GET = withApiWrapper([withAdminApi], async (_admin, request, _ctx) 
  * POST：新建公有模型（全站可选用；归属当前管理员 userId 便于审计）。
  */
 export const POST = withApiWrapper([withAdminApi], async (admin: User, request, _ctx) => {
+  const locale = resolveRequestLocale(request);
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
@@ -102,28 +112,30 @@ export const POST = withApiWrapper([withAdminApi], async (admin: User, request, 
   if (!provider) {
     details.push({
       field: "provider",
-      message: "须为 ALYUN、GLM、DEEPSEEK、KIMI、SILICONFLOW 之一",
+      message: tApiMessage(locale, "validation.invalidModelProvider"),
     });
   }
 
   const modelNameRaw = typeof body.modelName === "string" ? body.modelName.trim() : "";
   if (!modelNameRaw) {
-    details.push({ field: "modelName", message: "不能为空" });
+    details.push({ field: "modelName", message: tApiMessage(locale, "validation.required") });
   } else if (modelNameRaw.length > CONSOLE_MODEL_NAME_MAX_LENGTH) {
     details.push({
       field: "modelName",
-      message: `长度不能超过 ${CONSOLE_MODEL_NAME_MAX_LENGTH}`,
+      message: tApiMessage(locale, "validation.maxLength", {
+        max: CONSOLE_MODEL_NAME_MAX_LENGTH,
+      }),
     });
   }
 
   const apiKeyRaw = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
   if (!apiKeyRaw) {
-    details.push({ field: "apiKey", message: "不能为空" });
+    details.push({ field: "apiKey", message: tApiMessage(locale, "validation.apiKeyRequired") });
   }
 
   let tagsToSave: ModelConfigTag[] = [];
   if (body.tags !== undefined) {
-    const parsed = parseModelConfigTags(body.tags);
+    const parsed = parseModelConfigTags(body.tags, locale);
     if (!parsed.ok) {
       details.push({ field: "tags", message: parsed.message });
     } else {
@@ -134,7 +146,7 @@ export const POST = withApiWrapper([withAdminApi], async (admin: User, request, 
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -153,7 +165,7 @@ export const POST = withApiWrapper([withAdminApi], async (admin: User, request, 
     );
     return jsonError(
       ErrorCode.INTERNAL_ERROR,
-      "服务端配置异常，无法保存密钥",
+      tApiMessage(locale, "serverConfigCannotSaveSecrets"),
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
@@ -180,7 +192,7 @@ export const POST = withApiWrapper([withAdminApi], async (admin: User, request, 
     );
     return jsonError(
       ErrorCode.INTERNAL_ERROR,
-      "保存失败，请稍后重试",
+      tApiMessage(locale, "saveFailedRetry"),
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }

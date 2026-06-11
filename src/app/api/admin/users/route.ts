@@ -6,8 +6,13 @@ import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { userToAdminRow } from "@/server/user-admin/map-to-dto";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
+
+/** 管理端用户列表 pageSize 上限（与现网一致）。 */
+const ADMIN_USER_LIST_MAX_PAGE_SIZE = 100;
 
 function parsePage(s: string | null, fallback: number): number | null {
   if (s === null || s === "") {
@@ -25,23 +30,26 @@ function parsePageSize(s: string | null): number | null {
     return 20;
   }
   const n = Number.parseInt(s, 10);
-  if (!Number.isFinite(n) || n < 1 || n > 100) {
+  if (!Number.isFinite(n) || n < 1 || n > ADMIN_USER_LIST_MAX_PAGE_SIZE) {
     return null;
   }
   return n;
 }
 
 /**
- * GET：分页用户列表，可选关键字 `q`（匹配 email / nickName）。
+ * GET：分页用户列表，可选关键字 `q`（匹配 email / nickName）；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper([withAdminApi], async (_admin, request, _ctx) => {
+  const locale = resolveRequestLocale(request);
   const url = new URL(request.url);
   const page = parsePage(url.searchParams.get("page"), 1);
   const pageSize = parsePageSize(url.searchParams.get("pageSize"));
   if (page === null || pageSize === null) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "分页参数非法：page 须为 ≥1 的整数，pageSize 须为 1–100 的整数",
+      tApiMessage(locale, "validation.paginationParamsInvalid", {
+        maxPageSize: ADMIN_USER_LIST_MAX_PAGE_SIZE,
+      }),
       HttpStatus.BAD_REQUEST,
     );
   }

@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "title": "Prompt templates | Admin",
+    "description": "System prompt template configuration."
+  },
+  "title": "Prompt templates",
+  "actions": {
+    "reset": "Reset",
+    "save": "Save"
+  },
+  "label": {
+    "configKey": "Config key: {key}",
+    "supportedParams": "Supported parameters:"
+  },
+  "form": {
+    "template": {
+      "rules": {
+        "required": "Enter template body.",
+        "invalidBrace": "Template contains invalid \"{\" placeholders. Use {paramName} only (ASCII identifier matching declared parameters).",
+        "undeclaredParam": "Template uses undeclared parameter: {param}"
+      }
+    },
+    "item": {
+      "ariaViewDesc": "View description: {name}"
+    }
+  },
+  "fileState": {
+    "invalidJson": {
+      "title": "Configuration file could not be parsed",
+      "description": "Showing built-in defaults. Saving will write a valid JSON file."
+    }
+  },
+  "confirm": {
+    "reset": {
+      "title": "Confirm reset",
+      "content": "Restore built-in defaults; unsaved edits will be lost. Click Save to persist.",
+      "ok": "Confirm reset"
+    },
+    "save": {
+      "title": "Confirm save",
+      "content": "Write current templates to the server. Continue?",
+      "ok": "Confirm save"
+    }
+  },
+  "toast": {
+    "saved": "Saved",
+    "loadFailed": "Failed to load configuration",
+    "saveFailed": "Could not save."
+  },
+  "hint": {
+    "dev": {
+      "persistPath": "Dev note: persisted at project root data/promptConfig.json (directory is in .gitignore)."
+    }
+  },
+  "items": {
+    "contextSummarySystem": {
+      "name": "Summary generation",
+      "desc": "Background system prompt used when automatically refreshing rolling conversation summaries. Not used for direct user–model chat.",
+      "params": {
+        "maxChars": "Maximum character count for the summary (injected by the server).",
+        "messages": "Multi-turn conversation body to summarize; injected at runtime by LangChain summarizationMiddleware—do not remove the placeholder."
+      },
+      "defaultValue": "You are a conversation summary assistant. The user will provide the full multi-turn conversation for the current session (overlap with the most recent messages sent separately in later chat requests is expected). Compress into one continuous summary in concise English. Preserve key facts, proper nouns, user constraints, and agreed decisions. Do not invent facts. Do not use markdown headings.\n\n[Length] Total output must not exceed {maxChars} characters (typical string length, including punctuation and spaces). If you cannot cover everything within the limit, prioritize the most important information and finish naturally—avoid mid-sentence truncation. Do not output character counts or anything unrelated to the summary body.\n\n[Conversation to summarize]\n{messages}"
+    },
+    "summarySystemPrefix": {
+      "name": "Summary injection prefix",
+      "desc": "When conversation content exceeds the recent N messages/tokens window, the server inserts a system summary message at the front of messages passed to the model to supplement understanding of earlier context. The summary is context-only; the message list in the UI still shows full originals.",
+      "defaultValue": "Below is a summary of earlier content in this conversation for context (the message list in the UI still shows full originals):"
+    }
+  }
+}

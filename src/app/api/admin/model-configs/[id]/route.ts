@@ -14,6 +14,8 @@ import {
   parseModelConfigTags,
 } from "@/server/model-config/parse-model-tags";
 import { userModelConfigToListItem } from "@/server/model-config/user-model-config-dto";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -32,19 +34,24 @@ async function findPublicById(id: string): Promise<UserModelConfig | null> {
 }
 
 /**
- * GET：公有模型详情。
+ * GET：公有模型详情；错误 message 随 locale 双语。
  */
-export const GET = withApiWrapper([withAdminApi], async (_admin, _request, ctx) => {
+export const GET = withApiWrapper([withAdminApi], async (_admin, request, ctx) => {
+  const locale = resolveRequestLocale(request);
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const row = await findPublicById(id);
   if (!row) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
-      "模型配置不存在",
+      tApiMessage(locale, "modelConfigNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }
@@ -58,16 +65,25 @@ export const GET = withApiWrapper([withAdminApi], async (_admin, _request, ctx) 
  * PATCH：更新公有模型。
  */
 export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx) => {
+  const locale = resolveRequestLocale(request);
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   let body: PatchBody;
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -76,7 +92,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
   if (!row) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
-      "模型配置不存在",
+      tApiMessage(locale, "modelConfigNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }
@@ -92,7 +108,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
     if (!p) {
       details.push({
         field: "provider",
-        message: "须为 ALYUN、GLM、DEEPSEEK、KIMI、SILICONFLOW 之一",
+        message: tApiMessage(locale, "validation.invalidModelProvider"),
       });
     } else {
       nextProvider = p;
@@ -102,11 +118,13 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
   if (body.modelName !== undefined) {
     const name = typeof body.modelName === "string" ? body.modelName.trim() : "";
     if (!name) {
-      details.push({ field: "modelName", message: "不能为空" });
+      details.push({ field: "modelName", message: tApiMessage(locale, "validation.required") });
     } else if (name.length > CONSOLE_MODEL_NAME_MAX_LENGTH) {
       details.push({
         field: "modelName",
-        message: `长度不能超过 ${CONSOLE_MODEL_NAME_MAX_LENGTH}`,
+        message: tApiMessage(locale, "validation.maxLength", {
+          max: CONSOLE_MODEL_NAME_MAX_LENGTH,
+        }),
       });
     } else {
       nextModelName = name;
@@ -115,7 +133,10 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
 
   if (body.apiKey !== undefined) {
     if (typeof body.apiKey !== "string") {
-      details.push({ field: "apiKey", message: "须为字符串" });
+      details.push({
+        field: "apiKey",
+        message: tApiMessage(locale, "validation.apiKeyStringRequired"),
+      });
     } else {
       const trimmed = body.apiKey.trim();
       if (trimmed.length > 0) {
@@ -131,7 +152,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
           );
           return jsonError(
             ErrorCode.INTERNAL_ERROR,
-            "服务端配置异常，无法保存密钥",
+            tApiMessage(locale, "serverConfigCannotSaveSecrets"),
             HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
@@ -140,7 +161,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
   }
 
   if ("tags" in body) {
-    const parsed = parseModelConfigTags(body.tags);
+    const parsed = parseModelConfigTags(body.tags, locale);
     if (!parsed.ok) {
       details.push({ field: "tags", message: parsed.message });
     } else {
@@ -151,7 +172,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -172,10 +193,15 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin, request, ctx)
 /**
  * DELETE：删除公有模型，并清空全站用户对该 id 的偏好指针。
  */
-export const DELETE = withApiWrapper([withAdminApi], async (_admin, _request, ctx) => {
+export const DELETE = withApiWrapper([withAdminApi], async (_admin, request, ctx) => {
+  const locale = resolveRequestLocale(request);
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -183,7 +209,7 @@ export const DELETE = withApiWrapper([withAdminApi], async (_admin, _request, ct
   if (!row) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
-      "模型配置不存在",
+      tApiMessage(locale, "modelConfigNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }

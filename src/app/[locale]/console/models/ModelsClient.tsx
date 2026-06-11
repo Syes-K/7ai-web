@@ -17,7 +17,6 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Space,
   Tag,
   Tooltip,
 } from "antd";
@@ -26,33 +25,26 @@ import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   CONSOLE_MODEL_LIST_DEFAULT_PAGE_SIZE,
-  MODEL_CONFIG_TAG_OPTIONS,
   type ModelConfigTag,
 } from "@/common/constants";
+import {
+  formatModelConfigTag,
+  getModelConfigTagSelectOptions,
+} from "@/common/model-config/model-tag-ui";
 import { ModelProvider } from "@/common/enums";
 import type { ModelConfigListItem } from "@/common/types";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
 import {
+  TABLE_ACTION_BTN_CLASS,
+  TableRowActions,
+} from "@/components/ui/table-row-actions";
+import {
   getModelProviderOptions,
   getProviderTagProps,
 } from "./model-provider-ui";
 
-/** 嵌入能力标签（数据值，与后端校验一致） */
-const EMBEDDING_TAG = "嵌入";
-
 type ModalMode = "create" | "edit";
-
-/** 列表标签展示：嵌入标签走 i18n，其余保持原始数据值 */
-function formatModelTag(
-  tag: string,
-  t: ReturnType<typeof useTranslations<"page.console.models">>,
-): string {
-  if (tag === EMBEDDING_TAG) {
-    return t("tag.embedding");
-  }
-  return tag;
-}
 
 type ModelColumnsCtx = {
   deletingId: string | null;
@@ -97,7 +89,7 @@ function getModelColumns(
           <span className="flex flex-wrap gap-1">
             {row.tags.map((tag) => (
               <Tag key={tag} className="m-0">
-                {formatModelTag(tag, t)}
+                {formatModelConfigTag(tag, t)}
               </Tag>
             ))}
           </span>
@@ -144,11 +136,11 @@ function getModelColumns(
         const busy = ctx.deletingId === row.id;
         const isPublic = row.visibility === "public";
         return (
-          <Space size="small">
+          <TableRowActions>
             <Button
               type="link"
               size="small"
-              className="px-0"
+              className={TABLE_ACTION_BTN_CLASS}
               icon={<EditOutlined />}
               disabled={isPublic}
               title={isPublic ? t("tooltip.publicEditAdmin") : undefined}
@@ -169,7 +161,7 @@ function getModelColumns(
                 type="link"
                 danger
                 size="small"
-                className="px-0"
+                className={TABLE_ACTION_BTN_CLASS}
                 icon={<DeleteOutlined />}
                 loading={busy}
                 disabled={isPublic}
@@ -178,7 +170,7 @@ function getModelColumns(
                 {t("columns.delete")}
               </Button>
             </Popconfirm>
-          </Space>
+          </TableRowActions>
         );
       },
     },
@@ -491,10 +483,7 @@ export default function ModelsClient() {
                 allowClear
                 placeholder={t("form.tags.placeholder")}
                 className="w-full"
-                options={MODEL_CONFIG_TAG_OPTIONS.map((v) => ({
-                  label: formatModelTag(v, t),
-                  value: v,
-                }))}
+                options={getModelConfigTagSelectOptions(t)}
               />
             </Form.Item>
             <Form.Item

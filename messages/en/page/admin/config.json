@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "title": "Configuration | Admin",
+    "description": "Conversation summary and system configuration."
+  },
+  "title": "Configuration",
+  "section": {
+    "conversationSummary": "Conversation summary"
+  },
+  "form": {
+    "enabled": {
+      "label": "Enable conversation summary",
+      "hint": "When off, the chat pipeline skips summary middleware. When on, session-level summaries are generated using the parameters below and prompt templates.",
+      "rules": {
+        "required": "Select whether to enable."
+      },
+      "option": {
+        "on": "Enabled",
+        "off": "Disabled"
+      }
+    },
+    "maxChars": {
+      "label": "Max summary length (characters)",
+      "hint": "Maps to {maxChars} in the prompt template. Constrains model output length (characters, including spaces). Server does not truncate again after generation.",
+      "rules": {
+        "required": "Enter max summary length.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    },
+    "mode": {
+      "label": "Summary trigger mode",
+      "hint": "By message count: trigger after N messages. By tokens: trigger by estimated token count. Earlier content is folded into the summary; works with the keep window.",
+      "rules": {
+        "required": "Select a mode."
+      },
+      "option": {
+        "messages": "By message count",
+        "tokens": "By token estimate"
+      }
+    },
+    "triggerMessages": {
+      "label": "Trigger threshold (messages)",
+      "hint": "When message count reaches this value, earlier messages are folded into the summary.",
+      "rules": {
+        "required": "Enter trigger threshold.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    },
+    "keepMessages": {
+      "label": "Keep window (messages)",
+      "hint": "How many recent messages to keep unfolded; matches summary middleware keep.messages.",
+      "rules": {
+        "required": "Enter keep window.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    },
+    "triggerTokens": {
+      "label": "Trigger threshold (tokens)",
+      "hint": "When estimated context tokens exceed this value, earlier messages fold into the summary.",
+      "rules": {
+        "required": "Enter trigger threshold.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    },
+    "keepTokens": {
+      "label": "Keep window (tokens)",
+      "hint": "Approximate token size of recent dialogue to keep unfolded; matches keep.tokens.",
+      "rules": {
+        "required": "Enter keep window.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    },
+    "minRecentMessages": {
+      "label": "Minimum recent messages to keep",
+      "hint": "After summarization, keep at least this many recent messages (both modes), to preserve recent turns.",
+      "rules": {
+        "required": "Enter minimum recent messages.",
+        "range": "Enter an integer from 1 to {max}."
+      }
+    }
+  },
+  "actions": {
+    "resetDefaults": "Restore defaults",
+    "save": "Save"
+  },
+  "toast": {
+    "saved": "Saved",
+    "loadFailed": "Could not load conversation summary configuration.",
+    "saveFailed": "Could not save."
+  },
+  "fileState": {
+    "invalidJson": {
+      "title": "Configuration file could not be parsed",
+      "description": "Showing built-in defaults. Saving will overwrite with valid JSON."
+    }
+  },
+  "hint": {
+    "promptTemplates": "Edit summary prompts on the <link>Prompt templates</link> page (`contextSummarySystem` / `summarySystemPrefix`)."
+  }
+}

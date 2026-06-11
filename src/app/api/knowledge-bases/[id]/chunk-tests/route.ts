@@ -7,6 +7,8 @@ import { getDataSource } from "@/server/db/data-source";
 import { KnowledgeBase } from "@/server/db/entities/KnowledgeBase";
 import { retrieveKnowledgeBaseChunks } from "@/server/knowledge-base/search";
 import { resolveKnowledgePreferenceByUserId } from "@/server/knowledge-base/user-preference";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -24,47 +26,69 @@ function toNumber(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** POST：知识库分片召回测试；错误 message 随 locale 双语。 */
 export const POST = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await ctx.params;
   if (!id) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
   const query = typeof body.query === "string" ? body.query.trim() : "";
-  if (!query) details.push({ field: "query", message: "不能为空" });
+  if (!query) {
+    details.push({ field: "query", message: tApiMessage(locale, "validation.required") });
+  }
 
   const pref = await resolveKnowledgePreferenceByUserId(user.id);
 
   const topKRaw = toNumber(body.topK);
   const topK = topKRaw == null ? pref.topK : Math.floor(topKRaw);
   if (!Number.isFinite(topK) || topK < 1 || topK > 20) {
-    details.push({ field: "topK", message: "须为 1–20 的整数" });
+    details.push({
+      field: "topK",
+      message: tApiMessage(locale, "validation.knowledgeBase.topKRange"),
+    });
   }
 
   const thresholdRaw = toNumber(body.threshold);
   const threshold = thresholdRaw == null ? pref.threshold : thresholdRaw;
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
-    details.push({ field: "threshold", message: "须为 0–1 的数字" });
+    details.push({
+      field: "threshold",
+      message: tApiMessage(locale, "validation.knowledgeBase.thresholdRange"),
+    });
   }
 
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -74,13 +98,17 @@ export const POST = withApiWrapper(async (request: Request, ctx: RouteParams) =>
   const kbRepo = ds.getRepository(KnowledgeBase);
   const kb = await kbRepo.findOne({ where: { id, userId: user.id } });
   if (!kb) {
-    return jsonError(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.KNOWLEDGE_BASE_NOT_FOUND,
+      tApiMessage(locale, "knowledgeBaseNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   if (kb.vectorStatus !== "success") {
     return jsonError(
       ErrorCode.KNOWLEDGE_BASE_CHUNK_TEST_UNAVAILABLE,
-      "向量化未完成，暂不可测试",
+      tApiMessage(locale, "knowledgeBaseChunkTestUnavailable"),
       HttpStatus.UNPROCESSABLE_ENTITY,
     );
   }
@@ -121,4 +149,3 @@ export const POST = withApiWrapper(async (request: Request, ctx: RouteParams) =>
     { headers: { "Content-Type": "application/json; charset=utf-8" } },
   );
 });
-

@@ -3,10 +3,10 @@
 import {
   DeleteOutlined,
   EditOutlined,
-  ExperimentOutlined,
   EyeOutlined,
   PlusOutlined,
   ReloadOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { PageContainer, ProTable } from "@ant-design/pro-components";
@@ -36,6 +36,10 @@ import {
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import {
+  TABLE_ACTION_BTN_CLASS,
+  TableRowActions,
+} from "@/components/ui/table-row-actions";
 import { Link } from "@/i18n/navigation";
 
 type KnowledgeBaseListItem = {
@@ -160,11 +164,11 @@ function getKnowledgeColumns(
         const disabledReason = chunkTestDisabledReason(row.vectorStatus);
         const busy = deletingId === row.id;
         return (
-          <Space size="small">
+          <TableRowActions>
             <Button
               type="link"
               size="small"
-              className="px-0"
+              className={TABLE_ACTION_BTN_CLASS}
               icon={<EyeOutlined />}
               onClick={() => void openDetail(row)}
             >
@@ -175,8 +179,8 @@ function getKnowledgeColumns(
                 <Button
                   type="link"
                   size="small"
-                  className="px-0"
-                  icon={<ExperimentOutlined />}
+                  className={TABLE_ACTION_BTN_CLASS}
+                  icon={<ThunderboltOutlined />}
                   disabled
                 >
                   {t("columns.chunkTest")}
@@ -186,8 +190,8 @@ function getKnowledgeColumns(
               <Button
                 type="link"
                 size="small"
-                className="px-0"
-                icon={<ExperimentOutlined />}
+                className={TABLE_ACTION_BTN_CLASS}
+                icon={<ThunderboltOutlined />}
                 onClick={() => openChunkTest(row)}
               >
                 {t("columns.chunkTest")}
@@ -196,7 +200,7 @@ function getKnowledgeColumns(
             <Button
               type="link"
               size="small"
-              className="px-0"
+              className={TABLE_ACTION_BTN_CLASS}
               icon={<EditOutlined />}
               onClick={() => void openEdit(row)}
             >
@@ -222,14 +226,14 @@ function getKnowledgeColumns(
                 type="link"
                 danger
                 size="small"
-                className="px-0"
+                className={TABLE_ACTION_BTN_CLASS}
                 icon={<DeleteOutlined />}
                 loading={busy}
               >
                 {t("columns.delete")}
               </Button>
             </Popconfirm>
-          </Space>
+          </TableRowActions>
         );
       },
     },

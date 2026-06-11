@@ -15,9 +15,7 @@ import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
 import { Link, usePathname } from "@/i18n/navigation";
 import { getConsoleMenuRoutes } from "./console-menu";
 import { ConsoleForbiddenNotice } from "./ConsoleForbiddenNotice";
-
-const headerActionLinkClass =
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
+import { HEADER_ACTION_LINK_CLASS } from "@/components/layout/header-action-link";
 
 export default function ConsoleShell({
   children,
@@ -84,7 +82,7 @@ export default function ConsoleShell({
             <Link
               key="chat"
               href="/chat"
-              className={`${headerActionLinkClass} text-cyan-400/90 hover:text-cyan-300`}
+              className={`${HEADER_ACTION_LINK_CLASS} text-cyan-400/90 hover:text-cyan-300`}
             >
               <IconEmptyState className="h-4 w-4 shrink-0 text-current" />
               {t("chatLink")}

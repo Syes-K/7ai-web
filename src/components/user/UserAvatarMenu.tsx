@@ -8,10 +8,7 @@ import { useCallback } from "react";
 import { useCookieAppLocale } from "@/common/hooks/use-cookie-app-locale";
 import { getPageShellMessages } from "@/i18n/page-shell-messages";
 import { UserAvatar } from "./UserAvatar";
-
-/** 与 ProLayout 顶栏 `headerActionLinkClass` 一致，仅头像时无昵称行 */
-const TRIGGER_CLASS =
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-white/80 outline-none ring-cyan-400/80 transition hover:bg-white/10 focus-visible:ring-2";
+import { HEADER_ACTION_BUTTON_CLASS } from "@/components/layout/header-action-link";
 
 /** 首页登出后通知侧栏同步会话（见 PunkHomeHeader） */
 export const USER_SESSION_ENDED_EVENT = "7ai:session-ended";
@@ -84,7 +81,7 @@ export function UserAvatarMenu({
     >
       <button
         type="button"
-        className={TRIGGER_CLASS}
+        className={`${HEADER_ACTION_BUTTON_CLASS} text-white/80`}
         aria-label={resolvedAria}
       >
         <UserAvatar displayName={displayName} size="sm" />

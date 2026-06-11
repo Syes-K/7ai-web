@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "title": "Admin | 7ai-web",
+    "description": "System administration: users, configuration, models, prompts, and assistants."
+  },
+  "title": "Admin",
+  "skipToMain": "Skip to main content",
+  "chatLink": "Chat",
+  "consoleLink": "Console",
+  "menu": {
+    "config": "Configuration",
+    "users": "Users",
+    "models": "Models",
+    "prompts": "Prompt templates",
+    "logs": "Logs",
+    "assistants": "System assistants"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Language",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "errors": {
+    "requestFailed": "Request failed ({status}).",
+    "networkRetry": "Network error. Please try again later.",
+    "noAdminPermission": "You do not have admin permission."
+  }
+}

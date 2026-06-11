@@ -27,6 +27,7 @@ import type { ModelConfigListItem } from "@/common/types";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
 import { Link } from "@/i18n/navigation";
+import { formatModelConfigTag } from "@/common/model-config/model-tag-ui";
 import { getProviderTagProps } from "../models/model-provider-ui";
 
 /** 模型下拉展示：类型 + Provider + 名称 + 标签 */
@@ -43,7 +44,9 @@ function modelOptionLabel(
       : t("modelOption.private");
   const base = `[${vis}] [${pn}] ${row.modelName}`;
   const tagSuffix =
-    row.tags.length > 0 ? ` · ${row.tags.join(" · ")}` : "";
+    row.tags.length > 0
+      ? ` · ${row.tags.map((tag) => formatModelConfigTag(tag, tModels)).join(" · ")}`
+      : "";
   return `${base}${tagSuffix}`;
 }
 

@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "title": "Models (public) | Admin",
+    "description": "Site-wide public model configurations."
+  },
+  "title": "Models (public)",
+  "alert": {
+    "publicModelNotice": "Models created here are public: all signed-in users can see them and set defaults under Console → Profile & preferences."
+  },
+  "columns": {
+    "modelName": "Model name",
+    "type": "Type",
+    "tags": "Tags",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "updatedAt": "Last updated",
+    "actions": "Actions"
+  },
+  "tag": {
+    "public": "Public",
+    "dataError": "Data error",
+    "model": {
+      "free": "Free",
+      "text": "Text",
+      "video": "Video",
+      "audio": "Audio",
+      "embedding": "Embedding",
+      "rerank": "Rerank",
+      "chat": "Chat"
+    }
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "toolbar": {
+    "create": "New public model",
+    "refresh": "Refresh"
+  },
+  "empty": {
+    "noModels": "No public models yet"
+  },
+  "modal": {
+    "create": {
+      "title": "New public model"
+    },
+    "edit": {
+      "title": "Edit public model"
+    },
+    "ok": {
+      "create": "Create",
+      "save": "Save"
+    },
+    "cancel": "Cancel"
+  },
+  "form": {
+    "provider": {
+      "label": "Provider",
+      "rules": {
+        "required": "Select a provider."
+      },
+      "placeholder": "Select…"
+    },
+    "modelName": {
+      "label": "Model name",
+      "rules": {
+        "required": "Enter model name."
+      },
+      "placeholder": "e.g. moonshot-v1-8k"
+    },
+    "tags": {
+      "label": "Tags",
+      "extra": "Optional, multiple; none means no tags.",
+      "placeholder": "Select tags"
+    },
+    "apiKey": {
+      "label": "API key",
+      "rules": {
+        "required": "Enter API key."
+      },
+      "hint": {
+        "edit": "Leave blank to keep the saved key.",
+        "create": "Key from the provider console."
+      },
+      "placeholder": {
+        "edit": "Leave blank to keep unchanged",
+        "create": "Enter API key"
+      }
+    }
+  },
+  "provider": {
+    "aliyun": "Alibaba Cloud Bailian",
+    "glm": "Zhipu GLM",
+    "deepseek": "DeepSeek",
+    "kimi": "Moonshot Kimi",
+    "siliconflow": "SiliconFlow"
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this public model?",
+      "description": "Deleting 「{name}」 clears site-wide defaults that referenced it.",
+      "ok": "Delete"
+    }
+  },
+  "toast": {
+    "created": "Public model created",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  },
+  "pagination": {
+    "total": "{count} total"
+  }
+}
