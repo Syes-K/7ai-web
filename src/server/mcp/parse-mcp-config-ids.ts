@@ -1,10 +1,20 @@
+import type { AppLocale } from "@/common/constants/i18n";
 import type { JsonErrorDetail } from "@/server/http/json-response";
 import { MCP_CONFIG_MAX_PER_ASSISTANT } from "@/common/constants";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
-export function parseMcpConfigIdsField(raw: unknown, details: JsonErrorDetail[]): string[] | undefined {
+/** 解析助手挂载的 mcpConfigIds；message 经 locale 翻译后写入 details。 */
+export function parseMcpConfigIdsField(
+  raw: unknown,
+  details: JsonErrorDetail[],
+  locale: AppLocale,
+): string[] | undefined {
   if (raw === undefined) return undefined;
   if (!Array.isArray(raw)) {
-    details.push({ field: "mcpConfigIds", message: "须为字符串数组" });
+    details.push({
+      field: "mcpConfigIds",
+      message: tApiMessage(locale, "validation.mcpConfigIdsStringArray"),
+    });
     return undefined;
   }
   const ids = raw
@@ -15,7 +25,9 @@ export function parseMcpConfigIdsField(raw: unknown, details: JsonErrorDetail[])
   if (unique.length > MCP_CONFIG_MAX_PER_ASSISTANT) {
     details.push({
       field: "mcpConfigIds",
-      message: `最多挂载 ${MCP_CONFIG_MAX_PER_ASSISTANT} 个 MCP 配置`,
+      message: tApiMessage(locale, "validation.mcpConfigMaxPerAssistant", {
+        max: MCP_CONFIG_MAX_PER_ASSISTANT,
+      }),
     });
     return undefined;
   }

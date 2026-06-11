@@ -16,7 +16,12 @@ const OTHER_LOCALE: Record<AppLocale, AppLocale> = {
 type AuthNamespace = "page.login" | "page.register";
 type HomeNamespace = "page.home";
 type ChatNamespace = "page.chat";
-type SwitcherNamespace = HomeNamespace | AuthNamespace | ChatNamespace;
+type ConsoleShellNamespace = "page.console.shell";
+type SwitcherNamespace =
+  | HomeNamespace
+  | AuthNamespace
+  | ChatNamespace
+  | ConsoleShellNamespace;
 
 type LanguageSwitcherProps = {
   /** next-intl 命名空间，默认 page.home */

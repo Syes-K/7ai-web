@@ -30,7 +30,7 @@ import {
 } from "@/common/constants";
 import { ModelProvider } from "@/common/enums";
 import type { ModelConfigListItem } from "@/common/types";
-import { MODEL_PROVIDER_OPTIONS, providerTagProps } from "@/app/console/models/model-provider-ui";
+import { MODEL_PROVIDER_OPTIONS, providerTagProps } from "@/app/[locale]/console/models/model-provider-ui";
 
 async function parseApiError(res: Response): Promise<string> {
   const j = (await res.json().catch(() => null)) as {

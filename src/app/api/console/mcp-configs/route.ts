@@ -23,6 +23,8 @@ import {
   validateMcpName,
   validateMcpTransport,
 } from "@/server/mcp/mcp-config-validation";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -53,12 +55,17 @@ async function loadReferenceCountsByMcpId(ds: Awaited<ReturnType<typeof getDataS
 }
 
 /**
- * GET /api/console/mcp-configs — 当前用户的 MCP 配置列表。
+ * GET /api/console/mcp-configs — 当前用户的 MCP 配置列表；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -80,12 +87,17 @@ export const GET = withApiWrapper(async (request: Request) => {
 });
 
 /**
- * POST /api/console/mcp-configs — 新建 MCP 配置。
+ * POST /api/console/mcp-configs — 新建 MCP 配置；校验 details 经共享 helper + locale 翻译。
  */
 export const POST = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -93,25 +105,29 @@ export const POST = withApiWrapper(async (request: Request) => {
   try {
     body = (await request.json()) as PostBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const details: JsonErrorDetail[] = [];
   const name = trimString(body.name);
-  validateMcpName(name, details);
+  validateMcpName(name, details, locale);
 
   let description: string | null = null;
   if (Object.prototype.hasOwnProperty.call(body, "description")) {
-    const d = validateMcpDescription(body.description, details);
+    const d = validateMcpDescription(body.description, details, locale);
     if (d !== undefined) description = d;
   }
 
-  const transport = validateMcpTransport(body.transport, details);
-  const endpoint = validateMcpEndpoint(body.endpoint, details);
+  const transport = validateMcpTransport(body.transport, details, locale);
+  const endpoint = validateMcpEndpoint(body.endpoint, details, locale);
 
   let metadata: Record<string, unknown> | null = null;
   if (Object.prototype.hasOwnProperty.call(body, "metadata")) {
-    const m = validateMcpMetadata(body.metadata, details);
+    const m = validateMcpMetadata(body.metadata, details, locale);
     if (m !== undefined) metadata = m;
   }
 
@@ -121,15 +137,21 @@ export const POST = withApiWrapper(async (request: Request) => {
   let credentialsUpdatedAt: Date | null = null;
   if ("credentials" in body && body.credentials !== undefined && body.credentials !== null) {
     if (typeof body.credentials !== "string") {
-      details.push({ field: "credentials", message: "须为字符串或 null" });
+      details.push({
+        field: "credentials",
+        message: tApiMessage(locale, "validation.mcpCredentialsStringOrNull"),
+      });
     } else {
       const c = body.credentials.trim();
       if (c.length === 0) {
-        details.push({ field: "credentials", message: "不允许传空字符串；省略字段表示不配置密钥" });
+        details.push({
+          field: "credentials",
+          message: tApiMessage(locale, "validation.mcpCredentialsEmptyString"),
+        });
       } else if (!isMcpCredentialsMasterKeyConfigured()) {
         return jsonError(
           ErrorCode.MCP_CREDENTIALS_ENCRYPTION_UNAVAILABLE,
-          "服务端未配置 MCP 凭证加密主密钥（MCP_CREDENTIALS_MASTER_KEY），无法保存密钥。",
+          tApiMessage(locale, "mcpCredentialsEncryptionUnavailable"),
           HttpStatus.UNPROCESSABLE_ENTITY,
         );
       } else {
@@ -137,21 +159,35 @@ export const POST = withApiWrapper(async (request: Request) => {
           credentialsCipher = encryptMcpCredentials(c);
           credentialsUpdatedAt = new Date();
         } catch {
-          return jsonError(ErrorCode.INTERNAL_ERROR, "密钥加密失败", HttpStatus.INTERNAL_SERVER_ERROR);
+          return jsonError(
+            ErrorCode.INTERNAL_ERROR,
+            tApiMessage(locale, "credentialEncryptionFailed"),
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
         }
       }
     }
   }
 
   if (transport && endpoint) {
-    validateMcpEndpointShape(transport, endpoint, details);
+    validateMcpEndpointShape(transport, endpoint, details, locale);
   }
 
   if (details.length > 0) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求参数不合法", HttpStatus.UNPROCESSABLE_ENTITY, details);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidParams"),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      details,
+    );
   }
   if (!transport || !endpoint) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求参数不合法", HttpStatus.UNPROCESSABLE_ENTITY, details);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidParams"),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      details,
+    );
   }
 
   const ds = await getDataSource();
@@ -159,9 +195,12 @@ export const POST = withApiWrapper(async (request: Request) => {
   if (existingCount >= MCP_CONFIG_MAX_PER_USER) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      `单用户 MCP 配置最多 ${MCP_CONFIG_MAX_PER_USER} 条`,
+      tApiMessage(locale, "validation.mcpConfigLimitPerUser", { max: MCP_CONFIG_MAX_PER_USER }),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "name", message: "已达上限" }],
+      [{
+        field: "name",
+        message: tApiMessage(locale, "validation.mcpConfigLimitReached"),
+      }],
     );
   }
 
@@ -188,12 +227,21 @@ export const POST = withApiWrapper(async (request: Request) => {
     if (msg.toLowerCase().includes("unique")) {
       return jsonError(
         ErrorCode.MCP_CONFIG_NAME_CONFLICT,
-        "名称已存在",
+        tApiMessage(locale, "mcpConfigNameConflict"),
         HttpStatus.CONFLICT,
-        [{ field: "name", message: `同一用户下名称须唯一（最长 ${MCP_CONFIG_NAME_MAX_LENGTH} 字）` }],
+        [{
+          field: "name",
+          message: tApiMessage(locale, "validation.mcpConfigNameUnique", {
+            maxLength: MCP_CONFIG_NAME_MAX_LENGTH,
+          }),
+        }],
       );
     }
-    return jsonError(ErrorCode.INTERNAL_ERROR, "保存失败，请稍后重试", HttpStatus.INTERNAL_SERVER_ERROR);
+    return jsonError(
+      ErrorCode.INTERNAL_ERROR,
+      tApiMessage(locale, "saveFailedRetry"),
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
 
   const counts = await loadReferenceCountsByMcpId(ds, user.id);

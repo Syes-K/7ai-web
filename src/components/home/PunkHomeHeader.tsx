@@ -61,7 +61,7 @@ export function PunkHomeHeader() {
             {t("nav.chat")}
           </Link>
           <Link
-            href="/console"
+            href="/console/profile"
             className={`${headerActionLinkClass} text-white/80 hover:text-white`}
           >
             <IconConfig className="h-4 w-4 shrink-0 text-current" />

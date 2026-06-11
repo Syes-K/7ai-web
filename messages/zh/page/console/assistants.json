@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "title": "助手管理 | 控制台",
+    "description": "管理个人与系统助手"
+  },
+  "title": "助手管理",
+  "toolbar": {
+    "create": "新建助手",
+    "refresh": "刷新",
+    "searchPlaceholder": "搜索名称",
+    "scopePlaceholder": "范围"
+  },
+  "filter": {
+    "all": "全部",
+    "systemOnly": "仅系统",
+    "personalOnly": "仅个人"
+  },
+  "pagination": {
+    "total": "共 {total} 条"
+  },
+  "empty": {
+    "description": "暂无助手。您可新建个人助手，或由管理员在后台发布系统助手。"
+  },
+  "columns": {
+    "type": "类型",
+    "icon": "图标",
+    "name": "名称",
+    "tags": "标签",
+    "opening": "开场白",
+    "updatedAt": "最近更新",
+    "actions": "操作",
+    "view": "查看",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "tag": {
+    "system": "系统",
+    "personal": "个人"
+  },
+  "tooltip": {
+    "systemMaintainAdmin": "系统助手请在管理后台维护"
+  },
+  "drawer": {
+    "create": {
+      "title": "新建助手"
+    },
+    "edit": {
+      "title": "编辑助手"
+    },
+    "viewSystem": {
+      "title": "查看助手（系统）"
+    },
+    "ok": "保存",
+    "cancel": "取消",
+    "close": "关闭"
+  },
+  "form": {
+    "name": {
+      "label": "名称",
+      "rules": {
+        "required": "请输入名称",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "助手名称"
+    },
+    "prompt": {
+      "label": "提示词",
+      "rules": {
+        "required": "请输入提示词",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "模型 system / 行为说明"
+    },
+    "icon": {
+      "label": "图标（emoji）",
+      "rules": {
+        "max": "最多 {max} 字符"
+      },
+      "placeholder": "例如 🤖"
+    },
+    "opening": {
+      "label": "开场白",
+      "rules": {
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "可选"
+    },
+    "tags": {
+      "label": "标签",
+      "placeholder": "输入后回车添加"
+    },
+    "knowledgeBases": {
+      "label": "知识库（多选）",
+      "extra": "为该助手配置可用知识库；对话时将按需检索这些知识库。",
+      "placeholder": "请选择知识库"
+    },
+    "mcp": {
+      "label": "MCP（多选）",
+      "manageLink": "管理 MCP…",
+      "extra": "对话时为本助手加载对应工具；与是否使用知识库检索无关。",
+      "placeholder": "加载 MCP 列表…",
+      "inactiveSuffix": "（已停用）"
+    }
+  },
+  "section": {
+    "mcpMount": "MCP 挂载"
+  },
+  "alert": {
+    "noMcp": "您还没有可用的 MCP",
+    "noMcpAction": "请先到 <mcpLink>MCP 管理</mcpLink> 添加配置。",
+    "mcpInactive": "部分已挂载的 MCP 已停用",
+    "mcpInactiveDesc": "对话中不会加载已停用的 MCP，建议启用或移除。"
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该助手？",
+      "description": "「{name}」删除后不可恢复。"
+    }
+  },
+  "toast": {
+    "created": "已创建",
+    "saved": "已保存",
+    "deleted": "已删除",
+    "kbBindFailedOnCreate": "助手已创建，但知识库绑定保存失败",
+    "mcpBindFailedOnCreate": "助手已创建，但 MCP 挂载保存失败",
+    "kbBindFailedOnSave": "助手已保存，但知识库绑定保存失败",
+    "mcpBindFailedOnSave": "助手已保存，但 MCP 挂载保存失败"
+  }
+}

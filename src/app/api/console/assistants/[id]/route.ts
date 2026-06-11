@@ -17,6 +17,8 @@ import { findReadableAssistant } from "@/server/assistant/readable-assistant";
 import { getDataSource } from "@/server/db/data-source";
 import { Assistant } from "@/server/db/entities/Assistant";
 import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
@@ -30,21 +32,30 @@ type PatchBody = {
 };
 
 /**
- * GET：单条详情（系统助手或本人个人助手）。
+ * GET：单条详情（系统助手或本人个人助手）；错误 message 随 locale 双语。
  */
 export const GET = withApiWrapper(async (
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -52,7 +63,7 @@ export const GET = withApiWrapper(async (
   if (!row) {
     return jsonError(
       ErrorCode.ASSISTANT_NOT_FOUND,
-      "助手不存在",
+      tApiMessage(locale, "assistantNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }
@@ -64,28 +75,41 @@ export const GET = withApiWrapper(async (
 });
 
 /**
- * PATCH：仅本人个人助手。
+ * PATCH：仅本人个人助手；错误 message 随 locale 双语。
  */
 export const PATCH = withApiWrapper(async (
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   let body: PatchBody;
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -96,7 +120,7 @@ export const PATCH = withApiWrapper(async (
   if (!row) {
     return jsonError(
       ErrorCode.ASSISTANT_NOT_FOUND,
-      "助手不存在",
+      tApiMessage(locale, "assistantNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }
@@ -111,11 +135,11 @@ export const PATCH = withApiWrapper(async (
   if (body.name !== undefined) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     if (!name) {
-      details.push({ field: "name", message: "不能为空" });
+      details.push({ field: "name", message: tApiMessage(locale, "validation.required") });
     } else if (name.length > ASSISTANT_NAME_MAX_LENGTH) {
       details.push({
         field: "name",
-        message: `长度不能超过 ${ASSISTANT_NAME_MAX_LENGTH}`,
+        message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_NAME_MAX_LENGTH }),
       });
     } else {
       nextName = name;
@@ -125,11 +149,11 @@ export const PATCH = withApiWrapper(async (
   if (body.prompt !== undefined) {
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
-      details.push({ field: "prompt", message: "不能为空" });
+      details.push({ field: "prompt", message: tApiMessage(locale, "validation.required") });
     } else if (prompt.length > ASSISTANT_PROMPT_MAX_LENGTH) {
       details.push({
         field: "prompt",
-        message: `长度不能超过 ${ASSISTANT_PROMPT_MAX_LENGTH}`,
+        message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_PROMPT_MAX_LENGTH }),
       });
     } else {
       nextPrompt = prompt;
@@ -138,7 +162,7 @@ export const PATCH = withApiWrapper(async (
 
   if (body.icon !== undefined) {
     if (body.icon !== null && typeof body.icon !== "string") {
-      details.push({ field: "icon", message: "须为字符串或 null" });
+      details.push({ field: "icon", message: tApiMessage(locale, "validation.stringOrNull") });
     } else {
       const i =
         body.icon === null || body.icon === undefined
@@ -147,7 +171,7 @@ export const PATCH = withApiWrapper(async (
       if (i.length > ASSISTANT_ICON_MAX_LENGTH) {
         details.push({
           field: "icon",
-          message: `长度不能超过 ${ASSISTANT_ICON_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_ICON_MAX_LENGTH }),
         });
       } else {
         nextIcon = i.length > 0 ? i : null;
@@ -157,7 +181,10 @@ export const PATCH = withApiWrapper(async (
 
   if (body.openingMessage !== undefined) {
     if (body.openingMessage !== null && typeof body.openingMessage !== "string") {
-      details.push({ field: "openingMessage", message: "须为字符串或 null" });
+      details.push({
+        field: "openingMessage",
+        message: tApiMessage(locale, "validation.stringOrNull"),
+      });
     } else {
       const o =
         body.openingMessage === null || body.openingMessage === undefined
@@ -166,7 +193,9 @@ export const PATCH = withApiWrapper(async (
       if (o.length > ASSISTANT_OPENING_MESSAGE_MAX_LENGTH) {
         details.push({
           field: "openingMessage",
-          message: `长度不能超过 ${ASSISTANT_OPENING_MESSAGE_MAX_LENGTH}`,
+          message: tApiMessage(locale, "validation.maxLength", {
+            max: ASSISTANT_OPENING_MESSAGE_MAX_LENGTH,
+          }),
         });
       } else {
         nextOpening = o.length > 0 ? o : null;
@@ -175,7 +204,7 @@ export const PATCH = withApiWrapper(async (
   }
 
   if ("tags" in body) {
-    const parsed = parseAssistantTags(body.tags);
+    const parsed = parseAssistantTags(body.tags, locale);
     if (!parsed.ok) {
       details.push({ field: "tags", message: parsed.message });
     } else {
@@ -186,7 +215,7 @@ export const PATCH = withApiWrapper(async (
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );
@@ -209,18 +238,27 @@ export const PATCH = withApiWrapper(async (
  * DELETE：仅本人个人助手。
  */
 export const DELETE = withApiWrapper(async (
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id } = await context.params;
   if (!id || typeof id !== "string") {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -231,7 +269,7 @@ export const DELETE = withApiWrapper(async (
   if (!row) {
     return jsonError(
       ErrorCode.ASSISTANT_NOT_FOUND,
-      "助手不存在",
+      tApiMessage(locale, "assistantNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }

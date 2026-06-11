@@ -10,34 +10,68 @@ import { userMcpConfigToListItemJson } from "@/server/mcp/mcp-config-dto";
 import { countAssistantsReferencingMcp } from "@/server/mcp/assistant-mcp-bindings";
 import { loadLangChainToolsForUserMcpConfig, sanitizeMcpErrorSummary } from "@/server/mcp/mcp-client-tools";
 import { assertMcpTestConnectionRateLimit } from "@/server/mcp/mcp-test-rate-limit";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+/** list_tools 超时时的内部 Error.message（与 mcp-client-tools 一致） */
+const MCP_LIST_TOOLS_TIMEOUT_MESSAGE = "MCP list_tools 超时";
+
 /**
- * POST /api/console/mcp-configs/:id/test-connection — 对已落库配置做 list_tools 烟测并更新检测字段。
+ * 将连接测试失败摘要翻译为 locale 文案；不透传裸 exception 或硬编码中文。
  */
-export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) => {
+function translateMcpTestErrorSummary(locale: Parameters<typeof tApiMessage>[0], err: unknown): string {
+  const rawMsg = err instanceof Error ? err.message : String(err);
+  if (rawMsg === MCP_LIST_TOOLS_TIMEOUT_MESSAGE) {
+    return tApiMessage(locale, "mcpTest.listToolsTimeout");
+  }
+  const sanitized = sanitizeMcpErrorSummary(err);
+  return tApiMessage(locale, "mcpTest.connectionFailed", { detail: sanitized });
+}
+
+/**
+ * POST /api/console/mcp-configs/:id/test-connection — list_tools 烟测；lastErrorSummary 写入前经 tApiMessage 翻译。
+ */
+export const POST = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
   const { id } = await ctx.params;
   if (!id) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const rl = assertMcpTestConnectionRateLimit(user.id, id);
   if (rl) {
-    return jsonError(ErrorCode.RATE_LIMITED, "请求过于频繁，请稍后再试", HttpStatus.TOO_MANY_REQUESTS);
+    return jsonError(
+      ErrorCode.RATE_LIMITED,
+      tApiMessage(locale, "rateLimited"),
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   const ds = await getDataSource();
   const row = await ds.getRepository(UserMcpConfig).findOne({ where: { id, userId: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.MCP_CONFIG_NOT_FOUND, "配置不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.MCP_CONFIG_NOT_FOUND,
+      tApiMessage(locale, "mcpConfigNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   let credPlain: string | null = null;
@@ -46,7 +80,7 @@ export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) =
     if (!credPlain) {
       row.lastCheckedAt = new Date();
       row.lastCheckStatus = "failure";
-      row.lastErrorSummary = "凭证解密失败（请检查服务端密钥或重新保存凭证）";
+      row.lastErrorSummary = tApiMessage(locale, "mcpTest.credentialsDecryptFailed");
       await ds.getRepository(UserMcpConfig).save(row);
       const refCount = await countAssistantsReferencingMcp(ds, user.id, id);
       return NextResponse.json(
@@ -67,7 +101,7 @@ export const POST = withApiWrapper(async (_request: Request, ctx: RouteParams) =
   } catch (e) {
     row.lastCheckedAt = new Date();
     row.lastCheckStatus = "failure";
-    row.lastErrorSummary = sanitizeMcpErrorSummary(e);
+    row.lastErrorSummary = translateMcpTestErrorSummary(locale, e);
   }
 
   await ds.getRepository(UserMcpConfig).save(row);

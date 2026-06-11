@@ -103,7 +103,7 @@ export async function PunkLanding() {
               {t("cta.chat")}
             </Link>
             <Link
-              href="/console"
+              href="/console/profile"
               className="punk-cta inline-flex min-w-[200px] items-center justify-center border border-zinc-600 bg-zinc-950/50 px-8 py-3.5 font-mono text-sm uppercase tracking-[0.15em] text-zinc-300 transition hover:border-fuchsia-500/50 hover:text-fuchsia-200"
             >
               {t("cta.console")}

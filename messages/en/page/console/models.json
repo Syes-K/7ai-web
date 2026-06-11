@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "title": "Models | Console",
+    "description": "Manage your model API configurations."
+  },
+  "title": "Models",
+  "toolbar": {
+    "create": "New model",
+    "refresh": "Refresh"
+  },
+  "pagination": {
+    "total": "{total} total"
+  },
+  "empty": {
+    "noData": "No model configurations yet"
+  },
+  "alert": {
+    "publicModelNotice": "Private models are editable only by you; public models are maintained in the admin console and available to all users in preferences."
+  },
+  "provider": {
+    "aliyun": "Alibaba Cloud Bailian",
+    "glm": "Zhipu GLM",
+    "deepseek": "DeepSeek",
+    "kimi": "Moonshot Kimi",
+    "siliconflow": "SiliconFlow"
+  },
+  "columns": {
+    "modelName": "Model name",
+    "visibility": "Type",
+    "tags": "Tags",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "updatedAt": "Last updated",
+    "actions": "Actions",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "tag": {
+    "public": "Public",
+    "private": "Private",
+    "dataError": "Data error",
+    "embedding": "Embedding"
+  },
+  "tooltip": {
+    "publicEditAdmin": "Public models are edited in the admin console",
+    "publicDeleteAdmin": "Public models are deleted in the admin console"
+  },
+  "modal": {
+    "create": {
+      "title": "New model"
+    },
+    "edit": {
+      "title": "Edit model"
+    },
+    "ok": {
+      "create": "Create",
+      "save": "Save"
+    },
+    "cancel": "Cancel"
+  },
+  "form": {
+    "provider": {
+      "label": "Provider",
+      "rules": {
+        "required": "Select a provider."
+      },
+      "placeholder": "Select…"
+    },
+    "modelName": {
+      "label": "Model name",
+      "rules": {
+        "required": "Enter a model name."
+      },
+      "placeholder": "e.g. qwen-turbo-latest"
+    },
+    "tags": {
+      "label": "Tags",
+      "extra": "Optional, multiple allowed; none means no tags",
+      "placeholder": "Select tags"
+    },
+    "apiKey": {
+      "label": "API key",
+      "rules": {
+        "required": "Enter an API key."
+      },
+      "extra": {
+        "edit": "Leave blank to keep the saved key",
+        "create": "Key from your provider console"
+      },
+      "placeholder": {
+        "edit": "Leave blank to keep the saved key",
+        "create": "Enter API key from provider console"
+      }
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this model configuration?",
+      "description": "\"{name}\" will be permanently removed.",
+      "ok": "Delete"
+    }
+  },
+  "toast": {
+    "created": "Created",
+    "saved": "Saved",
+    "deleted": "Deleted"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "title": "Console | 7ai-web",
+    "description": "Manage models, assistants, knowledge bases, and MCP integrations."
+  },
+  "title": "Console",
+  "verifyingSession": "Verifying session…",
+  "skipToMain": "Skip to main content",
+  "chatLink": "Chat",
+  "menu": {
+    "profile": "Profile & preferences",
+    "models": "Models",
+    "assistants": "Assistants",
+    "knowledge": "Knowledge bases",
+    "mcp": "MCP"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Language",
+    "label": {
+      "en": "English",
+      "zh": "中文",
+      "enShort": "EN",
+      "zhShort": "中文"
+    }
+  },
+  "errors": {
+    "requestFailed": "Request failed ({status}).",
+    "networkRetry": "Network error. Please try again later."
+  }
+}

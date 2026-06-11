@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "title": "Assistants | Console",
+    "description": "Manage personal and system assistants."
+  },
+  "title": "Assistants",
+  "toolbar": {
+    "create": "New assistant",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search by name",
+    "scopePlaceholder": "Scope"
+  },
+  "filter": {
+    "all": "All",
+    "systemOnly": "System only",
+    "personalOnly": "Personal only"
+  },
+  "pagination": {
+    "total": "{total} total"
+  },
+  "empty": {
+    "description": "No assistants yet. Create a personal assistant or ask an admin to publish system assistants."
+  },
+  "columns": {
+    "type": "Type",
+    "icon": "Icon",
+    "name": "Name",
+    "tags": "Tags",
+    "opening": "Opening message",
+    "updatedAt": "Last updated",
+    "actions": "Actions",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "tag": {
+    "system": "System",
+    "personal": "Personal"
+  },
+  "tooltip": {
+    "systemMaintainAdmin": "System assistants are maintained in the admin console"
+  },
+  "drawer": {
+    "create": {
+      "title": "New assistant"
+    },
+    "edit": {
+      "title": "Edit assistant"
+    },
+    "viewSystem": {
+      "title": "View assistant (system)"
+    },
+    "ok": "Save",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "form": {
+    "name": {
+      "label": "Name",
+      "rules": {
+        "required": "Enter a name.",
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Assistant name"
+    },
+    "prompt": {
+      "label": "System prompt",
+      "rules": {
+        "required": "Enter a prompt.",
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Model system / behavior instructions"
+    },
+    "icon": {
+      "label": "Icon (emoji)",
+      "rules": {
+        "max": "At most {max} characters"
+      },
+      "placeholder": "e.g. 🤖"
+    },
+    "opening": {
+      "label": "Opening message",
+      "rules": {
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Optional"
+    },
+    "tags": {
+      "label": "Tags",
+      "placeholder": "Type and press Enter"
+    },
+    "knowledgeBases": {
+      "label": "Knowledge bases (multi-select)",
+      "extra": "Knowledge bases this assistant may retrieve during chat.",
+      "placeholder": "Select knowledge bases"
+    },
+    "mcp": {
+      "label": "MCP (multi-select)",
+      "manageLink": "Manage MCP…",
+      "extra": "Tools loaded for this assistant in chat; independent of knowledge retrieval.",
+      "placeholder": "Loading MCP list…",
+      "inactiveSuffix": "(disabled)"
+    }
+  },
+  "section": {
+    "mcpMount": "MCP mount"
+  },
+  "alert": {
+    "noMcp": "You have no MCP configurations yet",
+    "noMcpAction": "Add one in <mcpLink>MCP management</mcpLink> first.",
+    "mcpInactive": "Some mounted MCPs are disabled",
+    "mcpInactiveDesc": "Disabled MCPs are not loaded in chat. Enable or remove them."
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this assistant?",
+      "description": "\"{name}\" will be permanently removed."
+    }
+  },
+  "toast": {
+    "created": "Created",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "kbBindFailedOnCreate": "Assistant created, but knowledge base binding failed",
+    "mcpBindFailedOnCreate": "Assistant created, but MCP mount failed",
+    "kbBindFailedOnSave": "Assistant saved, but knowledge base binding failed",
+      "mcpBindFailedOnSave": "Assistant saved, but MCP mount failed"
+  }
+}

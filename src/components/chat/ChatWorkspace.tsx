@@ -1725,7 +1725,7 @@ export function ChatWorkspace({
             <div className="flex shrink-0 items-center gap-0.5">
               <LanguageSwitcher namespace="page.chat" variant="shell" />
               <Link
-                href="/console"
+                href="/console/profile"
                 title={t("header.console.title")}
                 aria-label={t("header.console.ariaLabel")}
                 className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800/70 hover:text-cyan-200/90"

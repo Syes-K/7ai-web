@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "title": "MCP 管理 | 控制台",
+    "description": "管理个人 MCP 服务连接"
+  },
+  "title": "MCP 管理",
+  "intro": "在此维护个人 MCP 连接；在「助手管理」中为助手挂载 MCP，对话时按助手加载工具。",
+  "toolbar": {
+    "create": "新建 MCP",
+    "refresh": "刷新",
+    "searchPlaceholder": "搜索名称/描述"
+  },
+  "empty": {
+    "noData": "暂无 MCP 配置。"
+  },
+  "tag": {
+    "testSuccess": "成功",
+    "testFailure": "失败",
+    "testUnknown": "未检测",
+    "enabled": "启用",
+    "disabled": "停用"
+  },
+  "columns": {
+    "name": "名称",
+    "enabled": "启用",
+    "transport": "传输",
+    "connectionSummary": "连接摘要",
+    "assistantRefs": "助手引用",
+    "lastTest": "最近检测",
+    "actions": "操作",
+    "testConnection": "测试连接",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "modal": {
+    "create": {
+      "title": "新建 MCP"
+    },
+    "edit": {
+      "title": "编辑 MCP"
+    },
+    "testConnection": "测试连接",
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "form": {
+    "name": {
+      "label": "名称",
+      "rules": {
+        "required": "请输入名称",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "展示名称"
+    },
+    "description": {
+      "label": "描述",
+      "rules": {
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "可选"
+    },
+    "transport": {
+      "label": "传输方式",
+      "rules": {
+        "required": "请选择传输方式"
+      },
+      "stdio": "STDIO（子进程）"
+    },
+    "endpoint": {
+      "label": "连接参数（JSON）",
+      "rules": {
+        "required": "请填写连接参数 JSON"
+      },
+      "extra": {
+        "edit": "留空表示不修改。HTTP/SSE 示例：{\"url\":\"https://...\"}；stdio 示例：{\"command\":\"npx\",\"args\":[\"-y\",\"包名\"]}；打开编辑时会从服务端加载当前配置。",
+        "create": "须为 JSON 对象"
+      },
+      "placeholder": "例如 {\"url\":\"https://api.example.com/mcp\"}"
+    },
+    "metadata": {
+      "label": "metadata（可选 JSON）",
+      "extra": "须为 JSON 对象；留空表示不设置或不修改（编辑时留空不改）。"
+    },
+    "credentials": {
+      "label": "凭证 / Token",
+      "ariaHelp": "凭证与 Token 说明",
+      "extra": {
+        "edit": "已配置则留空表示不修改；填写新值则覆盖加密存储。",
+        "create": "可选；服务端需配置 MCP_CREDENTIALS_MASTER_KEY 才能保存。"
+      },
+      "placeholder": {
+        "edit": "留空表示不修改",
+        "create": "可选"
+      },
+      "help": {
+        "intro": "用于连接该 MCP 服务端点时的鉴权信息（例如 API Key、Bearer Token），让远端识别合法客户端。",
+        "http": "HTTP/SSE：一般填一串 token；若需多个请求头或自定义头名，也可填 JSON（会与 metadata 中的 headers 合并）。",
+        "stdio": "STDIO：多数情况无需在此填写；若文档要求通过环境变量传密钥，优先写在连接参数里。",
+        "storage": "保存后加密入库，列表与接口不回显明文。环境变量 MCP_CREDENTIALS_MASTER_KEY 是服务端用来加密存储的密钥，不是要填给 MCP 服务商的那份 token。"
+      }
+    },
+    "enabled": {
+      "label": "启用该 MCP"
+    }
+  },
+  "testChoice": {
+    "title": "未保存的修改",
+    "body": "测试连接以服务端已保存配置为准。请选择：",
+    "cancel": "取消",
+    "discardAndTest": "放弃修改并测试",
+    "saveAndTest": "保存并测试"
+  },
+  "deleteBlocked": {
+    "title": "无法删除",
+    "body": "请前往 <assistantsLink/> 解除 MCP 挂载后再试。"
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该 MCP 配置？",
+      "description": "删除后无法恢复。若仍被助手引用将无法删除。"
+    }
+  },
+  "toast": {
+    "created": "已创建",
+    "saved": "已保存",
+    "deleted": "已删除",
+    "testSuccess": "连接测试成功",
+    "testFailed": "连接测试失败",
+    "loadFailed": "加载配置失败",
+    "saveBeforeTest": "请先保存配置后再测试连接",
+    "endpointInvalidJson": "连接参数须为合法 JSON 对象（如 {\"url\":\"https://...\"}）",
+    "endpointParseError": "连接参数 JSON 无法解析或不是对象",
+    "metadataInvalidJson": "metadata 须为合法 JSON 对象"
+  },
+  "link": {
+    "assistants": "助手管理"
+  }
+}

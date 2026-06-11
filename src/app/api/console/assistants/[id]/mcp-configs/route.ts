@@ -10,6 +10,8 @@ import {
   replaceAssistantMcpBindings,
 } from "@/server/mcp/assistant-mcp-bindings";
 import { parseMcpConfigIdsField } from "@/server/mcp/parse-mcp-config-ids";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 export const runtime = "nodejs";
 
@@ -18,18 +20,27 @@ type RouteParams = { params: Promise<{ id: string }> };
 type PutBody = { mcpConfigIds?: unknown };
 
 /**
- * GET /api/console/assistants/:id/mcp-configs — 当前用户个人助手已挂载的 MCP 配置 id 列表。
+ * GET / PUT：助手挂载 MCP 配置；错误 message 随 locale 双语。
  */
-export const GET = withApiWrapper(async (_request: Request, ctx: RouteParams) => {
+export const GET = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id: assistantId } = await ctx.params;
   if (!assistantId) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const ds = await getDataSource();
@@ -37,7 +48,11 @@ export const GET = withApiWrapper(async (_request: Request, ctx: RouteParams) =>
     where: { id: assistantId, scope: AssistantScope.Personal, userId: user.id },
   });
   if (!assistant) {
-    return jsonError(ErrorCode.ASSISTANT_NOT_FOUND, "助手不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.ASSISTANT_NOT_FOUND,
+      tApiMessage(locale, "assistantNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const map = await listMcpConfigIdsByAssistantIds(ds, user.id, [assistantId]);
@@ -48,44 +63,62 @@ export const GET = withApiWrapper(async (_request: Request, ctx: RouteParams) =>
   );
 });
 
-/**
- * PUT /api/console/assistants/:id/mcp-configs — 全量替换助手 ↔ MCP 挂载。
- */
 export const PUT = withApiWrapper(async (request: Request, ctx: RouteParams) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
   const { id: assistantId } = await ctx.params;
   if (!assistantId) {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "id 无效", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidId"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   let body: PutBody;
   try {
     body = (await request.json()) as PutBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   if (body.mcpConfigIds === undefined) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "mcpConfigIds", message: "须提供 mcpConfigIds 数组（可为空数组）" }],
+      [{
+        field: "mcpConfigIds",
+        message: tApiMessage(locale, "validation.mcpConfigIdsRequired"),
+      }],
     );
   }
   const details: JsonErrorDetail[] = [];
-  const mcpConfigIds = parseMcpConfigIdsField(body.mcpConfigIds, details);
+  const mcpConfigIds = parseMcpConfigIdsField(body.mcpConfigIds, details, locale);
   if (mcpConfigIds === undefined || details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      details.length > 0 ? details : [{ field: "mcpConfigIds", message: "格式无效" }],
+      details.length > 0
+        ? details
+        : [{
+            field: "mcpConfigIds",
+            message: tApiMessage(locale, "validation.mcpConfigIdsInvalid"),
+          }],
     );
   }
 
@@ -94,16 +127,23 @@ export const PUT = withApiWrapper(async (request: Request, ctx: RouteParams) => 
     where: { id: assistantId, scope: AssistantScope.Personal, userId: user.id },
   });
   if (!assistant) {
-    return jsonError(ErrorCode.ASSISTANT_NOT_FOUND, "助手不存在", HttpStatus.NOT_FOUND);
+    return jsonError(
+      ErrorCode.ASSISTANT_NOT_FOUND,
+      tApiMessage(locale, "assistantNotFound"),
+      HttpStatus.NOT_FOUND,
+    );
   }
 
   const rep = await replaceAssistantMcpBindings(ds, user.id, assistantId, mcpConfigIds);
   if (!rep.ok) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
-      [{ field: "mcpConfigIds", message: "包含无效 MCP 配置" }],
+      [{
+        field: "mcpConfigIds",
+        message: tApiMessage(locale, "validation.invalidMcpConfigIds"),
+      }],
     );
   }
 

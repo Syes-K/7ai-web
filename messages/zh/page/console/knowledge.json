@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "title": "知识库管理 | 控制台",
+    "description": "创建与管理用于检索的知识库"
+  },
+  "title": "知识库管理",
+  "toolbar": {
+    "create": "新建知识库",
+    "refresh": "刷新",
+    "searchPlaceholder": "搜索名称/描述"
+  },
+  "empty": {
+    "noData": "暂无知识库，请先创建。"
+  },
+  "tag": {
+    "vectorSuccess": "已完成",
+    "vectorFailed": "失败",
+    "vectorPending": "向量化中",
+    "plainText": "文本"
+  },
+  "columns": {
+    "name": "名称",
+    "format": "格式",
+    "tags": "标签",
+    "vectorStatus": "向量化",
+    "updatedAt": "最近更新",
+    "actions": "操作",
+    "view": "查看",
+    "chunkTest": "检索效果测试",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "modal": {
+    "create": {
+      "title": "新建知识库"
+    },
+    "edit": {
+      "title": "编辑知识库"
+    },
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "form": {
+    "name": {
+      "label": "名称",
+      "rules": {
+        "required": "请输入名称",
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "知识库名称"
+    },
+    "description": {
+      "label": "描述",
+      "rules": {
+        "max": "最多 {max} 字"
+      },
+      "placeholder": "用于意图识别与选择展示（可选）"
+    },
+    "tags": {
+      "label": "标签",
+      "placeholder": "输入后回车添加"
+    },
+    "contentFormat": {
+      "label": "内容格式",
+      "rules": {
+        "required": "请选择内容格式"
+      },
+      "plain": "普通文本"
+    },
+    "content": {
+      "label": "正文内容",
+      "rules": {
+        "required": "请输入正文内容",
+        "max": "最多 {max} 字符"
+      },
+      "placeholder": "直接文本输入（本期仅支持该方式）"
+    },
+    "uploadNotice": "文件上传（PDF/TXT/MD）即将支持，本期暂不可用。"
+  },
+  "detail": {
+    "title": "知识库详情",
+    "loading": "加载中…",
+    "edit": "编辑",
+    "retryVector": "重试向量化",
+    "chunkTest": "检索效果测试",
+    "format": "格式",
+    "vectorStatus": "向量化",
+    "updatedAt": "更新时间",
+    "vectorCompletedAt": "向量完成时间",
+    "failureReason": "失败原因：{error}",
+    "vectorPendingHint": "向量化进行中…完成后即可进行检索效果测试。页面将自动刷新状态。",
+    "body": "正文",
+    "previewLink": "预览"
+  },
+  "chunkTest": {
+    "title": "检索效果测试",
+    "titleWithName": "检索效果测试 - {name}",
+    "intro": "输入一段文本作为 query，返回按相关度排序的命中片段（展示顺序、片段序号、相关度）。",
+    "query": {
+      "placeholder": "例如：我们的退款规则是什么？"
+    },
+    "threshold": {
+      "placeholder": "阈值 0~1"
+    },
+    "run": "开始测试",
+    "reset": "重置",
+    "hits": "命中 {count} 条（topK={topK}，阈值={threshold}）",
+    "noResults": "暂无结果。你可以尝试换一种问法，或降低阈值后再试。",
+    "chunkIndex": "片段序号={index}",
+    "score": "相关度={score}",
+    "copy": "复制",
+    "warn": {
+      "selectKb": "请先选择要测试的知识库",
+      "notReady": "当前知识库尚未完成向量化，暂不可测试",
+      "enterQuery": "请输入测试问题"
+    },
+    "status": {
+      "pending": "向量化进行中，完成后可测试",
+      "failed": "向量化失败，请重试后再测试"
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该知识库？",
+      "description": "「{name}」删除后不可恢复。",
+      "hint": "若仍有助手在使用该知识库，将无法删除；请先到「助手管理」解除关联后再删。"
+    }
+  },
+  "toast": {
+    "created": "已创建",
+    "saved": "已保存",
+    "deleted": "已删除",
+    "retryTriggered": "已触发重试",
+    "copied": "已复制",
+    "copyFailed": "复制失败，请手动复制"
+  }
+}

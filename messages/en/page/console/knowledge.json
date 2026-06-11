@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "title": "Knowledge bases | Console",
+    "description": "Create and manage knowledge bases for retrieval."
+  },
+  "title": "Knowledge bases",
+  "toolbar": {
+    "create": "New knowledge base",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search name or description"
+  },
+  "empty": {
+    "noData": "No knowledge bases yet. Create one to get started."
+  },
+  "tag": {
+    "vectorSuccess": "Ready",
+    "vectorFailed": "Failed",
+    "vectorPending": "Vectorizing",
+    "plainText": "Text"
+  },
+  "columns": {
+    "name": "Name",
+    "format": "Format",
+    "tags": "Tags",
+    "vectorStatus": "Vectorization",
+    "updatedAt": "Last updated",
+    "actions": "Actions",
+    "view": "View",
+    "chunkTest": "Retrieval test",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "modal": {
+    "create": {
+      "title": "New knowledge base"
+    },
+    "edit": {
+      "title": "Edit knowledge base"
+    },
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "form": {
+    "name": {
+      "label": "Name",
+      "rules": {
+        "required": "Enter a name.",
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Knowledge base name"
+    },
+    "description": {
+      "label": "Description",
+      "rules": {
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Shown for intent routing (optional)"
+    },
+    "tags": {
+      "label": "Tags",
+      "placeholder": "Type and press Enter"
+    },
+    "contentFormat": {
+      "label": "Content format",
+      "rules": {
+        "required": "Select a content format."
+      },
+      "plain": "Plain text"
+    },
+    "content": {
+      "label": "Body",
+      "rules": {
+        "required": "Enter content.",
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Direct text input (only option in this release)"
+    },
+    "uploadNotice": "File upload (PDF/TXT/MD) coming soon; not available in this release."
+  },
+  "detail": {
+    "title": "Knowledge base details",
+    "loading": "Loading…",
+    "edit": "Edit",
+    "retryVector": "Retry vectorization",
+    "chunkTest": "Retrieval test",
+    "format": "Format",
+    "vectorStatus": "Vectorization",
+    "updatedAt": "Updated",
+    "vectorCompletedAt": "Vectorization completed",
+    "failureReason": "Failure reason: {error}",
+    "vectorPendingHint": "Vectorization in progress… This page will refresh automatically. Run retrieval test when ready.",
+    "body": "Body",
+    "previewLink": "Preview"
+  },
+  "chunkTest": {
+    "title": "Retrieval test",
+    "titleWithName": "Retrieval test — {name}",
+    "intro": "Enter a query to see ranked chunks (order, index, score).",
+    "query": {
+      "placeholder": "e.g. What is our refund policy?"
+    },
+    "threshold": {
+      "placeholder": "Threshold 0–1"
+    },
+    "run": "Run test",
+    "reset": "Reset",
+    "hits": "{count} hits (topK={topK}, threshold={threshold})",
+    "noResults": "No results. Try another query or lower the threshold.",
+    "chunkIndex": "Chunk index={index}",
+    "score": "Score={score}",
+    "copy": "Copy",
+    "warn": {
+      "selectKb": "Select a knowledge base to test first.",
+      "notReady": "Vectorization not complete; test unavailable.",
+      "enterQuery": "Enter a test question."
+    },
+    "status": {
+      "pending": "Vectorization in progress; test when complete",
+      "failed": "Vectorization failed; retry before testing"
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this knowledge base?",
+      "description": "\"{name}\" will be permanently removed.",
+      "hint": "If assistants still use this knowledge base, delete will fail. Unlink in Assistant management first."
+    }
+  },
+  "toast": {
+    "created": "Created",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "retryTriggered": "Retry triggered",
+    "copied": "Copied",
+    "copyFailed": "Copy failed; copy manually"
+  }
+}

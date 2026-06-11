@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "title": "Profile & preferences | Console",
+    "description": "Account info and default model preferences."
+  },
+  "title": "Profile & preferences",
+  "section": {
+    "personal": "Base info",
+    "preferences": "Preferences"
+  },
+  "formLayout": {
+    "labelWidth": 168
+  },
+  "actions": {
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "retry": "Retry"
+  },
+  "form": {
+    "personal": {
+      "email": {
+        "label": "Email"
+      },
+      "nickName": {
+        "label": "Display name",
+        "rules": {
+          "required": "Enter a display name."
+        },
+        "placeholder": "1–32 characters"
+      },
+      "telNo": {
+        "label": "Phone",
+        "extra": "Leave blank to unbind phone.",
+        "placeholder": "11 digits, optional",
+        "notSet": "Not set"
+      }
+    },
+    "preferences": {
+      "chatModel": {
+        "label": "Chat model",
+        "hint": "Account default for new chats. Register models in Model management first; chat and vector models can differ or reuse the same entry."
+      },
+      "vectorModel": {
+        "label": "Embedding model",
+        "hint": "Used for knowledge retrieval and document embeddings. Register in Model management first."
+      },
+      "topK": {
+        "label": "Retrieval topK",
+        "hint": "Max hits per knowledge search. Leave blank for default.",
+        "placeholder": "Blank for default (3)"
+      },
+      "threshold": {
+        "label": "Retrieval threshold",
+        "hint": "Score threshold 0–1. Leave blank for default.",
+        "placeholder": "Blank for default (0.75)"
+      },
+      "chunkSize": {
+        "label": "Chunk size",
+        "hint": "Vectorization chunk length. Leave blank for default.",
+        "placeholder": "Blank for default (1000)"
+      },
+      "chunkOverlap": {
+        "label": "Chunk overlap",
+        "hint": "Vectorization overlap. Leave blank for default.",
+        "placeholder": "Blank for default (200)"
+      },
+      "selectPlaceholder": "Select…",
+      "notSelected": "Not selected"
+    }
+  },
+  "modelOption": {
+    "public": "Public",
+    "private": "Private"
+  },
+  "alert": {
+    "loadProfileFailed": "Failed to load",
+    "loadModelsFailed": "Failed to load model list",
+    "chatModelStale": "Previous default chat model is no longer valid. Please select again.",
+    "vectorModelStale": "Previous default embedding model is no longer valid. Please select again."
+  },
+  "empty": {
+    "noModels": "No models registered yet. Add a model configuration in Model management first.",
+    "goToModels": "Go to Model management"
+  },
+  "tooltip": {
+    "prefEditDisabled": "Add at least one model in Model management first."
+  },
+  "toast": {
+    "saved": "Saved"
+  }
+}

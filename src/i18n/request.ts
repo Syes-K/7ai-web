@@ -8,15 +8,35 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale;
   }
 
-  const [pageHome, pageLogin, pageRegister, pageChat, pageShell, apiMessage] =
-    await Promise.all([
-      import(`../../messages/${locale}/page/home.json`),
-      import(`../../messages/${locale}/page/login.json`),
-      import(`../../messages/${locale}/page/register.json`),
-      import(`../../messages/${locale}/page/chat.json`),
-      import(`../../messages/${locale}/page/shell.json`),
-      import(`../../messages/${locale}/api/message.json`),
-    ]);
+  const [
+    pageHome,
+    pageLogin,
+    pageRegister,
+    pageChat,
+    pageShell,
+    consoleShell,
+    consoleProfile,
+    consoleModels,
+    consoleAssistants,
+    consoleKnowledge,
+    consoleMcp,
+    consoleSettings,
+    apiMessage,
+  ] = await Promise.all([
+    import(`../../messages/${locale}/page/home.json`),
+    import(`../../messages/${locale}/page/login.json`),
+    import(`../../messages/${locale}/page/register.json`),
+    import(`../../messages/${locale}/page/chat.json`),
+    import(`../../messages/${locale}/page/shell.json`),
+    import(`../../messages/${locale}/page/console/shell.json`),
+    import(`../../messages/${locale}/page/console/profile.json`),
+    import(`../../messages/${locale}/page/console/models.json`),
+    import(`../../messages/${locale}/page/console/assistants.json`),
+    import(`../../messages/${locale}/page/console/knowledge.json`),
+    import(`../../messages/${locale}/page/console/mcp.json`),
+    import(`../../messages/${locale}/page/console/settings.json`),
+    import(`../../messages/${locale}/api/message.json`),
+  ]);
 
   return {
     locale,
@@ -27,6 +47,15 @@ export default getRequestConfig(async ({ requestLocale }) => {
         register: pageRegister.default,
         chat: pageChat.default,
         shell: pageShell.default,
+        console: {
+          shell: consoleShell.default,
+          profile: consoleProfile.default,
+          models: consoleModels.default,
+          assistants: consoleAssistants.default,
+          knowledge: consoleKnowledge.default,
+          mcp: consoleMcp.default,
+          settings: consoleSettings.default,
+        },
       },
       api: {
         message: apiMessage.default,

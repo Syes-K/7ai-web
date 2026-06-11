@@ -2,6 +2,8 @@ import {
   ASSISTANT_TAG_MAX_LENGTH,
   ASSISTANT_TAGS_MAX_COUNT,
 } from "@/common/constants";
+import type { AppLocale } from "@/common/constants/i18n";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 
 /** 从库中读出 tags：trim、去重、截断非法长度（防御脏数据） */
 export function normalizeStoredAssistantTags(raw: string[] | null | undefined): string[] {
@@ -30,21 +32,29 @@ export function normalizeStoredAssistantTags(raw: string[] | null | undefined): 
 
 /**
  * 解析请求体中的 `tags`：字符串数组；trim、去重、长度与个数上限。
+ * @param locale - 未传时默认 zh，供管理端等未 i18n 路由保持中文错误文案。
  */
 export function parseAssistantTags(
   input: unknown,
+  locale: AppLocale = "zh",
 ): { ok: true; tags: string[] } | { ok: false; message: string } {
   if (input === undefined || input === null) {
     return { ok: true, tags: [] };
   }
   if (!Array.isArray(input)) {
-    return { ok: false, message: "tags 须为字符串数组" };
+    return {
+      ok: false,
+      message: tApiMessage(locale, "validation.assistantTagsArrayRequired"),
+    };
   }
   const out: string[] = [];
   const seen = new Set<string>();
   for (const raw of input) {
     if (typeof raw !== "string") {
-      return { ok: false, message: "每个标签须为字符串" };
+      return {
+        ok: false,
+        message: tApiMessage(locale, "validation.tagMustBeString"),
+      };
     }
     const t = raw.trim();
     if (t.length === 0) {
@@ -53,7 +63,9 @@ export function parseAssistantTags(
     if (t.length > ASSISTANT_TAG_MAX_LENGTH) {
       return {
         ok: false,
-        message: `单个标签长度不能超过 ${ASSISTANT_TAG_MAX_LENGTH}`,
+        message: tApiMessage(locale, "validation.assistantTagMaxLength", {
+          max: ASSISTANT_TAG_MAX_LENGTH,
+        }),
       };
     }
     if (seen.has(t)) {
@@ -64,7 +76,9 @@ export function parseAssistantTags(
     if (out.length > ASSISTANT_TAGS_MAX_COUNT) {
       return {
         ok: false,
-        message: `标签数量不能超过 ${ASSISTANT_TAGS_MAX_COUNT}`,
+        message: tApiMessage(locale, "validation.assistantTagsMaxCount", {
+          max: ASSISTANT_TAGS_MAX_COUNT,
+        }),
       };
     }
   }

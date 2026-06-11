@@ -6,6 +6,9 @@ import { getConsoleProfileResponse } from "@/server/console-profile/get-console-
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
 import { findModelConfigUsableByUser } from "@/server/model-config/find-usable-config";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
+import type { AppLocale } from "@/common/constants/i18n";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
@@ -25,6 +28,7 @@ async function applyModelPrefPointer(
   raw: unknown,
   field: "preferredModelConfigId" | "preferredVectorModelConfigId",
   row: User,
+  locale: AppLocale,
 ): Promise<NextResponse | null> {
   if (raw === null) {
     row[field] = null;
@@ -33,7 +37,7 @@ async function applyModelPrefPointer(
   if (typeof raw !== "string" || raw.trim() === "") {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      `${field} 须为非空字符串或 null`,
+      tApiMessage(locale, "validation.modelConfigIdInvalid"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -42,7 +46,7 @@ async function applyModelPrefPointer(
   if (!cfg) {
     return jsonError(
       ErrorCode.MODEL_CONFIG_NOT_FOUND,
-      "模型配置不存在",
+      tApiMessage(locale, "modelConfigNotFound"),
       HttpStatus.NOT_FOUND,
     );
   }
@@ -51,12 +55,17 @@ async function applyModelPrefPointer(
 }
 
 /**
- * PATCH：设置对话模型 / 向量模型默认偏好指针（可清空）；可只更新其中一项。
+ * PATCH：设置对话模型 / 向量模型默认偏好指针（可清空）；错误 message 随 locale 双语。
  */
 export const PATCH = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -64,7 +73,11 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   const hasChat = Object.prototype.hasOwnProperty.call(body, "preferredModelConfigId");
@@ -76,7 +89,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   if (!hasChat && !hasVec && !hasTopK && !hasThreshold && !hasChunkSize && !hasChunkOverlap) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "至少需要一个偏好字段",
+      tApiMessage(locale, "validation.preferenceFieldRequired"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -85,7 +98,11 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   const userRepo = ds.getRepository(User);
   const row = await userRepo.findOne({ where: { id: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.INTERNAL_ERROR, "用户不存在", HttpStatus.INTERNAL_SERVER_ERROR);
+    return jsonError(
+      ErrorCode.INTERNAL_ERROR,
+      tApiMessage(locale, "userNotFound"),
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
 
   if (hasChat) {
@@ -95,6 +112,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       body.preferredModelConfigId,
       "preferredModelConfigId",
       row,
+      locale,
     );
     if (err) return err;
   }
@@ -106,6 +124,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       body.preferredVectorModelConfigId,
       "preferredVectorModelConfigId",
       row,
+      locale,
     );
     if (err) return err;
   }
@@ -121,7 +140,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       if (!Number.isFinite(v) || v < 1 || v > 20) {
         return jsonError(
           ErrorCode.VALIDATION_ERROR,
-          "preferredKnowledgeTopK 须为 1-20 的整数或 null",
+          tApiMessage(locale, "validation.preferredKnowledgeTopKRange"),
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -139,7 +158,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       if (!Number.isFinite(n) || n < 0 || n > 1) {
         return jsonError(
           ErrorCode.VALIDATION_ERROR,
-          "preferredKnowledgeThreshold 须为 0-1 的数字或 null",
+          tApiMessage(locale, "validation.preferredKnowledgeThresholdRange"),
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -158,7 +177,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       if (!Number.isFinite(v) || v < 200 || v > 4000) {
         return jsonError(
           ErrorCode.VALIDATION_ERROR,
-          "preferredKnowledgeChunkSize 须为 200-4000 的整数或 null",
+          tApiMessage(locale, "validation.preferredKnowledgeChunkSizeRange"),
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -177,7 +196,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
       if (!Number.isFinite(v) || v < 0 || v > 1000) {
         return jsonError(
           ErrorCode.VALIDATION_ERROR,
-          "preferredKnowledgeChunkOverlap 须为 0-1000 的整数或 null",
+          tApiMessage(locale, "validation.preferredKnowledgeChunkOverlapRange"),
           HttpStatus.BAD_REQUEST,
         );
       }

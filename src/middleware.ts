@@ -19,9 +19,8 @@ import { isAppLocale, type AppLocale } from "@/common/constants/i18n";
 const AUTH_API_PREFIX = "/api/auth/";
 const intlMiddleware = createIntlMiddleware(routing);
 
-/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；chat 已迁至 /{locale}/chat */
+/** 未接入 i18n 的应用路由首段（不加 locale 前缀）；chat/console 已迁至 /{locale}/… */
 const KNOWN_APP_SEGMENTS = new Set([
-  "console",
   "admin",
   "knowledge",
   "api",
@@ -82,6 +81,10 @@ function isProtectedPath(pathname: string): boolean {
   if (/^\/(en|zh)\/chat(\/|$)/.test(pathname)) {
     return true;
   }
+  // 0.1.16：locale 前缀 console 页受保护
+  if (/^\/(en|zh)\/console(\/|$)/.test(pathname)) {
+    return true;
+  }
   return false;
 }
 
@@ -107,6 +110,21 @@ function handleLegacyChatRedirect(request: NextRequest): NextResponse | null {
     const locale = resolveRequestLocale(request);
     const suffix = pathname.slice("/chat".length);
     const url = new URL(`/${locale}/chat${suffix}`, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 302);
+  }
+  return null;
+}
+
+/**
+ * 旧版裸 /console → 302 /{locale}/console（与 chat 并列，优先于受保护逻辑以保留 query 与 locale）。
+ */
+function handleLegacyConsoleRedirect(request: NextRequest): NextResponse | null {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/console" || pathname.startsWith("/console/")) {
+    const locale = resolveRequestLocale(request);
+    const suffix = pathname.slice("/console".length);
+    const url = new URL(`/${locale}/console${suffix}`, request.url);
     url.search = search;
     return NextResponse.redirect(url, 302);
   }
@@ -173,7 +191,7 @@ function handleProtectedRoute(request: NextRequest): NextResponse {
 }
 
 /**
- * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth/chat 302 → 受保护路径 → next-intl。
+ * i18n + 受保护路由合并 middleware：非法 locale 兜底 → 旧 auth/chat/console 302 → 受保护路径 → next-intl。
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -190,6 +208,11 @@ export function middleware(request: NextRequest) {
   const legacyChat = handleLegacyChatRedirect(request);
   if (legacyChat) {
     return legacyChat;
+  }
+
+  const legacyConsole = handleLegacyConsoleRedirect(request);
+  if (legacyConsole) {
+    return legacyConsole;
   }
 
   if (isProtectedPath(pathname)) {

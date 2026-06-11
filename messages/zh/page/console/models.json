@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "title": "模型管理 | 控制台",
+    "description": "管理模型 API 接入配置"
+  },
+  "title": "模型管理",
+  "toolbar": {
+    "create": "新建模型",
+    "refresh": "刷新"
+  },
+  "pagination": {
+    "total": "共 {total} 条"
+  },
+  "empty": {
+    "noData": "暂无模型配置"
+  },
+  "alert": {
+    "publicModelNotice": "私有模型仅您本人可编辑删除；公有模型由管理后台维护，全站用户可在偏好中选用。"
+  },
+  "provider": {
+    "aliyun": "阿里云百炼",
+    "glm": "智谱",
+    "deepseek": "深度求索",
+    "kimi": "月之暗面",
+    "siliconflow": "硅基流动"
+  },
+  "columns": {
+    "modelName": "模型名称",
+    "visibility": "类型",
+    "tags": "标签",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "updatedAt": "最近更新",
+    "actions": "操作",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "tag": {
+    "public": "公有",
+    "private": "私有",
+    "dataError": "数据异常",
+    "embedding": "嵌入"
+  },
+  "tooltip": {
+    "publicEditAdmin": "公有模型请在管理后台编辑",
+    "publicDeleteAdmin": "公有模型请在管理后台删除"
+  },
+  "modal": {
+    "create": {
+      "title": "新建模型"
+    },
+    "edit": {
+      "title": "编辑模型"
+    },
+    "ok": {
+      "create": "创建",
+      "save": "保存"
+    },
+    "cancel": "取消"
+  },
+  "form": {
+    "provider": {
+      "label": "Provider",
+      "rules": {
+        "required": "请选择 Provider"
+      },
+      "placeholder": "请选择"
+    },
+    "modelName": {
+      "label": "模型名称",
+      "rules": {
+        "required": "请输入模型名称"
+      },
+      "placeholder": "例如 qwen-turbo-latest"
+    },
+    "tags": {
+      "label": "标签",
+      "extra": "可选，可多选；不选表示无标签",
+      "placeholder": "选择标签"
+    },
+    "apiKey": {
+      "label": "API Key",
+      "rules": {
+        "required": "请输入 API Key"
+      },
+      "extra": {
+        "edit": "留空则不修改已保存的 API Key",
+        "create": "请输入厂商控制台获取的密钥"
+      },
+      "placeholder": {
+        "edit": "留空则不修改已保存的 API Key",
+        "create": "请输入厂商控制台获取的密钥"
+      }
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该模型配置？",
+      "description": "「{name}」删除后不可恢复。",
+      "ok": "删除"
+    }
+  },
+  "toast": {
+    "created": "已创建",
+    "saved": "已保存",
+    "deleted": "已删除"
+  }
+}

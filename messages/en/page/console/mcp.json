@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "title": "MCP | Console",
+    "description": "Manage personal MCP server connections."
+  },
+  "title": "MCP",
+  "intro": "Maintain personal MCP connections here; mount them on assistants in Assistant management for chat tools.",
+  "toolbar": {
+    "create": "New MCP",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search name or description"
+  },
+  "empty": {
+    "noData": "No MCP configurations yet."
+  },
+  "tag": {
+    "testSuccess": "Success",
+    "testFailure": "Failed",
+    "testUnknown": "Not tested",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "columns": {
+    "name": "Name",
+    "enabled": "Enabled",
+    "transport": "Transport",
+    "connectionSummary": "Connection summary",
+    "assistantRefs": "Assistant refs",
+    "lastTest": "Last test",
+    "actions": "Actions",
+    "testConnection": "Test connection",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "modal": {
+    "create": {
+      "title": "New MCP"
+    },
+    "edit": {
+      "title": "Edit MCP"
+    },
+    "testConnection": "Test connection",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "form": {
+    "name": {
+      "label": "Name",
+      "rules": {
+        "required": "Enter a name.",
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Display name"
+    },
+    "description": {
+      "label": "Description",
+      "rules": {
+        "max": "At most {max} characters"
+      },
+      "placeholder": "Optional"
+    },
+    "transport": {
+      "label": "Transport",
+      "rules": {
+        "required": "Select a transport."
+      },
+      "stdio": "STDIO (subprocess)"
+    },
+    "endpoint": {
+      "label": "Connection params (JSON)",
+      "rules": {
+        "required": "Enter connection JSON."
+      },
+      "extra": {
+        "edit": "Blank means no change. HTTP/SSE: {\"url\":\"https://...\"}; stdio: {\"command\":\"npx\",\"args\":[\"-y\",\"pkg\"]}. Loaded from server when editing.",
+        "create": "Must be a JSON object."
+      },
+      "placeholder": "e.g. {\"url\":\"https://api.example.com/mcp\"}"
+    },
+    "metadata": {
+      "label": "metadata (optional JSON)",
+      "extra": "JSON object; blank to skip or keep unchanged on edit."
+    },
+    "credentials": {
+      "label": "Credentials / token",
+      "ariaHelp": "Credentials and token help",
+      "extra": {
+        "edit": "If configured, blank keeps existing; new value overwrites encrypted storage.",
+        "create": "Optional; server needs MCP_CREDENTIALS_MASTER_KEY to save."
+      },
+      "placeholder": {
+        "edit": "Leave blank to keep unchanged",
+        "create": "Optional"
+      },
+      "help": {
+        "intro": "Authentication sent when connecting to the MCP endpoint (e.g. API key, Bearer token).",
+        "http": "HTTP/SSE: usually a token string; for multiple headers use JSON e.g. {\"Authorization\":\"Bearer …\"} (merged with metadata headers).",
+        "stdio": "STDIO: usually omit; put secrets in connection env if required by docs.",
+        "storage": "Saved encrypted; never shown in lists/API. MCP_CREDENTIALS_MASTER_KEY encrypts storage—it is not the token for the MCP provider."
+      }
+    },
+    "enabled": {
+      "label": "Enable this MCP"
+    }
+  },
+  "testChoice": {
+    "title": "Unsaved changes",
+    "body": "Connection test uses saved server config. Choose:",
+    "cancel": "Cancel",
+    "discardAndTest": "Discard changes and test",
+    "saveAndTest": "Save and test"
+  },
+  "deleteBlocked": {
+    "title": "Cannot delete",
+    "body": "Go to <assistantsLink/> to unmount this MCP first."
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this MCP configuration?",
+      "description": "Cannot be undone. Deletion fails if still referenced by assistants."
+    }
+  },
+  "toast": {
+    "created": "Created",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "testSuccess": "Connection test succeeded",
+    "testFailed": "Connection test failed",
+    "loadFailed": "Failed to load configuration",
+    "saveBeforeTest": "Save the configuration before testing",
+    "endpointInvalidJson": "Connection params must be valid JSON object (e.g. {\"url\":\"https://...\"})",
+    "endpointParseError": "Connection params JSON could not be parsed or is not an object",
+    "metadataInvalidJson": "metadata must be a valid JSON object"
+  },
+  "link": {
+    "assistants": "Assistant management"
+  }
+}

@@ -5,6 +5,8 @@ import { jsonError, type JsonErrorDetail } from "@/server/http/json-response";
 import { getRequestUserContext } from "@/server/auth/request-user-context";
 import { getDataSource } from "@/server/db/data-source";
 import { User } from "@/server/db/entities/User";
+import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
+import { tApiMessage } from "@/server/i18n/t-api-message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 
 export const runtime = "nodejs";
@@ -16,12 +18,17 @@ type PatchBody = {
 };
 
 /**
- * PATCH：更新昵称、手机号；禁止修改邮箱。
+ * PATCH：更新昵称、手机号；禁止修改邮箱；校验错误经 tApiMessage 双语。
  */
 export const PATCH = withApiWrapper(async (request: Request) => {
+  const locale = resolveRequestLocale(request);
   const reqCtx = await getRequestUserContext();
   if (!reqCtx) {
-    return jsonError(ErrorCode.UNAUTHORIZED, "未登录", HttpStatus.UNAUTHORIZED);
+    return jsonError(
+      ErrorCode.UNAUTHORIZED,
+      tApiMessage(locale, "unauthorized"),
+      HttpStatus.UNAUTHORIZED,
+    );
   }
   const { user } = reqCtx;
 
@@ -29,15 +36,20 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   try {
     body = (await request.json()) as PatchBody;
   } catch {
-    return jsonError(ErrorCode.VALIDATION_ERROR, "请求体须为 JSON", HttpStatus.BAD_REQUEST);
+    return jsonError(
+      ErrorCode.VALIDATION_ERROR,
+      tApiMessage(locale, "validation.invalidJson"),
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   if (body.email !== undefined) {
+    const emailMsg = tApiMessage(locale, "validation.emailImmutable");
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "不允许通过本接口修改邮箱",
+      emailMsg,
       HttpStatus.BAD_REQUEST,
-      [{ field: "email", message: "邮箱不可修改" }],
+      [{ field: "email", message: emailMsg }],
     );
   }
 
@@ -46,7 +58,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   if (!hasNick && !hasTel) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请至少提供 nickName 或 telNo 之一",
+      tApiMessage(locale, "validation.profileFieldRequired"),
       HttpStatus.BAD_REQUEST,
     );
   }
@@ -57,16 +69,26 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   const userRepo = ds.getRepository(User);
   const row = await userRepo.findOne({ where: { id: user.id } });
   if (!row) {
-    return jsonError(ErrorCode.INTERNAL_ERROR, "用户不存在", HttpStatus.INTERNAL_SERVER_ERROR);
+    return jsonError(
+      ErrorCode.INTERNAL_ERROR,
+      tApiMessage(locale, "userNotFound"),
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
 
   if (hasNick) {
     if (typeof body.nickName !== "string") {
-      details.push({ field: "nickName", message: "须为字符串" });
+      details.push({
+        field: "nickName",
+        message: tApiMessage(locale, "validation.stringRequired"),
+      });
     } else {
       const nickErr = validateNickName(body.nickName);
       if (nickErr) {
-        details.push({ field: "nickName", message: nickErr });
+        details.push({
+          field: "nickName",
+          message: tApiMessage(locale, "validation.nickNameLength"),
+        });
       } else {
         row.nickName = body.nickName.trim();
       }
@@ -78,17 +100,27 @@ export const PATCH = withApiWrapper(async (request: Request) => {
     if (v === null) {
       row.telNo = null;
     } else if (typeof v !== "string") {
-      details.push({ field: "telNo", message: "须为字符串或 null" });
+      details.push({
+        field: "telNo",
+        message: tApiMessage(locale, "validation.stringOrNull"),
+      });
     } else {
       const t = v.trim();
       if (t === "") {
         row.telNo = null;
       } else if (!isValidTelNo(t)) {
-        details.push({ field: "telNo", message: "手机号须为 11 位数字" });
+        details.push({
+          field: "telNo",
+          message: tApiMessage(locale, "validation.telNoInvalid"),
+        });
       } else {
         const taken = await userRepo.findOne({ where: { telNo: t } });
         if (taken && taken.id !== user.id) {
-          return jsonError(ErrorCode.AUTH_TEL_TAKEN, "该手机号已被占用", HttpStatus.BAD_REQUEST);
+          return jsonError(
+            ErrorCode.AUTH_TEL_TAKEN,
+            tApiMessage(locale, "authTelTaken"),
+            HttpStatus.BAD_REQUEST,
+          );
         }
         row.telNo = t;
       }
@@ -98,7 +130,7 @@ export const PATCH = withApiWrapper(async (request: Request) => {
   if (details.length > 0) {
     return jsonError(
       ErrorCode.VALIDATION_ERROR,
-      "请求参数不合法",
+      tApiMessage(locale, "validation.invalidParams"),
       HttpStatus.UNPROCESSABLE_ENTITY,
       details,
     );

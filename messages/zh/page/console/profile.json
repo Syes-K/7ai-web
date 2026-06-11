@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "title": "账号与偏好 | 控制台",
+    "description": "账号信息与默认模型偏好"
+  },
+  "title": "账号与偏好",
+  "section": {
+    "personal": "个人信息",
+    "preferences": "用户配置"
+  },
+  "formLayout": {
+    "labelWidth": 96
+  },
+  "actions": {
+    "edit": "编辑",
+    "cancel": "取消",
+    "save": "保存",
+    "retry": "重试"
+  },
+  "form": {
+    "personal": {
+      "email": {
+        "label": "邮箱"
+      },
+      "nickName": {
+        "label": "昵称",
+        "rules": {
+          "required": "请输入昵称"
+        },
+        "placeholder": "1～32 个字符"
+      },
+      "telNo": {
+        "label": "手机号",
+        "extra": "留空表示不绑定手机号",
+        "placeholder": "11 位数字，可选",
+        "notSet": "未填写"
+      }
+    },
+    "preferences": {
+      "chatModel": {
+        "label": "对话模型",
+        "hint": "账号级默认对话（Chat）模型，用于新会话等。请先在「模型管理」登记接入后再选；可与向量模型分别绑定，同一条登记也可复用。"
+      },
+      "vectorModel": {
+        "label": "向量模型",
+        "hint": "用于知识库检索、文档分段嵌入（Embedding）等。请先在「模型管理」登记接入后再选；与对话模型可分别绑定。"
+      },
+      "topK": {
+        "label": "检索 topK",
+        "hint": "知识库检索每次最多返回的命中条数。留空时使用系统默认值。",
+        "placeholder": "留空使用默认值（3）"
+      },
+      "threshold": {
+        "label": "检索置信度",
+        "hint": "知识库检索命中阈值（0-1）。留空时使用系统默认值。",
+        "placeholder": "留空使用默认值（0.75）"
+      },
+      "chunkSize": {
+        "label": "分片长度",
+        "hint": "知识库向量化分片长度。留空时使用系统默认值。",
+        "placeholder": "留空使用默认值（1000）"
+      },
+      "chunkOverlap": {
+        "label": "重叠长度",
+        "hint": "知识库向量化分片重叠长度。留空时使用系统默认值。",
+        "placeholder": "留空使用默认值（200）"
+      },
+      "selectPlaceholder": "请选择",
+      "notSelected": "未选择"
+    }
+  },
+  "modelOption": {
+    "public": "公有",
+    "private": "私有"
+  },
+  "alert": {
+    "loadProfileFailed": "加载失败",
+    "loadModelsFailed": "模型列表加载失败",
+    "chatModelStale": "原对话模型默认配置已失效，请重新选择。",
+    "vectorModelStale": "原向量模型默认配置已失效，请重新选择。"
+  },
+  "empty": {
+    "noModels": "尚未登记模型。请先在模型管理中新增接入配置。",
+    "goToModels": "前往模型管理"
+  },
+  "tooltip": {
+    "prefEditDisabled": "请先在模型管理中新增至少一条接入配置"
+  },
+  "toast": {
+    "saved": "已保存"
+  }
+}
