@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import ProfileClient from "./ProfileClient";
+import { ProfilePageLoading } from "./ProfilePageLoading";
+
+const ProfileClient = dynamic(() => import("./ProfileClient"), {
+  loading: () => <ProfilePageLoading />,
+});
 
 type Props = {
   params: Promise<{ locale: string }>;

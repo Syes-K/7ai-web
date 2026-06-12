@@ -129,6 +129,31 @@ body {
  * 交互样式统一由 HEADER_ACTION_* 类承担。
  */
 @layer components {
+  /** 控制台/管理后台根节点：Tailwind 静态 CSS，不依赖 antd CSS-in-JS 注入时机 */
+  .console-app-root,
+  .admin-app-root {
+    min-height: 100vh;
+    background-color: #0a0a0f;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .console-app-root .ant-pro-layout-content,
+  .admin-app-root .ant-pro-layout-content,
+  .console-app-root .ant-pro-layout-container,
+  .admin-app-root .ant-pro-layout-container,
+  .console-app-root .ant-pro-page-container,
+  .admin-app-root .ant-pro-page-container,
+  .console-app-root .ant-pro-grid-content,
+  .admin-app-root .ant-pro-grid-content {
+    background-color: #0a0a0f;
+  }
+
+  .console-shell-main,
+  .admin-shell-main {
+    min-height: calc(100vh - 56px);
+    background-color: #0a0a0f;
+  }
+
   .ant-pro-global-header-header-actions-item {
     align-self: center;
     height: 2rem;

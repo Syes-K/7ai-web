@@ -12,10 +12,13 @@ import { UserAvatarMenu } from "@/components/user";
 import { IconEmptyState } from "@/components/ui/icons";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
 import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
+import { shellProLayoutToken } from "@/components/theme/shell-pro-layout-token";
 import { Link, usePathname } from "@/i18n/navigation";
 import { getConsoleMenuRoutes } from "./console-menu";
 import { ConsoleForbiddenNotice } from "./ConsoleForbiddenNotice";
 import { HEADER_ACTION_LINK_CLASS } from "@/components/layout/header-action-link";
+import { ShellHydrationGate } from "@/components/layout/ShellHydrationGate";
+import { ShellLoadingFallback } from "@/components/layout/ShellLoadingFallback";
 
 export default function ConsoleShell({
   children,
@@ -36,14 +39,17 @@ export default function ConsoleShell({
   return (
     <ConfigProvider locale={getAntdLocale(locale)} theme={shellDarkTheme}>
       <App>
+        <div className="console-app-root">
         <a
           href="#console-main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[9999] focus:rounded focus:bg-cyan-400 focus:px-3 focus:py-2 focus:text-black"
         >
           {t("skipToMain")}
         </a>
+        <ShellHydrationGate fallback={<ShellLoadingFallback />}>
         <ProLayout
           title={title}
+          token={shellProLayoutToken}
           logo={<BrandMark wordmarkClassName="!text-sm" />}
           headerTitleRender={(logo, _titleDom, props) =>
             props.collapsed ? (
@@ -95,13 +101,15 @@ export default function ConsoleShell({
             minHeight: "calc(100vh - 56px)",
           }}
         >
-          <main id="console-main" tabIndex={-1}>
+          <main id="console-main" tabIndex={-1} className="console-shell-main">
             <Suspense fallback={null}>
               <ConsoleForbiddenNotice />
             </Suspense>
             {children}
           </main>
         </ProLayout>
+        </ShellHydrationGate>
+        </div>
       </App>
     </ConfigProvider>
   );

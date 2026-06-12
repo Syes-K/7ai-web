@@ -1,4 +1,3 @@
-import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { redirect } from "next/navigation";
 import { hasLocale } from "next-intl";
 import { userDisplayLabel } from "@/common/utils/user-display-label";
@@ -25,9 +24,5 @@ export default async function ConsoleLayout({
     redirect(`/${locale}/login?redirect=/${locale}/console/profile`);
   }
   const displayName = userDisplayLabel(reqCtx.user);
-  return (
-    <AntdRegistry>
-      <ConsoleShell displayName={displayName}>{children}</ConsoleShell>
-    </AntdRegistry>
-  );
+  return <ConsoleShell displayName={displayName}>{children}</ConsoleShell>;
 }

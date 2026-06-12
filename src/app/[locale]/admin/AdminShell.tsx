@@ -12,9 +12,12 @@ import { UserAvatarMenu } from "@/components/user";
 import { IconConfig, IconEmptyState } from "@/components/ui/icons";
 import { ProShellHeaderTitle } from "@/components/pro-layout/ProShellHeaderTitle";
 import { shellDarkTheme } from "@/components/theme/shell-dark-theme";
+import { shellProLayoutToken } from "@/components/theme/shell-pro-layout-token";
 import { Link, usePathname } from "@/i18n/navigation";
 import { getAdminMenuRoutes } from "./admin-menu";
 import { HEADER_ACTION_LINK_CLASS } from "@/components/layout/header-action-link";
+import { ShellHydrationGate } from "@/components/layout/ShellHydrationGate";
+import { ShellLoadingFallback } from "@/components/layout/ShellLoadingFallback";
 
 /** 管理后台 ProLayout 壳层（鉴权由服务端 layout 完成） */
 export default function AdminShell({
@@ -35,14 +38,17 @@ export default function AdminShell({
   return (
     <ConfigProvider locale={getAntdLocale(locale)} theme={shellDarkTheme}>
       <App>
+        <div className="admin-app-root">
         <a
           href="#admin-main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[9999] focus:rounded focus:bg-cyan-400 focus:px-3 focus:py-2 focus:text-black"
         >
           {t("skipToMain")}
         </a>
+        <ShellHydrationGate fallback={<ShellLoadingFallback />}>
         <ProLayout
           title={title}
+          token={shellProLayoutToken}
           logo={<BrandMark wordmarkClassName="!text-sm" />}
           headerTitleRender={(logo, _titleDom, props) =>
             props.collapsed ? (
@@ -102,10 +108,12 @@ export default function AdminShell({
             minHeight: "calc(100vh - 56px)",
           }}
         >
-          <main id="admin-main" tabIndex={-1}>
+          <main id="admin-main" tabIndex={-1} className="admin-shell-main">
             {children}
           </main>
         </ProLayout>
+        </ShellHydrationGate>
+        </div>
       </App>
     </ConfigProvider>
   );

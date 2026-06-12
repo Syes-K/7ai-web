@@ -1,3 +1,4 @@
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
@@ -27,15 +28,17 @@ export default async function LocaleLayout({ children, params }: Props) {
   const appLocale = locale as AppLocale;
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      <ConfigProvider locale={getAntdLocale(appLocale)}>
-        <ConfirmProvider>
-          <DayjsLocaleSync locale={appLocale} />
-          <LocaleHtmlLang lang={localeToHtmlLang(appLocale)} />
-          {children}
-        </ConfirmProvider>
-      </ConfigProvider>
-    </NextIntlClientProvider>
+    <AntdRegistry>
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <ConfigProvider locale={getAntdLocale(appLocale)}>
+          <ConfirmProvider>
+            <DayjsLocaleSync locale={appLocale} />
+            <LocaleHtmlLang lang={localeToHtmlLang(appLocale)} />
+            {children}
+          </ConfirmProvider>
+        </ConfigProvider>
+      </NextIntlClientProvider>
+    </AntdRegistry>
   );
 }
 

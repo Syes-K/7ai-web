@@ -1,4 +1,3 @@
-import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hasLocale } from "next-intl";
@@ -46,10 +45,8 @@ export default async function AdminLayout({
   const displayName = userDisplayLabel(reqCtx!.user);
 
   return (
-    <AntdRegistry>
-      <AdminSessionProvider userId={reqCtx!.user.id}>
-        <AdminShell displayName={displayName}>{children}</AdminShell>
-      </AdminSessionProvider>
-    </AntdRegistry>
+    <AdminSessionProvider userId={reqCtx!.user.id}>
+      <AdminShell displayName={displayName}>{children}</AdminShell>
+    </AdminSessionProvider>
   );
 }

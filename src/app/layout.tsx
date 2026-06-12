@@ -27,6 +27,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* 慢网时 layout.css / antd CSS-in-JS 可能晚于 HTML：内联最小可读样式，避免衬线字体 + 白屏 */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              html, body {
+                margin: 0;
+                min-height: 100%;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                -webkit-font-smoothing: antialiased;
+              }
+              .console-app-root, .admin-app-root,
+              .console-app-root .ant-pro-layout-content,
+              .admin-app-root .ant-pro-layout-content {
+                background-color: #0a0a0f;
+                color: rgba(255, 255, 255, 0.88);
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );

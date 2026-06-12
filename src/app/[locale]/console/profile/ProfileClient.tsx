@@ -15,7 +15,6 @@ import {
   Card,
   Empty,
   Space,
-  Spin,
   Tooltip,
   Typography,
 } from "antd";
@@ -27,6 +26,7 @@ import type { ModelConfigListItem } from "@/common/types";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
 import { parseApiError } from "@/common/utils/parse-api-error";
 import { Link } from "@/i18n/navigation";
+import { ProfilePageFallback } from "./ProfilePageFallback";
 import { formatModelConfigTag } from "@/common/model-config/model-tag-ui";
 import { getProviderTagProps } from "../models/model-provider-ui";
 
@@ -119,6 +119,7 @@ export default function ProfileClient() {
     setLoading(true);
     setProfileError(null);
     setModelsError(null);
+    let keepLoading = false;
     try {
       const [pRes, mRes] = await Promise.all([
         fetch("/api/console/profile", { credentials: "include" }),
@@ -129,6 +130,7 @@ export default function ProfileClient() {
       ]);
       if (pRes.status === 401) {
         redirectToLocaleLogin(locale, profileReturnPath);
+        keepLoading = true;
         return;
       }
       if (!pRes.ok) {
@@ -153,7 +155,9 @@ export default function ProfileClient() {
     } catch {
       setProfileError(tShell("errors.networkRetry"));
     } finally {
-      setLoading(false);
+      if (!keepLoading) {
+        setLoading(false);
+      }
     }
   }, [locale, profileReturnPath, tShell]);
 
@@ -306,51 +310,99 @@ export default function ProfileClient() {
 
   const tModels = useTranslations("page.console.models");
 
+  /** 等待 API：整页可见骨架屏（Card loading 在深色主题下几乎不可见） */
+  if (loading || (profile === null && !profileError)) {
+    return (
+      <PageContainer ghost title={t("title")}>
+        <ProfilePageFallback />
+      </PageContainer>
+    );
+  }
+
+  const personalExtra =
+    !profileError
+      ? !personalEditing
+        ? (
+            <Button
+              type="primary"
+              ghost
+              icon={<EditOutlined />}
+              onClick={openPersonalEdit}
+            >
+              {t("actions.edit")}
+            </Button>
+          )
+        : (
+            <Space>
+              <Button onClick={cancelPersonal} disabled={personalSaving}>
+                {t("actions.cancel")}
+              </Button>
+              <Button
+                type="primary"
+                ghost
+                loading={personalSaving}
+                onClick={() => void submitPersonal()}
+              >
+                {t("actions.save")}
+              </Button>
+            </Space>
+          )
+      : null;
+
+  const preferencesExtra =
+    !modelsError && profile
+      ? models.length === 0
+        ? (
+            <Tooltip title={t("tooltip.prefEditDisabled")}>
+              <span>
+                <Button type="link" ghost disabled icon={<EditOutlined />}>
+                  {t("actions.edit")}
+                </Button>
+              </span>
+            </Tooltip>
+          )
+        : !prefEditing
+          ? (
+              <Button
+                type="primary"
+                ghost
+                icon={<EditOutlined />}
+                onClick={openPrefEdit}
+              >
+                {t("actions.edit")}
+              </Button>
+            )
+          : (
+              <Space>
+                <Button onClick={cancelPref} disabled={prefSaving}>
+                  {t("actions.cancel")}
+                </Button>
+                <Button
+                  type="primary"
+                  ghost
+                  loading={prefSaving}
+                  onClick={() => void submitPref()}
+                >
+                  {t("actions.save")}
+                </Button>
+              </Space>
+            )
+      : null;
+
   return (
     <PageContainer ghost title={t("title")}>
       <div className="max-w-[1400px]">
-        {loading ? (
-          <div className="flex min-h-[240px] items-center justify-center">
-            <Spin size="large" />
-          </div>
-        ) : (
-          <>
-            <Card
-              className="mb-5"
-              title={
-                <Typography.Title level={5} className="!mb-0 !text-white/90">
-                  {t("section.personal")}
-                </Typography.Title>
-              }
-              extra={
-                !personalEditing ? (
-                  <Button
-                    type="primary"
-                    ghost
-                    icon={<EditOutlined />}
-                    onClick={openPersonalEdit}
-                  >
-                    {t("actions.edit")}
-                  </Button>
-                ) : (
-                  <Space>
-                    <Button onClick={cancelPersonal} disabled={personalSaving}>
-                      {t("actions.cancel")}
-                    </Button>
-                    <Button
-                      type="primary"
-                      ghost
-                      loading={personalSaving}
-                      onClick={() => void submitPersonal()}
-                    >
-                      {t("actions.save")}
-                    </Button>
-                  </Space>
-                )
-              }
-              styles={{ body: { paddingTop: 16 } }}
-            >
-              {profileError ? (
+        <Card
+          className="mb-5"
+          title={
+            <Typography.Title level={5} className="!mb-0 !text-white/90">
+              {t("section.personal")}
+            </Typography.Title>
+          }
+          extra={personalExtra}
+          styles={{ body: { paddingTop: 16 } }}
+        >
+          {profileError ? (
                 <Alert
                   type="error"
                   showIcon
@@ -370,6 +422,13 @@ export default function ProfileClient() {
                   readonly={!personalEditing}
                   className="max-w-2xl"
                   requiredMark={personalEditing}
+                  initialValues={{
+                    email: profile.profile.email,
+                    nickName: profile.profile.nickName,
+                    telNo: profile.profile.telNo?.trim()
+                      ? profile.profile.telNo
+                      : t("form.personal.telNo.notSet"),
+                  }}
                 >
                   <ProFormText
                     name="email"
@@ -418,49 +477,16 @@ export default function ProfileClient() {
               ) : null}
             </Card>
 
-            <Card
-              title={
-                <Typography.Title level={5} className="!mb-0 !text-white/90">
-                  {t("section.preferences")}
-                </Typography.Title>
-              }
-              extra={
-                models.length === 0 ? (
-                  <Tooltip title={t("tooltip.prefEditDisabled")}>
-                    <span>
-                      <Button type="link" ghost disabled icon={<EditOutlined />}>
-                        {t("actions.edit")}
-                      </Button>
-                    </span>
-                  </Tooltip>
-                ) : !prefEditing ? (
-                  <Button
-                    type="primary"
-                    ghost
-                    icon={<EditOutlined />}
-                    onClick={openPrefEdit}
-                  >
-                    {t("actions.edit")}
-                  </Button>
-                ) : (
-                  <Space>
-                    <Button onClick={cancelPref} disabled={prefSaving}>
-                      {t("actions.cancel")}
-                    </Button>
-                    <Button
-                      type="primary"
-                      ghost
-                      loading={prefSaving}
-                      onClick={() => void submitPref()}
-                    >
-                      {t("actions.save")}
-                    </Button>
-                  </Space>
-                )
-              }
-              styles={{ body: { paddingTop: 16 } }}
-            >
-              {modelsError ? (
+        <Card
+          title={
+            <Typography.Title level={5} className="!mb-0 !text-white/90">
+              {t("section.preferences")}
+            </Typography.Title>
+          }
+          extra={preferencesExtra}
+          styles={{ body: { paddingTop: 16 } }}
+        >
+          {modelsError ? (
                 <Alert
                   type="error"
                   showIcon
@@ -511,6 +537,19 @@ export default function ProfileClient() {
                   readonly={!prefEditing}
                   className="max-w-3xl"
                   requiredMark={false}
+                  initialValues={{
+                    preferredModelConfigId:
+                      profile.preference.preferredModelConfigId ?? undefined,
+                    preferredVectorModelConfigId:
+                      profile.preference.preferredVectorModelConfigId ?? undefined,
+                    preferredKnowledgeTopK: profile.preference.knowledgeTopKEffective,
+                    preferredKnowledgeThreshold:
+                      profile.preference.knowledgeThresholdEffective,
+                    preferredKnowledgeChunkSize:
+                      profile.preference.knowledgeChunkSizeEffective,
+                    preferredKnowledgeChunkOverlap:
+                      profile.preference.knowledgeChunkOverlapEffective,
+                  }}
                 >
                   <ProFormSelect
                     name="preferredModelConfigId"
@@ -639,8 +678,6 @@ export default function ProfileClient() {
                 </ProForm>
               )}
             </Card>
-          </>
-        )}
       </div>
     </PageContainer>
   );
