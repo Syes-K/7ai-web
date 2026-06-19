@@ -14,7 +14,13 @@ type DetailKey =
   | "mcpRoundCalls"
   | "mcpNoTools"
   | "mcpNoToolCalls"
-  | "mcpUnknownError";
+  | "mcpUnknownError"
+  | "skillsNote"
+  | "skillsNoAssistantBody"
+  | "skillsNotMountedBody"
+  | "skillsMergedTitle"
+  | "skillsReadTitle"
+  | "skillsReadOnlyNote";
 
 type ChatTranslator = (key: string, values?: Record<string, string | number>) => string;
 
@@ -33,6 +39,12 @@ const DETAIL_KEYS: DetailKey[] = [
   "mcpNoTools",
   "mcpNoToolCalls",
   "mcpUnknownError",
+  "skillsNote",
+  "skillsNoAssistantBody",
+  "skillsNotMountedBody",
+  "skillsMergedTitle",
+  "skillsReadTitle",
+  "skillsReadOnlyNote",
 ];
 
 /** 各 locale 已写入 DB 的详情标题/正文 → 语义 key（兼容历史硬编码中文）。 */
@@ -61,6 +73,18 @@ LEGACY_DETAIL_STRING_TO_KEY.set(
 LEGACY_DETAIL_STRING_TO_KEY.set(
   "助手侧未挂载 MCP 配置，或配置已禁用。",
   "mcpNotMountedBody",
+);
+LEGACY_DETAIL_STRING_TO_KEY.set("已合并技能包", "skillsMergedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Merged Skill Packs", "skillsMergedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("已读取文件", "skillsReadTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Files read", "skillsReadTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set(
+  "当前会话未绑定助手，本轮未加载技能包。",
+  "skillsNoAssistantBody",
+);
+LEGACY_DETAIL_STRING_TO_KEY.set(
+  "助手未挂载可用技能包，或技能包已停用。",
+  "skillsNotMountedBody",
 );
 
 const MCP_TOOLS_PREFIXES = ["Tools · ", "工具 · "] as const;

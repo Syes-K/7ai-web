@@ -149,7 +149,7 @@
     "stage": {
       "knowledge": "Knowledge retrieval",
       "mcp": "MCP tools",
-      "skill": "Skills",
+      "skill": "Skill Packs",
       "summary": "Summary callback",
       "reasoning": "Reasoning",
       "details": "Details",
@@ -183,7 +183,15 @@
       "mcpRoundCalls": "Tool calls this turn",
       "mcpNoTools": "(list_tools returned no available tools)",
       "mcpNoToolCalls": "No tool calls this turn",
-      "mcpUnknownError": "Unknown error"
+      "mcpUnknownError": "Unknown error",
+      "skillsNote": "Note",
+      "skillsNoAssistantBody": "This conversation has no assistant; Skill Packs were not loaded for this turn.",
+      "skillsNotMountedBody": "The assistant has no active Skill Packs mounted, or they are disabled.",
+      "skillsMergedTitle": "Merged Skill Packs",
+      "skillsMergedNameLine": "· {name}",
+      "skillsReadTitle": "Files read",
+      "skillsReadLine": "· {packName}: {path}",
+      "skillsReadOnlyNote": "Scripts are read as text only; not executed."
     },
     "a11y": {
       "currentStep": "Current step {stepKey} {status}",

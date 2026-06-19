@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "title": "Skill Packs | Console",
+    "description": "Instructions and reference files for your assistants, applied automatically in chat."
+  },
+  "title": "Skill Packs",
+  "alert": {
+    "productScope": {
+      "message": "What are Skill Packs?",
+      "description": "Skill Packs are instructions and reference files that teach your assistant how to work. Create or edit them here, or import a zip folder. Compatible with skill directories from tools like Cursor and Claude Code. When mounted on an assistant, the assistant follows SKILL.md in chat and can read other files in the pack on demand. **Scripts in the pack are not run in this version.**"
+    },
+    "scriptsReadOnly": {
+      "message": "Scripts in this pack are read-only",
+      "description": "The assistant can read files under `scripts/` as reference, but **they are not run** in this version.",
+      "tooltip": "Reference only; not executed"
+    }
+  },
+  "toolbar": {
+    "create": "New Skill Pack",
+    "import": "Import Zip",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search by name",
+    "search": "Search"
+  },
+  "columns": {
+    "name": "Name",
+    "description": "Description",
+    "fileCount": "Files",
+    "hasScripts": "Scripts",
+    "enabled": "Status",
+    "updatedAt": "Updated",
+    "assistantRefs": "Assistants",
+    "actions": "Actions",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "tag": {
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "hasScripts": "Has scripts",
+    "scriptsReadOnly": "Read-only"
+  },
+  "empty": {
+    "noSkills": "No Skill Packs yet",
+    "createFirst": "Create your first Skill Pack",
+    "importHint": "Or import a zip skill pack (compatible with Cursor, Claude Code, and similar tools)"
+  },
+  "drawer": {
+    "create": { "title": "New Skill Pack" },
+    "edit": { "title": "Edit Skill Pack" },
+    "saveFile": "Save file",
+    "saveAll": "Save all",
+    "unsaved": {
+      "title": "Unsaved changes",
+      "description": "Switch file without saving?"
+    }
+  },
+  "fileTree": {
+    "newFile": "New file",
+    "newFolder": "New folder",
+    "rename": "Rename",
+    "delete": "Delete",
+    "skillMdRequired": "SKILL.md is required"
+  },
+  "modal": {
+    "create": { "title": "New Skill Pack" },
+    "edit": { "title": "Edit Skill Pack" },
+    "ok": { "create": "Create", "save": "Save" },
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "form": {
+    "name": {
+      "label": "Name",
+      "placeholder": "e.g. Code review checklist",
+      "rules": {
+        "required": "Enter a name.",
+        "max": "Name must be at most {max} characters."
+      }
+    },
+    "description": {
+      "label": "Description",
+      "placeholder": "Optional short summary",
+      "rules": {
+        "max": "Description must be at most {max} characters."
+      }
+    },
+    "enabled": {
+      "label": "Enable this Skill Pack"
+    },
+    "skillMd": {
+      "extra": "Optional YAML header. The body below is provided to the assistant in chat (the header is ignored). Max body {max} characters."
+    }
+  },
+  "import": {
+    "title": "Import Skill Pack",
+    "dragHint": "Drop a .zip file here or click to upload",
+    "folderButton": "Select folder",
+    "missingSkillMd": "Root SKILL.md is required",
+    "skippedFiles": "Skipped {count} file(s)",
+    "conflict": "A Skill Pack with this name already exists"
+  },
+  "help": {
+    "scripts": {
+      "title": "What are scripts in a pack?",
+      "body": "Some Skill Packs include script files (e.g. Python). The assistant can read them as reference, but **they are not executed** in this version. Script execution is planned for a future release."
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this Skill Pack?",
+      "description": "Files in the pack will be removed. Unmount from assistants first if referenced."
+    }
+  },
+  "deleteBlocked": {
+    "title": "Cannot delete",
+    "body": "Open <assistantsLink>Assistant management</assistantsLink> to remove mounts first."
+  },
+  "link": {
+    "assistants": "Assistant management"
+  },
+  "toast": {
+    "created": "Skill Pack created",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "loadFailed": "Could not load pack details.",
+    "imported": "Skill Pack imported",
+    "syncedFromFrontmatter": "Name/description synced from SKILL.md"
+  }
+}

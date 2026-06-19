@@ -60,6 +60,7 @@ const ORDERED_STEPS: Array<{ stepKey: string; mainStage: TurnMainStage; subStage
   { stepKey: "A2", mainStage: "A", subStage: "persist_user_message" },
   { stepKey: "B1", mainStage: "B", subStage: "prepare_history" },
   { stepKey: "C1", mainStage: "C", subStage: "knowledge_injection" },
+  { stepKey: "C1b", mainStage: "C", subStage: "skills_resolution" },
   { stepKey: "C2", mainStage: "C", subStage: "mcp_tools_resolution" },
   { stepKey: "D1", mainStage: "D", subStage: "assistant_generation" },
   { stepKey: "E1", mainStage: "E", subStage: "summary_persist" },

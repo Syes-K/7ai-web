@@ -20,6 +20,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     consoleAssistants,
     consoleKnowledge,
     consoleMcp,
+    consoleSkills,
     consoleSettings,
     adminShell,
     adminConfig,
@@ -42,6 +43,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     import(`../../messages/${locale}/page/console/assistants.json`),
     import(`../../messages/${locale}/page/console/knowledge.json`),
     import(`../../messages/${locale}/page/console/mcp.json`),
+    import(`../../messages/${locale}/page/console/skills.json`),
     import(`../../messages/${locale}/page/console/settings.json`),
     import(`../../messages/${locale}/page/admin/shell.json`),
     import(`../../messages/${locale}/page/admin/config.json`),
@@ -70,6 +72,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
           assistants: consoleAssistants.default,
           knowledge: consoleKnowledge.default,
           mcp: consoleMcp.default,
+          skills: consoleSkills.default,
           settings: consoleSettings.default,
         },
         admin: {

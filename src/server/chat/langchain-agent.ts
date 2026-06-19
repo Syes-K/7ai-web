@@ -24,7 +24,9 @@ import type { User } from "@/server/db/entities/User";
 import {
   resolveAllToolsForAgent,
   resolveSystemPromptWithSkills,
+  resolveSkillsTurnUiSnapshot,
   type McpTurnUiSnapshot,
+  type SkillsTurnUiSnapshot,
 } from "@/server/chat/turn-capabilities";
 
 export type GetChatAssistantAgentOptions = {
@@ -61,6 +63,8 @@ export async function resolveChatAssistantSystemPrompt(
 export type GetAssistantAgentResult = {
   agent: Awaited<ReturnType<typeof createAgent>>;
   mcpTurnUi: McpTurnUiSnapshot;
+  skillsTurnUi: SkillsTurnUiSnapshot;
+  skillsReadCollector: import("@/server/skill/read-skill-file-tool").SkillReadStatsCollector;
   disposeMcp: () => Promise<void>;
 };
 
@@ -70,12 +74,14 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions): 
   const summaryModel = await getChatRuntimeSummarizationModel(userId, { user: user ?? undefined });
   const capCtx = { userId, user, assistantId };
   const baseSystemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
-  const [systemPrompt, toolsRes] = await Promise.all([
+  const [systemPrompt, toolsRes, skillsTurnUi] = await Promise.all([
     resolveSystemPromptWithSkills(baseSystemPrompt, capCtx),
     resolveAllToolsForAgent(capCtx),
+    resolveSkillsTurnUiSnapshot(capCtx),
   ]);
   const tools = toolsRes.tools;
   const mcpTurnUi = toolsRes.mcpTurnUi;
+  const skillsReadCollector = toolsRes.skillsReadCollector;
   const disposeMcp = toolsRes.disposeMcp;
   const summaryCfg = await getConversationSummaryConfig();
   const summaryTemplates = await getSummaryPromptTemplates();
@@ -111,7 +117,7 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions): 
         ]
       : [],
   });
-  return { agent, mcpTurnUi, disposeMcp };
+  return { agent, mcpTurnUi, skillsTurnUi, skillsReadCollector, disposeMcp };
 }
 
 type StreamEventV2 = {

@@ -15,6 +15,9 @@ import { AssistantKnowledgeBase } from "@/server/db/entities/AssistantKnowledgeB
 import { ChatTurn } from "@/server/db/entities/ChatTurn";
 import { UserMcpConfig } from "@/server/db/entities/UserMcpConfig";
 import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
+import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
+import { AssistantSkillBinding } from "@/server/db/entities/AssistantSkillBinding";
+import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
 
 let dataSource: DataSource | null = null;
 
@@ -48,6 +51,9 @@ export async function getDataSource(): Promise<DataSource> {
       ChatTurn,
       UserMcpConfig,
       AssistantMcpBinding,
+      UserSkillConfig,
+      AssistantSkillBinding,
+      SkillPackFile,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",
@@ -58,5 +64,9 @@ export async function getDataSource(): Promise<DataSource> {
     "@/server/db/migrate-kb-mcp-to-assistant-mcp"
   );
   await migrateKnowledgeBaseMcpToAssistantMcp(dataSource);
+  const { migrateSkillContentToPackFiles } = await import(
+    "@/server/db/migrate-skill-content-to-pack-files"
+  );
+  await migrateSkillContentToPackFiles(dataSource);
   return dataSource;
 }

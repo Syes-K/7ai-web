@@ -149,7 +149,7 @@
     "stage": {
       "knowledge": "知识库增强",
       "mcp": "MCP 工具",
-      "skill": "Skills 调用",
+      "skill": "技能包",
       "summary": "摘要回调",
       "reasoning": "推理过程",
       "details": "详情",
@@ -183,7 +183,15 @@
       "mcpRoundCalls": "本轮工具调用",
       "mcpNoTools": "（list_tools 未返回可用工具）",
       "mcpNoToolCalls": "未触发工具调用",
-      "mcpUnknownError": "未知错误"
+      "mcpUnknownError": "未知错误",
+      "skillsNote": "说明",
+      "skillsNoAssistantBody": "当前会话未绑定助手，本轮未加载技能包。",
+      "skillsNotMountedBody": "助手未挂载可用技能包，或技能包已停用。",
+      "skillsMergedTitle": "已合并技能包",
+      "skillsMergedNameLine": "· {name}",
+      "skillsReadTitle": "已读取文件",
+      "skillsReadLine": "· {packName}：{path}",
+      "skillsReadOnlyNote": "脚本仅以文本读取，不会执行。"
     },
     "a11y": {
       "currentStep": "当前步骤 {stepKey} {status}",

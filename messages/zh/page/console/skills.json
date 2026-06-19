@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "title": "技能包管理 | 控制台",
+    "description": "为助手配置说明与参考资料，在对话中自动生效。"
+  },
+  "title": "技能包管理",
+  "alert": {
+    "productScope": {
+      "message": "什么是技能包？",
+      "description": "技能包是教助手如何工作的说明与参考资料。可在此新建、编辑，或导入 zip 文件夹。常见来源包括 Cursor、Claude Code 等 AI 编程工具的 skills 目录，格式通常兼容。挂载到助手后，对话中会遵循 SKILL.md 中的指导，并可按需查阅包内其他文件。**当前版本不会运行包内脚本。**"
+    },
+    "scriptsReadOnly": {
+      "message": "此包内的脚本为只读",
+      "description": "助手可以阅读 `scripts/` 下的文件作为参考，但 **当前版本不会执行** 它们。",
+      "tooltip": "仅作参考，不会运行"
+    }
+  },
+  "toolbar": {
+    "create": "新建技能包",
+    "import": "导入 Zip",
+    "refresh": "刷新",
+    "searchPlaceholder": "按名称搜索",
+    "search": "搜索"
+  },
+  "columns": {
+    "name": "名称",
+    "description": "描述",
+    "fileCount": "文件数",
+    "hasScripts": "脚本",
+    "enabled": "状态",
+    "updatedAt": "更新时间",
+    "assistantRefs": "助手引用",
+    "actions": "操作",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "tag": {
+    "enabled": "启用",
+    "disabled": "停用",
+    "hasScripts": "含脚本",
+    "scriptsReadOnly": "只读"
+  },
+  "empty": {
+    "noSkills": "尚未添加技能包",
+    "createFirst": "新建第一个技能包",
+    "importHint": "或导入 zip 技能包（兼容 Cursor、Claude Code 等工具的 skills 目录）"
+  },
+  "drawer": {
+    "create": { "title": "新建技能包" },
+    "edit": { "title": "编辑技能包" },
+    "saveFile": "保存当前文件",
+    "saveAll": "保存全部",
+    "unsaved": {
+      "title": "有未保存的修改",
+      "description": "切换文件将丢失未保存内容，是否继续？"
+    }
+  },
+  "fileTree": {
+    "newFile": "新建文件",
+    "newFolder": "新建文件夹",
+    "rename": "重命名",
+    "delete": "删除",
+    "skillMdRequired": "须包含 SKILL.md"
+  },
+  "modal": {
+    "create": { "title": "新建技能包" },
+    "edit": { "title": "编辑技能包" },
+    "ok": { "create": "创建", "save": "保存" },
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "form": {
+    "name": {
+      "label": "名称",
+      "placeholder": "例如：代码审查清单",
+      "rules": {
+        "required": "请输入名称",
+        "max": "名称最多 {max} 字"
+      }
+    },
+    "description": {
+      "label": "描述",
+      "placeholder": "可选简短说明",
+      "rules": {
+        "max": "描述最多 {max} 字"
+      }
+    },
+    "enabled": {
+      "label": "启用该技能包"
+    },
+    "skillMd": {
+      "extra": "可选 YAML 头信息。下方正文会在对话时提供给助手（头信息会被忽略）。正文最多 {max} 字符。"
+    }
+  },
+  "import": {
+    "title": "导入技能包",
+    "dragHint": "拖拽 zip 到此处或点击上传",
+    "folderButton": "选择文件夹",
+    "missingSkillMd": "压缩包根目录须包含 SKILL.md",
+    "skippedFiles": "已跳过 {count} 个文件",
+    "conflict": "同名技能包已存在"
+  },
+  "help": {
+    "scripts": {
+      "title": "包内的脚本是做什么的？",
+      "body": "部分技能包会附带脚本文件（如 Python）。助手可以阅读这些文件作为参考，但 **当前版本不会执行** 它们。脚本运行能力将在后续版本提供。"
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "确定删除该技能包？",
+      "description": "包内文件将一并删除。若仍被助手引用，请先解除挂载。"
+    }
+  },
+  "deleteBlocked": {
+    "title": "无法删除",
+    "body": "请先在<assistantsLink>助手管理</assistantsLink>中解除挂载。"
+  },
+  "link": {
+    "assistants": "助手管理"
+  },
+  "toast": {
+    "created": "已创建技能包",
+    "saved": "已保存",
+    "deleted": "已删除",
+    "loadFailed": "加载技能包详情失败",
+    "imported": "导入成功",
+    "syncedFromFrontmatter": "已从 SKILL.md 同步名称/描述"
+  }
+}

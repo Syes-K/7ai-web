@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Console | 7ai-web",
-    "description": "Manage models, assistants, knowledge bases, and MCP integrations."
+    "description": "Manage models, assistants, knowledge bases, MCP integrations, and Skills."
   },
   "title": "Console",
   "verifyingSession": "Verifying session…",
@@ -12,7 +12,8 @@
     "models": "Models",
     "assistants": "Assistants",
     "knowledge": "Knowledge bases",
-    "mcp": "MCP"
+    "mcp": "MCP",
+    "skills": "Skill Packs"
   },
   "langSwitcher": {
     "ariaLabel": "Language",

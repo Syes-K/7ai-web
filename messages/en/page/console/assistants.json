@@ -100,16 +100,31 @@
       "extra": "Tools loaded for this assistant in chat; independent of knowledge retrieval.",
       "placeholder": "Loading MCP list…",
       "inactiveSuffix": "(disabled)"
+    },
+    "skills": {
+      "label": "Skill Packs",
+      "manageLink": "Manage Skill Packs…",
+      "extra": "When mounted, the assistant follows the pack's main instructions and can read other files in chat. Scripts are reference-only and not executed. Independent from MCP tools.",
+      "placeholder": "Select Skill Packs",
+      "inactiveSuffix": "(disabled)",
+      "optionFiles": "{name} · {count} files",
+      "scriptsTag": "Has scripts",
+      "scriptsTooltip": "Readable in chat only; not executed"
     }
   },
   "section": {
-    "mcpMount": "MCP mount"
+    "mcpMount": "MCP mount",
+    "skillsMount": "Skill Pack mount"
   },
   "alert": {
     "noMcp": "You have no MCP configurations yet",
     "noMcpAction": "Add one in <mcpLink>MCP management</mcpLink> first.",
     "mcpInactive": "Some mounted MCPs are disabled",
-    "mcpInactiveDesc": "Disabled MCPs are not loaded in chat. Enable or remove them."
+    "mcpInactiveDesc": "Disabled MCPs are not loaded in chat. Enable or remove them.",
+    "noSkills": "No Skill Packs available",
+    "noSkillsAction": "Create one in <skillsLink>Skill Packs</skillsLink> first.",
+    "skillsInactive": "Some mounted Skill Packs are disabled",
+    "skillsInactiveDesc": "Disabled packs are not loaded in chat. Enable or remove them."
   },
   "confirm": {
     "delete": {
@@ -123,7 +138,9 @@
     "deleted": "Deleted",
     "kbBindFailedOnCreate": "Assistant created, but knowledge base binding failed",
     "mcpBindFailedOnCreate": "Assistant created, but MCP mount failed",
+    "skillsBindFailedOnCreate": "Assistant created, but Skills mount failed",
     "kbBindFailedOnSave": "Assistant saved, but knowledge base binding failed",
-      "mcpBindFailedOnSave": "Assistant saved, but MCP mount failed"
+    "mcpBindFailedOnSave": "Assistant saved, but MCP mount failed",
+    "skillsBindFailedOnSave": "Assistant saved, but Skills mount failed"
   }
 }

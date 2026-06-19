@@ -44,9 +44,19 @@ import { Link } from "@/i18n/navigation";
 const API_BASE = "/api/console/assistants";
 const KB_API_BASE = "/api/knowledge-bases";
 const MCP_LIST_API = "/api/console/mcp-configs";
+const SKILL_LIST_API = "/api/console/skill-configs";
 
 type McpPickerItem = { id: string; name: string; enabled: boolean; transport: string };
+type SkillPickerItem = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description?: string | null;
+  fileCount?: number;
+  hasScripts?: boolean;
+};
 const EMPTY_MCP_IDS: string[] = [];
+const EMPTY_SKILL_IDS: string[] = [];
 
 type ModalMode = "create" | "edit" | "view";
 
@@ -224,6 +234,7 @@ export default function AssistantsClient() {
     tags?: string[];
     knowledgeBaseIds?: string[];
     mcpConfigIds?: string[];
+    skillConfigIds?: string[];
   }>();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -239,6 +250,9 @@ export default function AssistantsClient() {
   const [mcpOptions, setMcpOptions] = useState<McpPickerItem[]>([]);
   const [mcpLoading, setMcpLoading] = useState(false);
   const mcpConfigIdsWatch = Form.useWatch("mcpConfigIds", form);
+  const [skillOptions, setSkillOptions] = useState<SkillPickerItem[]>([]);
+  const [skillLoading, setSkillLoading] = useState(false);
+  const skillConfigIdsWatch = Form.useWatch("skillConfigIds", form);
 
   const [keyword, setKeyword] = useState("");
   const [keywordDraft, setKeywordDraft] = useState("");
@@ -288,6 +302,25 @@ export default function AssistantsClient() {
     }
   }, [consolePath, locale, message, tShell]);
 
+  const loadSkillOptions = useCallback(async () => {
+    setSkillLoading(true);
+    try {
+      const res = await fetch(SKILL_LIST_API, { credentials: "include" });
+      if (res.status === 401) {
+        redirectToLocaleLogin(locale, consolePath);
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res, { t: tShell }));
+        return;
+      }
+      const data = (await res.json()) as { items: SkillPickerItem[] };
+      setSkillOptions(Array.isArray(data.items) ? data.items : []);
+    } finally {
+      setSkillLoading(false);
+    }
+  }, [consolePath, locale, message, tShell]);
+
   const loadAssistantMcpConfigs = useCallback(
     async (assistantId: string) => {
       const res = await fetch(`${API_BASE}/${assistantId}/mcp-configs`, {
@@ -309,15 +342,37 @@ export default function AssistantsClient() {
     [consolePath, form, locale, message, tShell],
   );
 
+  const loadAssistantSkillConfigs = useCallback(
+    async (assistantId: string) => {
+      const res = await fetch(`${API_BASE}/${assistantId}/skill-configs`, {
+        credentials: "include",
+      });
+      if (res.status === 401) {
+        redirectToLocaleLogin(locale, consolePath);
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res, { t: tShell }));
+        return;
+      }
+      const data = (await res.json()) as { skillConfigIds: string[] };
+      form.setFieldsValue({
+        skillConfigIds: Array.isArray(data.skillConfigIds) ? data.skillConfigIds : [],
+      });
+    },
+    [consolePath, form, locale, message, tShell],
+  );
+
   const openCreate = useCallback(() => {
     setModalMode("create");
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ tags: [], knowledgeBaseIds: [], mcpConfigIds: [] });
+    form.setFieldsValue({ tags: [], knowledgeBaseIds: [], mcpConfigIds: [], skillConfigIds: [] });
     setModalOpen(true);
     void loadKnowledgeBaseOptions();
     void loadMcpOptions();
-  }, [form, loadKnowledgeBaseOptions, loadMcpOptions]);
+    void loadSkillOptions();
+  }, [form, loadKnowledgeBaseOptions, loadMcpOptions, loadSkillOptions]);
 
   const loadAssistantKnowledgeBases = useCallback(
     async (assistantId: string) => {
@@ -357,10 +412,12 @@ export default function AssistantsClient() {
       setModalOpen(true);
       void loadKnowledgeBaseOptions();
       void loadMcpOptions();
+      void loadSkillOptions();
       void loadAssistantKnowledgeBases(row.id);
       void loadAssistantMcpConfigs(row.id);
+      void loadAssistantSkillConfigs(row.id);
     },
-    [form, loadAssistantKnowledgeBases, loadAssistantMcpConfigs, loadKnowledgeBaseOptions, loadMcpOptions],
+    [form, loadAssistantKnowledgeBases, loadAssistantMcpConfigs, loadAssistantSkillConfigs, loadKnowledgeBaseOptions, loadMcpOptions, loadSkillOptions],
   );
 
   const openView = useCallback(
@@ -403,6 +460,7 @@ export default function AssistantsClient() {
         ? v.knowledgeBaseIds
         : [];
       const mcpConfigIds = Array.isArray(v.mcpConfigIds) ? v.mcpConfigIds : [];
+      const skillConfigIds = Array.isArray(v.skillConfigIds) ? v.skillConfigIds : [];
       const iconTrim = (v.icon ?? "").trim();
       const openingTrim = (v.openingMessage ?? "").trim();
       const payload = {
@@ -451,6 +509,15 @@ export default function AssistantsClient() {
           if (!mcpRes.ok) {
             message.warning(t("toast.mcpBindFailedOnCreate"));
           }
+          const skillRes = await fetch(`${API_BASE}/${assistantId}/skill-configs`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ skillConfigIds }),
+          });
+          if (!skillRes.ok) {
+            message.warning(t("toast.skillsBindFailedOnCreate"));
+          }
         }
         message.success(t("toast.created"));
         closeModal();
@@ -490,6 +557,15 @@ export default function AssistantsClient() {
       });
       if (!mcpRes.ok) {
         message.warning(t("toast.mcpBindFailedOnSave"));
+      }
+      const skillRes = await fetch(`${API_BASE}/${editing.id}/skill-configs`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ skillConfigIds }),
+      });
+      if (!skillRes.ok) {
+        message.warning(t("toast.skillsBindFailedOnSave"));
       }
       message.success(t("toast.saved"));
       closeModal();
@@ -567,6 +643,27 @@ export default function AssistantsClient() {
   const mcpLinkRich = useCallback(
     (chunks: ReactNode) => (
       <Link href="/console/mcp" className="text-sky-300 hover:text-sky-200">
+        {chunks}
+      </Link>
+    ),
+    [],
+  );
+
+  const selectedSkillIdsForPicker = Array.isArray(skillConfigIdsWatch)
+    ? skillConfigIdsWatch
+    : EMPTY_SKILL_IDS;
+  const hasInactiveMountedSkills = useMemo(
+    () =>
+      selectedSkillIdsForPicker.some((id) => {
+        const o = skillOptions.find((s) => s.id === id);
+        return Boolean(o && !o.enabled);
+      }),
+    [skillOptions, selectedSkillIdsForPicker],
+  );
+
+  const skillsLinkRich = useCallback(
+    (chunks: ReactNode) => (
+      <Link href="/console/skills" className="text-sky-300 hover:text-sky-200">
         {chunks}
       </Link>
     ),
@@ -854,6 +951,98 @@ export default function AssistantsClient() {
                             {row?.name ?? String(label)}
                           </span>
                           {inactive ? t("form.mcp.inactiveSuffix") : ""}
+                        </Tag>
+                      );
+                    }}
+                  />
+                </Form.Item>
+
+                <Divider className="my-3">{t("section.skillsMount")}</Divider>
+                {skillOptions.length === 0 && !skillLoading ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="mb-3"
+                    message={t("alert.noSkills")}
+                    description={t.rich("alert.noSkillsAction", { skillsLink: skillsLinkRich })}
+                  />
+                ) : null}
+                {hasInactiveMountedSkills ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    className="mb-3"
+                    message={t("alert.skillsInactive")}
+                    description={t("alert.skillsInactiveDesc")}
+                  />
+                ) : null}
+                <Form.Item
+                  name="skillConfigIds"
+                  label={
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span>{t("form.skills.label")}</span>
+                      <Link
+                        href="/console/skills"
+                        className="text-xs font-normal text-sky-300 hover:text-sky-200"
+                      >
+                        {t("form.skills.manageLink")}
+                      </Link>
+                    </span>
+                  }
+                  extra={t("form.skills.extra")}
+                >
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    placeholder={t("form.skills.placeholder")}
+                    loading={skillLoading}
+                    disabled={skillOptions.length === 0 && !skillLoading}
+                    optionFilterProp="label"
+                    showSearch
+                    maxTagCount="responsive"
+                    options={skillOptions.map((s) => ({
+                      label: s.name,
+                      value: s.id,
+                      fileCount: s.fileCount ?? 0,
+                      hasScripts: s.hasScripts ?? false,
+                      disabled: !s.enabled && !selectedSkillIdsForPicker.includes(s.id),
+                    }))}
+                    optionRender={(option) => {
+                      const row = skillOptions.find((s) => s.id === option.value);
+                      if (!row) return <span>{option.label}</span>;
+                      const fileCount = row.fileCount ?? 0;
+                      return (
+                        <span className="flex flex-wrap items-center gap-1">
+                          <span>
+                            {fileCount > 0
+                              ? t("form.skills.optionFiles", { name: row.name, count: fileCount })
+                              : row.name}
+                          </span>
+                          {row.hasScripts ? (
+                            <Tooltip title={t("form.skills.scriptsTooltip")}>
+                              <Tag className="m-0" color="gold">
+                                {t("form.skills.scriptsTag")}
+                              </Tag>
+                            </Tooltip>
+                          ) : null}
+                        </span>
+                      );
+                    }}
+                    tagRender={(props) => {
+                      const { label, value, closable, onClose } = props;
+                      const row = skillOptions.find((s) => s.id === value);
+                      const inactive = row && !row.enabled;
+                      return (
+                        <Tag
+                          color={inactive ? "orange" : "purple"}
+                          closable={closable}
+                          onClose={onClose}
+                          className="m-0 max-w-[220px]"
+                        >
+                          <span className="inline-block max-w-[160px] truncate align-bottom">
+                            {row?.name ?? String(label)}
+                          </span>
+                          {inactive ? t("form.skills.inactiveSuffix") : ""}
                         </Tag>
                       );
                     }}

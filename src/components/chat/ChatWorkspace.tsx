@@ -65,6 +65,14 @@ const TURN_SAFE_MCP_NOT_MOUNTED = new Set([
   enApiMessage.turnSafe.mcpNotMounted,
   zhApiMessage.turnSafe.mcpNotMounted,
 ]);
+const TURN_SAFE_SKILLS_NO_ASSISTANT = new Set([
+  enApiMessage.turnSafe.skillsNoAssistant,
+  zhApiMessage.turnSafe.skillsNoAssistant,
+]);
+const TURN_SAFE_SKILLS_NOT_MOUNTED = new Set([
+  enApiMessage.turnSafe.skillsNotMounted,
+  zhApiMessage.turnSafe.skillsNotMounted,
+]);
 /** MCP 详情块历史数据可能为另一 locale，展示层会映射为当前语言 */
 const MCP_DISABLED_MARKERS = ["未启用 MCP", "MCP not enabled"] as const;
 
@@ -384,6 +392,14 @@ function buildTurnProcessRows(turn: TurnUiModel, labels: TurnStepLabels): Messag
       knowledgeStep.startedAt ?? knowledgeStep.endedAt,
     );
   }
+  const skillsStep = stepByKey.get("C1b");
+  if (skillsStep) {
+    addRow(
+      "skills",
+      `${labels.stage.skill} ${statusTone[skillsStep.status]}${compact(skillsStep.safeMessage) ? ` · ${compact(skillsStep.safeMessage)}` : ""}`,
+      skillsStep.startedAt ?? skillsStep.endedAt,
+    );
+  }
   const mcpStep = stepByKey.get("C2");
   if (mcpStep) {
     addRow(
@@ -392,12 +408,14 @@ function buildTurnProcessRows(turn: TurnUiModel, labels: TurnStepLabels): Messag
       mcpStep.startedAt ?? mcpStep.endedAt,
     );
   }
-  const skillStep = turn.steps.subSteps.find((step) => step.subStage.toLowerCase().includes("skill"));
-  if (skillStep) {
+  const skillLegacyStep = turn.steps.subSteps.find(
+    (step) => step.subStage.toLowerCase().includes("skill") && step.stepKey !== "C1b",
+  );
+  if (skillLegacyStep && !skillsStep) {
     addRow(
       "skills",
-      `${labels.stage.skill} ${statusTone[skillStep.status]}${compact(skillStep.safeMessage) ? ` · ${compact(skillStep.safeMessage)}` : ""}`,
-      skillStep.startedAt ?? skillStep.endedAt,
+      `${labels.stage.skill} ${statusTone[skillLegacyStep.status]}${compact(skillLegacyStep.safeMessage) ? ` · ${compact(skillLegacyStep.safeMessage)}` : ""}`,
+      skillLegacyStep.startedAt ?? skillLegacyStep.endedAt,
     );
   }
   const summaryStep = stepByKey.get("E1");
@@ -471,6 +489,26 @@ function shouldHideUnboundKnowledgeStep(
   return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
 }
 
+function shouldHideUnboundSkillsStep(
+  step: {
+    safeMessage: string | null;
+    details?: unknown;
+  },
+  detailsLabel: string,
+): boolean {
+  const summary = (step.safeMessage ?? "").trim();
+  if (!summary) return false;
+  if (
+    TURN_SAFE_SKILLS_NO_ASSISTANT.has(summary) ||
+    TURN_SAFE_SKILLS_NOT_MOUNTED.has(summary) ||
+    [...TURN_SAFE_SKILLS_NO_ASSISTANT].some((s) => summary.includes(s)) ||
+    [...TURN_SAFE_SKILLS_NOT_MOUNTED].some((s) => summary.includes(s))
+  ) {
+    return true;
+  }
+  return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
+}
+
 function buildTurnStageItems(turn: TurnUiModel, labels: TurnStepLabels): TurnStageItem[] {
   const items: TurnStageItem[] = [];
 
@@ -516,14 +554,21 @@ function buildTurnStageItems(turn: TurnUiModel, labels: TurnStepLabels): TurnSta
   if (knowledge && !shouldHideUnboundKnowledgeStep(knowledge, labels.stage.details)) {
     appendFromStep(10, "knowledge", labels.stage.knowledge, knowledge, "C1");
   }
+  const skills =
+    byKey.get("C1b") ?? turn.steps.subSteps.find((s) => s.subStage === "skills_resolution");
+  if (skills && !shouldHideUnboundSkillsStep(skills, labels.stage.details)) {
+    appendFromStep(12, "skill", labels.stage.skill, skills, "C1b");
+  }
   const mcp =
     byKey.get("C2") ?? turn.steps.subSteps.find((s) => s.subStage === "mcp_tools_resolution");
   if (mcp && !shouldHideUnboundMcpStep(mcp, labels.stage.details)) {
     appendFromStep(15, "mcp", labels.stage.mcp, mcp, "C2");
   }
-  const skill = turn.steps.subSteps.find((s) => s.subStage.toLowerCase().includes("skill"));
-  if (skill) {
-    appendFromStep(30, "skill", labels.stage.skill, skill, skill.stepKey);
+  const skillLegacy = turn.steps.subSteps.find(
+    (s) => s.subStage.toLowerCase().includes("skill") && s.stepKey !== "C1b",
+  );
+  if (skillLegacy && !byKey.get("C1b")) {
+    appendFromStep(30, "skill", labels.stage.skill, skillLegacy, skillLegacy.stepKey);
   }
   const summaryStep = byKey.get("E1");
   if (summaryStep) {
@@ -597,6 +642,9 @@ function resolveSubStepForStageItem(
   }
   if (item.key === "knowledge") {
     return sub.find((s) => s.subStage === "knowledge_injection") ?? sub.find((s) => s.stepKey === "C1");
+  }
+  if (item.key === "skill") {
+    return sub.find((s) => s.subStage === "skills_resolution") ?? sub.find((s) => s.stepKey === "C1b");
   }
   if (item.key === "summary") {
     return sub.find((s) => s.stepKey === "E1");

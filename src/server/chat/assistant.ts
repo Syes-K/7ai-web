@@ -15,7 +15,11 @@ import {
   getAssistantAgent,
   streamChatAssistantAgentTextFromAgent,
 } from "@/server/chat/langchain-agent";
-import type { McpTurnUiSnapshot } from "@/server/chat/turn-capabilities";
+import {
+  applySkillReadStatsToTurnUi,
+  type McpTurnUiSnapshot,
+  type SkillsTurnUiSnapshot,
+} from "@/server/chat/turn-capabilities";
 import {
   LoggerCallbackHandler,
   SummarizationLlmCallbackHandler,
@@ -31,8 +35,13 @@ type AssistantRuntimeOptions = {
    * 实际模型与系统提示由 {@link getAssistantAgent} 统一解析。
    */
   assistantId?: string | null;
-  /** Agent 构建完成（与 tools/MCP 同源），在首 token 之前调用，用于写入 Turn C2。 */
-  onAgentPrepared?: (payload: { mcpTurnUi: McpTurnUiSnapshot }) => Promise<void> | void;
+  /** Agent 构建完成（与 tools/MCP/skills 同源），在首 token 之前调用，用于写入 Turn C1b/C2。 */
+  onAgentPrepared?: (payload: {
+    mcpTurnUi: McpTurnUiSnapshot;
+    skillsTurnUi: SkillsTurnUiSnapshot;
+  }) => Promise<void> | void;
+  /** Agent 执行完成后注入 read 统计后的 Skills 快照（Q13）。 */
+  onSkillsTurnFinalized?: (skillsTurnUi: SkillsTurnUiSnapshot) => Promise<void> | void;
   /** 摘要中间件产出新摘要时回调（用于落库会话摘要）。 */
   onSummary?: (summary: string) => Promise<void> | void;
   /** 采集工具调用事件（含 MCP/Tools）。 */
@@ -86,12 +95,12 @@ export async function invokeAssistantReply(
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): Promise<string> {
-  const { agent, mcpTurnUi, disposeMcp } = await getAssistantAgent({
+  const { agent, mcpTurnUi, skillsTurnUi, skillsReadCollector, disposeMcp } = await getAssistantAgent({
     userId,
     user: runtime?.user,
     assistantId: runtime?.assistantId,
   });
-  await runtime?.onAgentPrepared?.({ mcpTurnUi });
+  await runtime?.onAgentPrepared?.({ mcpTurnUi, skillsTurnUi });
   try {
     const state = await agent.invoke(
       {
@@ -105,6 +114,8 @@ export async function invokeAssistantReply(
         ],
       },
     );
+    const finalSkillsUi = applySkillReadStatsToTurnUi(skillsTurnUi, skillsReadCollector);
+    await runtime?.onSkillsTurnFinalized?.(finalSkillsUi);
     const msgs = (state as { messages?: BaseMessage[] }).messages ?? [];
     return lastAssistantText(msgs);
   } finally {
@@ -121,12 +132,12 @@ export async function* streamAssistantReply(
   userId: string,
   runtime?: AssistantRuntimeOptions,
 ): AsyncGenerator<string, void, undefined> {
-  const { agent, mcpTurnUi, disposeMcp } = await getAssistantAgent({
+  const { agent, mcpTurnUi, skillsTurnUi, skillsReadCollector, disposeMcp } = await getAssistantAgent({
     userId,
     user: runtime?.user,
     assistantId: runtime?.assistantId,
   });
-  await runtime?.onAgentPrepared?.({ mcpTurnUi });
+  await runtime?.onAgentPrepared?.({ mcpTurnUi, skillsTurnUi });
   try {
     yield* streamChatAssistantAgentTextFromAgent(
       agent,
@@ -136,6 +147,8 @@ export async function* streamAssistantReply(
         new ToolTraceCallbackHandler({ onToolEvent: runtime?.onToolEvent }),
       ],
     );
+    const finalSkillsUi = applySkillReadStatsToTurnUi(skillsTurnUi, skillsReadCollector);
+    await runtime?.onSkillsTurnFinalized?.(finalSkillsUi);
   } finally {
     await disposeMcp();
   }

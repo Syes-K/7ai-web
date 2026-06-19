@@ -32,7 +32,7 @@ import { ChatTurn } from "@/server/db/entities/ChatTurn";
 import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
-import type { McpTurnUiSnapshot } from "@/server/chat/turn-capabilities";
+import type { McpTurnUiSnapshot, SkillsTurnUiSnapshot } from "@/server/chat/turn-capabilities";
 import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
 
 export const runtime = "nodejs";
@@ -180,6 +180,74 @@ function mcpDetailsFromUi(
               .join("\n\n")
           : tApiMessage(locale, "turnSafe.detail.mcpNoToolCalls"),
     });
+  }
+  return details;
+}
+
+function skillsSafeMessage(locale: AppLocale, ui: SkillsTurnUiSnapshot): string {
+  if (ui.assistantMissing) return tApiMessage(locale, "turnSafe.skillsNoAssistant");
+  if (ui.loadFailed) return tApiMessage(locale, "turnSafe.skillsLoadSkipped");
+  if (ui.merged.length === 0) return tApiMessage(locale, "turnSafe.skillsNotMounted");
+  const readCount = ui.readFileCount ?? 0;
+  if (readCount > 0) {
+    return tApiMessage(locale, "turnSafe.skillsMergedWithRead", {
+      count: ui.merged.length,
+      readCount,
+    });
+  }
+  return tApiMessage(locale, "turnSafe.skillsMerged", { count: ui.merged.length });
+}
+
+function skillsDetailsFromUi(
+  locale: AppLocale,
+  ui: SkillsTurnUiSnapshot,
+): Array<{ title: string; content: string }> {
+  const details: Array<{ title: string; content: string }> = [];
+  if (ui.assistantMissing) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
+      content: tApiMessage(locale, "turnSafe.detail.skillsNoAssistantBody"),
+    });
+    return details;
+  }
+  if (ui.merged.length === 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
+      content: ui.loadFailed
+        ? tApiMessage(locale, "turnSafe.skillsLoadSkipped")
+        : tApiMessage(locale, "turnSafe.detail.skillsNotMountedBody"),
+    });
+    return details;
+  }
+  details.push({
+    title: tApiMessage(locale, "turnSafe.detail.skillsMergedTitle"),
+    content: ui.merged
+      .map((m) => tApiMessage(locale, "turnSafe.detail.skillsMergedNameLine", { name: m.name }))
+      .join("\n"),
+  });
+  const readCount = ui.readFileCount ?? 0;
+  if (readCount > 0 && ui.readFileSamples && ui.readFileSamples.length > 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsReadTitle"),
+      content: ui.readFileSamples
+        .map((sample) => {
+          const colon = sample.indexOf(":");
+          const packName = colon >= 0 ? sample.slice(0, colon) : sample;
+          const path = colon >= 0 ? sample.slice(colon + 1) : "";
+          return tApiMessage(locale, "turnSafe.detail.skillsReadLine", { packName, path });
+        })
+        .join("\n"),
+    });
+    const hasScriptsSample = ui.readFileSamples.some((s) => {
+      const path = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
+      return path.startsWith("scripts/") || path === "scripts";
+    });
+    if (hasScriptsSample) {
+      details.push({
+        title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
+        content: tApiMessage(locale, "turnSafe.detail.skillsReadOnlyNote"),
+      });
+    }
   }
   return details;
 }
@@ -378,6 +446,7 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       async start(controller) {
         const toolEvents: Array<{ phase: "start" | "end" | "error"; name: string; detail: string }> = [];
         let mcpUiForTurn: McpTurnUiSnapshot | null = null;
+        let skillsUiForTurn: SkillsTurnUiSnapshot | null = null;
         const applyToolEventsToD1 = async (status: "running" | "completed" | "failed") => {
           turnState.updateStep("D1", status, {
             safeMessage:
@@ -435,16 +504,25 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           for await (const delta of streamAssistantReply(historyForModel, user.id, {
             user,
             assistantId: conv.assistantId,
-            onAgentPrepared: async ({ mcpTurnUi }) => {
+            onAgentPrepared: async ({ mcpTurnUi, skillsTurnUi }) => {
               mcpUiForTurn = mcpTurnUi;
+              skillsUiForTurn = skillsTurnUi;
+              turnState.updateStep("C1b", "completed", {
+                safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+                details: skillsDetailsFromUi(locale, skillsTurnUi),
+              });
               turnState.updateStep("C2", "completed", {
                 safeMessage: mcpSafeMessage(locale, mcpTurnUi),
                 details: mcpDetailsFromUi(locale, mcpTurnUi),
               });
               await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
+              await emitTurnDelta("C1b", "completed");
               await emitTurnDelta("C2", "completed");
               await emitTurnDelta("D1", "running");
               await applyToolEventsToD1("running");
+            },
+            onSkillsTurnFinalized: async (finalSkillsUi) => {
+              skillsUiForTurn = finalSkillsUi;
             },
             onToolEvent: async (event) => {
               toolEvents.push({
@@ -500,11 +578,17 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             ],
           });
           const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
+          const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, merged: [] };
+          turnState.updateStep("C1b", "completed", {
+            safeMessage: skillsSafeMessage(locale, skillsUiDone),
+            details: skillsDetailsFromUi(locale, skillsUiDone),
+          });
           turnState.updateStep("C2", "completed", {
             safeMessage: mcpSafeMessage(locale, mcpUiDone),
             details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
+          await emitTurnDelta("C1b", "completed");
           await emitTurnDelta("C2", "completed");
           await emitTurnDelta("D1", "completed");
 
@@ -628,11 +712,17 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
   try {
     const toolEvents: Array<{ phase: "start" | "end" | "error"; name: string; detail: string }> = [];
     let mcpUiForTurn: McpTurnUiSnapshot | null = null;
+    let skillsUiForTurn: SkillsTurnUiSnapshot | null = null;
     assistantText = await invokeAssistantReply(historyForModel, user.id, {
       user,
       assistantId: conv.assistantId,
-      onAgentPrepared: async ({ mcpTurnUi }) => {
+      onAgentPrepared: async ({ mcpTurnUi, skillsTurnUi }) => {
         mcpUiForTurn = mcpTurnUi;
+        skillsUiForTurn = skillsTurnUi;
+        turnState.updateStep("C1b", "completed", {
+          safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+          details: skillsDetailsFromUi(locale, skillsTurnUi),
+        });
         turnState.updateStep("C2", "completed", {
           safeMessage: mcpSafeMessage(locale, mcpTurnUi),
           details: mcpDetailsFromUi(locale, mcpTurnUi),
@@ -647,6 +737,9 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           ],
         });
         await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
+      },
+      onSkillsTurnFinalized: async (finalSkillsUi) => {
+        skillsUiForTurn = finalSkillsUi;
       },
       onToolEvent: async (event) => {
         toolEvents.push({
@@ -706,6 +799,11 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       ],
     });
     const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
+    const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, merged: [] };
+    turnState.updateStep("C1b", "completed", {
+      safeMessage: skillsSafeMessage(locale, skillsUiDone),
+      details: skillsDetailsFromUi(locale, skillsUiDone),
+    });
     turnState.updateStep("C2", "completed", {
       safeMessage: mcpSafeMessage(locale, mcpUiDone),
       details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),

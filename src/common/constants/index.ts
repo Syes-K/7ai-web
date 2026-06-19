@@ -166,6 +166,62 @@ export const MCP_CONFIG_MAX_PER_USER = 50;
 export const MCP_CONFIG_MAX_PER_ASSISTANT = 20;
 /** 单轮对话最多加载的不同 MCP 配置数 */
 export const MCP_CONFIG_MAX_BINDINGS_PER_CHAT_TURN = 10;
+
+/** Skill 配置名称最大长度（与实体列一致） */
+export const SKILL_CONFIG_NAME_MAX_LENGTH = 64;
+/** Skill Pack 名称上限（与 SKILL_CONFIG_NAME_MAX_LENGTH 同义） */
+export const SKILL_PACK_NAME_MAX_LENGTH = SKILL_CONFIG_NAME_MAX_LENGTH;
+/** Skill 配置描述最大长度 */
+export const SKILL_CONFIG_DESCRIPTION_MAX_LENGTH = 500;
+/** @deprecated 0.1.19 起正文存 skill_pack_files；仅迁移期可读 user_skill_configs.content */
+export const SKILL_CONFIG_CONTENT_MAX_LENGTH = 16_000;
+/** 单用户最多 Skill 配置条数 */
+export const SKILL_CONFIG_MAX_PER_USER = 50;
+/** 单用户最多 Skill Pack 数（与 SKILL_CONFIG_MAX_PER_USER 同义） */
+export const SKILL_PACK_MAX_PER_USER = SKILL_CONFIG_MAX_PER_USER;
+/** 单助手最多挂载 Skill 数 */
+export const SKILL_CONFIG_MAX_PER_ASSISTANT = 10;
+/** 单轮对话最多加载的不同 Skill 配置数 */
+export const SKILL_CONFIG_MAX_BINDINGS_PER_CHAT_TURN = 10;
+/** Skill Pack 入口文件名（根相对路径） */
+export const SKILL_PACK_SKILL_MD_PATH = "SKILL.md";
+/** 每 Pack 最多文件数 */
+export const SKILL_PACK_MAX_FILES = 100;
+/** Pack 总字节上限（UTF-8） */
+export const SKILL_PACK_MAX_TOTAL_BYTES = 2_000_000;
+/** 单文件字节上限 */
+export const SKILL_PACK_FILE_MAX_BYTES = 512_000;
+/** SKILL.md 正文（去 frontmatter 后）最大长度 */
+export const SKILL_MD_MAX_BODY_LENGTH = 32_000;
+/** import zip 压缩包读取上限（略高于 Pack 总上限，防 zip 炸弹） */
+export const SKILL_PACK_IMPORT_ZIP_MAX_BYTES = 2_500_000;
+/** Pack 内允许的文件扩展名（含点；无扩展名另判） */
+export const SKILL_PACK_ALLOWED_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".csv",
+  ".py",
+  ".sh",
+  ".js",
+  ".ts",
+]);
+/** 明确拒绝的扩展名 */
+export const SKILL_PACK_DENIED_EXTENSIONS = new Set([
+  ".exe",
+  ".dll",
+  ".zip",
+  ".pyc",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".pdf",
+  ".wasm",
+  ".bin",
+]);
 /** list_tools / 测试连接超时（毫秒） */
 export const MCP_LIST_TOOLS_TIMEOUT_MS = 30_000;
 /** 测试连接：同一用户同一配置最短间隔（毫秒），用于简单频控 */
