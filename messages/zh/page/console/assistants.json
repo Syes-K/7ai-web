@@ -104,12 +104,12 @@
     "skills": {
       "label": "技能包",
       "manageLink": "管理技能包…",
-      "extra": "挂载后，助手会遵循技能包内的主要说明；对话中可按需查阅其他文件。包内脚本仅作参考、不会运行。与 MCP 工具相互独立。",
+      "extra": "可挂载一个或多个技能包。对话中仅加载与问题相关的包（「始终加载」的包除外）。",
       "placeholder": "选择技能包",
       "inactiveSuffix": "（已停用）",
       "optionFiles": "{name} · {count} 个文件",
       "scriptsTag": "含脚本",
-      "scriptsTooltip": "对话中仅可读，不执行"
+      "scriptsTooltip": "加载后可在对话沙箱中运行"
     }
   },
   "section": {

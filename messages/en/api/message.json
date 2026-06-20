@@ -198,10 +198,16 @@
     "mcpLoadFailed": "{count} MCP(s) mounted; tool loading failed.",
     "mcpLoaded": "Loaded {loaded} MCP(s) with {toolCount} tool(s).",
     "skillsNoAssistant": "No assistant bound; Skill Packs not loaded.",
-    "skillsNotMounted": "Assistant has no active Skill Packs mounted.",
-    "skillsMerged": "Merged {count} Skill Pack(s) into system prompt.",
-    "skillsMergedWithRead": "Merged {count} Skill Pack(s); read {readCount} file(s) via read_skill_file.",
+    "skillsNotMounted": "Assistant has no Skill Packs mounted.",
     "skillsLoadSkipped": "Skill Packs could not be loaded; using base prompt only.",
+    "skillsLoaded": "Loaded {count} Skill Pack(s).",
+    "skillsLoadedWithRead": "Loaded {count}; read {readCount} file(s).",
+    "skillsLoadedWithRun": "Loaded {count}; ran {runCount} script(s).",
+    "skillsLoadedWithReadAndRun": "Loaded {count}; read {readCount} file(s); ran {runCount} script(s).",
+    "skillsMountedNotSelected": "Mounted {mountedCount}; none selected this turn.",
+    "skillsSelectionFailed": "Skill Pack selection unavailable; optional packs not loaded this turn.",
+    "skillsMerged": "Loaded {count} Skill Pack(s).",
+    "skillsMergedWithRead": "Loaded {count}; read {readCount} file(s).",
     "detail": {
       "kbMatchedBases": "Matched knowledge bases",
       "kbMatchedChunks": "Matched segments",
@@ -216,13 +222,20 @@
       "mcpNoToolCalls": "No tool calls this turn",
       "mcpUnknownError": "Unknown error",
       "skillsNote": "Note",
-      "skillsNoAssistantBody": "This conversation has no assistant; Skills were not merged for this turn.",
+      "skillsNoAssistantBody": "This conversation has no assistant; Skill Packs were not loaded for this turn.",
       "skillsNotMountedBody": "The assistant has no Skill configurations mounted, or they are disabled.",
-      "skillsMergedTitle": "Merged Skill Packs",
+      "skillsMountedTitle": "Mounted Skill Packs",
+      "skillsLoadedTitle": "Loaded this turn",
+      "skillsLoadedNameLine": "· {name}",
+      "skillsSkippedTitle": "Not selected this turn",
+      "skillsSkippedLine": "· {name} — {reason}",
+      "skillsSkippedLineNoReason": "· {name}",
+      "skillsMergedTitle": "Loaded Skill Packs",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "Files read",
       "skillsReadLine": "· {packName}: {path}",
-      "skillsReadOnlyNote": "Scripts are read as text only; not executed."
+      "skillsScriptRunTitle": "Scripts run",
+      "skillsScriptRunLine": "· {packName}: {path} (exit {exitCode})"
     }
   }
 }

@@ -48,6 +48,14 @@ function parseSimpleYaml(block: string): Record<string, string> | null {
   return any ? out : null;
 }
 
+/** 从 frontmatter 解析 alwaysLoad；缺省或非法值返回 undefined（不覆盖表字段）。 */
+export function parseAlwaysLoadFromFrontmatter(fm: Record<string, string>): boolean | undefined {
+  const raw = fm.alwaysLoad?.trim().toLowerCase();
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  return undefined;
+}
+
 /** 从 frontmatter 提取 name/description（trim + 长度截断至实体上限）。 */
 export function extractSkillMetadataFromFrontmatter(
   fm: Record<string, string>,

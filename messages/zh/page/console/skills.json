@@ -7,12 +7,12 @@
   "alert": {
     "productScope": {
       "message": "什么是技能包？",
-      "description": "技能包是教助手如何工作的说明与参考资料。可在此新建、编辑，或导入 zip 文件夹。常见来源包括 Cursor、Claude Code 等 AI 编程工具的 skills 目录，格式通常兼容。挂载到助手后，对话中会遵循 SKILL.md 中的指导，并可按需查阅包内其他文件。**当前版本不会运行包内脚本。**"
+      "description": "支持导入与 `.cursor/skills/` 同构的 zip。SKILL.md 在技能包被本轮选用加载时生效；其他文件按需读取或运行。仅与问题相关的包会被加载（除非设为「始终加载」）。`scripts/` 下脚本可在对话沙箱中运行。"
     },
-    "scriptsReadOnly": {
-      "message": "此包内的脚本为只读",
-      "description": "助手可以阅读 `scripts/` 下的文件作为参考，但 **当前版本不会执行** 它们。",
-      "tooltip": "仅作参考，不会运行"
+    "scriptsSandbox": {
+      "message": "此包包含可运行脚本",
+      "description": "当技能包被加载且技能说明需要时，助手可在沙箱中运行 `scripts/` 下脚本。默认无出站网络。受超时与每轮次数限制。",
+      "tooltip": "可在对话沙箱中运行"
     }
   },
   "toolbar": {
@@ -38,7 +38,8 @@
     "enabled": "启用",
     "disabled": "停用",
     "hasScripts": "含脚本",
-    "scriptsReadOnly": "只读"
+    "alwaysLoad": "始终加载",
+    "scriptsSandbox": "沙箱"
   },
   "empty": {
     "noSkills": "尚未添加技能包",
@@ -60,7 +61,9 @@
     "newFolder": "新建文件夹",
     "rename": "重命名",
     "delete": "删除",
-    "skillMdRequired": "须包含 SKILL.md"
+    "skillMdRequired": "须包含 SKILL.md",
+    "scriptRunnable": "可运行",
+    "scriptRunnableTooltip": "加载后可在沙箱中运行"
   },
   "modal": {
     "create": { "title": "新建技能包" },
@@ -88,6 +91,10 @@
     "enabled": {
       "label": "启用该技能包"
     },
+    "alwaysLoad": {
+      "label": "始终加载",
+      "extra": "每轮对话都会应用此技能包，即使与问题看似无关。"
+    },
     "skillMd": {
       "extra": "可选 YAML 头信息。下方正文会在对话时提供给助手（头信息会被忽略）。正文最多 {max} 字符。"
     }
@@ -102,8 +109,8 @@
   },
   "help": {
     "scripts": {
-      "title": "包内的脚本是做什么的？",
-      "body": "部分技能包会附带脚本文件（如 Python）。助手可以阅读这些文件作为参考，但 **当前版本不会执行** 它们。脚本运行能力将在后续版本提供。"
+      "title": "技能包中的脚本",
+      "body": "1) 阅读文件与运行脚本的区别。2) 仅 scripts/；.py 与 .sh。3) 无出站网络。4) 限额：每轮 {perTurn} 次、每日 {perDay} 次。5) 示例：ui-ux-pro-max 的 scripts/search.py。"
     }
   },
   "confirm": {
@@ -125,6 +132,7 @@
     "deleted": "已删除",
     "loadFailed": "加载技能包详情失败",
     "imported": "导入成功",
-    "syncedFromFrontmatter": "已从 SKILL.md 同步名称/描述"
+    "syncedFromFrontmatter": "已从 SKILL.md 同步名称、描述与始终加载",
+    "alwaysLoadUpdated": "已更新始终加载设置"
   }
 }

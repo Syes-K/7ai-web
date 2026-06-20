@@ -7,4 +7,5 @@ export * from "./conversation-summary-config";
 export * from "./prompt-param-def";
 export * from "./prompt-config";
 export * from "./user-admin";
+export * from "./skill-turn";
 

@@ -104,12 +104,12 @@
     "skills": {
       "label": "Skill Packs",
       "manageLink": "Manage Skill Packs…",
-      "extra": "When mounted, the assistant follows the pack's main instructions and can read other files in chat. Scripts are reference-only and not executed. Independent from MCP tools.",
+      "extra": "Mount one or more Skill Packs. Only packs relevant to each question are loaded in chat (except packs marked Always load).",
       "placeholder": "Select Skill Packs",
       "inactiveSuffix": "(disabled)",
       "optionFiles": "{name} · {count} files",
       "scriptsTag": "Has scripts",
-      "scriptsTooltip": "Readable in chat only; not executed"
+      "scriptsTooltip": "Runnable in chat sandbox when loaded"
     }
   },
   "section": {

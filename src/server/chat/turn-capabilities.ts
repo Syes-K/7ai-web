@@ -14,6 +14,12 @@ import {
   SKILL_MD_MAX_BODY_LENGTH,
   SKILL_PACK_SKILL_MD_PATH,
 } from "@/common/constants";
+import type {
+  SkillPackSelectionResult,
+  SkillPackSkippedRef,
+  SkillPackUiRef,
+  SkillsTurnUiSnapshot,
+} from "@/common/types/skill-turn";
 import type { User } from "@/server/db/entities/User";
 import { UserMcpConfig } from "@/server/db/entities/UserMcpConfig";
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
@@ -25,10 +31,22 @@ import { decryptMcpCredentials } from "@/server/crypto/mcp-credentials-crypto";
 import { mcpServerNameForConfigId } from "@/server/mcp/mcp-connection-from-row";
 import { openMcpLangChainToolsForChatSession, sanitizeMcpErrorSummary } from "@/server/mcp/mcp-client-tools";
 import { stripSkillMdFrontmatter } from "@/server/skill/pack-frontmatter";
+import { decideSkillPackIntent } from "@/server/skill/skill-pack-intent-agent";
 import {
   SkillReadStatsCollector,
   skillPackRefsToReadTools,
 } from "@/server/skill/read-skill-file-tool";
+import {
+  SkillScriptRunStatsCollector,
+  skillPackRefsToRunTools,
+} from "@/server/skill/run-skill-script-tool";
+
+export type {
+  SkillPackSelectionResult,
+  SkillPackSkippedRef,
+  SkillPackUiRef,
+  SkillsTurnUiSnapshot,
+} from "@/common/types/skill-turn";
 
 /** 与 `GetChatAssistantAgentOptions`（`langchain-agent.ts`）对齐的最小上下文，用于解析本 Turn 可用能力。 */
 export type ChatTurnCapabilityContext = {
@@ -67,28 +85,29 @@ function isToolFromServer(toolName: string, serverName: string): boolean {
   );
 }
 
-/** 对话 Turn 面板「Skills 合并」步骤展示用。 */
-export type SkillsTurnUiSnapshot = {
-  assistantMissing: boolean;
-  merged: Array<{ id: string; name: string }>;
-  /** 绑定存在但未纳入合并的条数（仅日志；默认不进 UI） */
-  skippedCount?: number;
-  /** DB 整类加载失败时为 true */
-  loadFailed?: boolean;
-  /** 本 Turn 是否注册 read_skill_file */
-  readToolEnabled?: boolean;
-  /** 成功 read 次数（Agent 完成后注入） */
-  readFileCount?: number;
-  /** 最多 5 条 packName:path */
-  readFileSamples?: string[];
-};
-
+/** 对话 Turn 面板「Skills」步骤展示用（见 {@link buildSkillsTurnUiFromSelection}）。 */
 export type SkillsMergeResult = {
   extra: string;
-  merged: Array<{ id: string; name: string }>;
+  merged: SkillPackUiRef[];
   skippedCount: number;
   loadFailed: boolean;
 };
+
+function emptySkillPackSelection(
+  overrides: Partial<SkillPackSelectionResult> = {},
+): SkillPackSelectionResult {
+  return {
+    mountedRefs: [],
+    selectedRefs: [],
+    mounted: [],
+    loaded: [],
+    skipped: [],
+    skippedCount: 0,
+    intentSource: "skipped",
+    loadFailed: false,
+    ...overrides,
+  };
+}
 
 async function resolveSkillIdsForChatTurn(ctx: ChatTurnCapabilityContext): Promise<string[]> {
   if (!ctx.assistantId) return [];
@@ -129,7 +148,7 @@ async function buildSkillsMergeResult(
   const skillMdByPackId = new Map(skillMdRows.map((r) => [r.packId, r]));
 
   const blocks: string[] = [];
-  const merged: Array<{ id: string; name: string }> = [];
+  const merged: SkillPackUiRef[] = [];
   let skippedCount = 0;
 
   for (const ref of refs) {
@@ -370,7 +389,7 @@ export async function loadToolsForChatTurn(_ctx: ChatTurnCapabilityContext): Pro
   return [];
 }
 
-/** 解析本 Turn 应启用的技能包引用。 */
+/** 解析本 Turn 应启用的技能包引用（mounted = 助手绑定且 enabled）。 */
 export async function loadSkillPackRefsForChatTurn(ctx: ChatTurnCapabilityContext): Promise<ChatSkillPackRef[]> {
   try {
     const ids = await resolveSkillIdsForChatTurn(ctx);
@@ -412,31 +431,21 @@ export async function skillRefsToExtraSystemText(
   }
 }
 
-/** 构建 Turn 面板 Skills 快照（与 system prompt 合并同源）。 */
-export async function resolveSkillsTurnUiSnapshot(ctx: ChatTurnCapabilityContext): Promise<SkillsTurnUiSnapshot> {
+/**
+ * 单轮技能包选用：alwaysLoad 无条件加载 + 意图路由筛选候选包。
+ * selectedRefs / loaded 白名单仅含 merge 成功者（缺 SKILL.md 等不计入）。
+ */
+export async function resolveSkillPackSelectionForTurn(
+  ctx: ChatTurnCapabilityContext,
+  userMessageText: string,
+): Promise<SkillPackSelectionResult> {
   if (!ctx.assistantId) {
-    return { assistantMissing: true, merged: [], readToolEnabled: false, readFileCount: 0 };
+    return emptySkillPackSelection();
   }
+
+  let mountedRefs: ChatSkillPackRef[];
   try {
-    const refs = await loadSkillPackRefsForChatTurn(ctx);
-    if (refs.length === 0) {
-      return {
-        assistantMissing: false,
-        merged: [],
-        skippedCount: 0,
-        readToolEnabled: false,
-        readFileCount: 0,
-      };
-    }
-    const result = await buildSkillsMergeResult(ctx, refs);
-    return {
-      assistantMissing: false,
-      merged: result.merged,
-      skippedCount: result.skippedCount,
-      loadFailed: result.loadFailed,
-      readToolEnabled: refs.length > 0,
-      readFileCount: 0,
-    };
+    mountedRefs = await loadSkillPackRefsForChatTurn(ctx);
   } catch (e) {
     console.warn(
       JSON.stringify({
@@ -446,8 +455,126 @@ export async function resolveSkillsTurnUiSnapshot(ctx: ChatTurnCapabilityContext
         message: e instanceof Error ? e.message : String(e),
       }),
     );
-    return { assistantMissing: false, merged: [], loadFailed: true, readToolEnabled: false, readFileCount: 0 };
+    return emptySkillPackSelection({ loadFailed: true });
   }
+
+  if (mountedRefs.length === 0) {
+    return emptySkillPackSelection();
+  }
+
+  const ds = await getDataSource();
+  const ids = mountedRefs.map((r) => r.id);
+  const packRows = await ds.getRepository(UserSkillConfig).find({
+    where: { userId: ctx.userId, id: In(ids) } as any,
+  });
+  const rowById = new Map(packRows.map((r) => [r.id, r]));
+  const mounted: SkillPackUiRef[] = mountedRefs
+    .map((ref) => {
+      const row = rowById.get(ref.id);
+      return row ? { id: row.id, name: row.name.trim() } : null;
+    })
+    .filter((m): m is SkillPackUiRef => Boolean(m));
+
+  const alwaysIds = packRows.filter((p) => p.alwaysLoad && p.enabled).map((p) => p.id);
+  const candidateRows = packRows.filter((p) => p.enabled && !alwaysIds.includes(p.id));
+
+  let intentSelectedIds: string[] = [];
+  let reasons: Record<string, string> = {};
+  let intentSource: SkillPackSelectionResult["intentSource"] = "skipped";
+
+  if (candidateRows.length === 0) {
+    intentSource = "always_load";
+  } else if (!userMessageText.trim()) {
+    intentSource = alwaysIds.length > 0 ? "always_load" : "skipped";
+  } else {
+    const intent = await decideSkillPackIntent({
+      userId: ctx.userId,
+      userMessageText,
+      packs: candidateRows.map(({ id, name, description }) => ({ id, name, description })),
+    });
+    intentSelectedIds = intent.selectedIds.filter((id) => candidateRows.some((p) => p.id === id));
+    reasons = intent.reasons ?? {};
+    intentSource = intent.intentSource === "failed_safe" ? "failed_safe" : "intent_agent";
+  }
+
+  const mergeCandidateIds = [...new Set([...alwaysIds, ...intentSelectedIds])];
+  const mergeCandidateRefs = mergeCandidateIds.map((id) => ({ id }));
+  const mergeResult = await buildSkillsMergeResult(ctx, mergeCandidateRefs);
+  const loaded = mergeResult.merged;
+  const selectedRefs = loaded.map((l) => ({ id: l.id }));
+
+  const loadedIdSet = new Set(loaded.map((l) => l.id));
+  const skipped: SkillPackSkippedRef[] = mounted
+    .filter((m) => !loadedIdSet.has(m.id))
+    .slice(0, 5)
+    .map((m) => ({ ...m, reason: reasons[m.id] }));
+
+  return {
+    mountedRefs,
+    selectedRefs,
+    mounted,
+    loaded,
+    skipped,
+    skippedCount: mounted.length - loaded.length,
+    intentSource,
+    loadFailed: false,
+  };
+}
+
+/** 由 selection 构建 Turn 面板 Skills 快照（与 system prompt / tools 同源）。 */
+export function buildSkillsTurnUiFromSelection(
+  selection: SkillPackSelectionResult,
+  toolsMeta: { readToolEnabled: boolean; runToolEnabled: boolean; assistantMissing?: boolean },
+): SkillsTurnUiSnapshot {
+  if (toolsMeta.assistantMissing) {
+    return {
+      assistantMissing: true,
+      mounted: [],
+      loaded: [],
+      readToolEnabled: false,
+      runToolEnabled: false,
+      readFileCount: 0,
+    };
+  }
+  if (selection.loadFailed) {
+    return {
+      assistantMissing: false,
+      mounted: [],
+      loaded: [],
+      loadFailed: true,
+      readToolEnabled: false,
+      runToolEnabled: false,
+      readFileCount: 0,
+    };
+  }
+  return {
+    assistantMissing: false,
+    mounted: selection.mounted,
+    loaded: selection.loaded,
+    skipped: selection.skipped.length > 0 ? selection.skipped : undefined,
+    skippedCount: selection.skippedCount > 0 ? selection.skippedCount : undefined,
+    intentSource: selection.intentSource,
+    loadFailed: selection.loadFailed,
+    readToolEnabled: toolsMeta.readToolEnabled,
+    runToolEnabled: toolsMeta.runToolEnabled,
+    readFileCount: 0,
+  };
+}
+
+/** @deprecated 请使用 resolveSkillPackSelectionForTurn + buildSkillsTurnUiFromSelection */
+export async function resolveSkillsTurnUiSnapshot(ctx: ChatTurnCapabilityContext): Promise<SkillsTurnUiSnapshot> {
+  if (!ctx.assistantId) {
+    return buildSkillsTurnUiFromSelection(emptySkillPackSelection(), {
+      readToolEnabled: false,
+      runToolEnabled: false,
+      assistantMissing: true,
+    });
+  }
+  const selection = await resolveSkillPackSelectionForTurn(ctx, "");
+  return buildSkillsTurnUiFromSelection(selection, {
+    readToolEnabled: selection.selectedRefs.length > 0,
+    runToolEnabled: selection.selectedRefs.length > 0,
+  });
 }
 
 /** Agent 完成后合并 read 统计。 */
@@ -463,32 +590,54 @@ export function applySkillReadStatsToTurnUi(
   };
 }
 
-/** 合并原生工具、Skill read tool 与 MCP 衍生工具；即使无 MCP 有 Skill 也注册 read tool。 */
-export async function resolveAllToolsForAgent(ctx: ChatTurnCapabilityContext): Promise<{
+/** Agent 完成后合并 run 统计。 */
+export function applySkillScriptRunStatsToTurnUi(
+  base: SkillsTurnUiSnapshot,
+  collector: SkillScriptRunStatsCollector,
+): SkillsTurnUiSnapshot {
+  return {
+    ...base,
+    scriptRunCount: collector.scriptRunCount,
+    scriptRunSamples:
+      collector.scriptRunSamples.length > 0 ? [...collector.scriptRunSamples] : undefined,
+  };
+}
+
+/** 合并原生工具、Skill read/run tool 与 MCP 衍生工具。 */
+export async function resolveAllToolsForAgent(
+  ctx: ChatTurnCapabilityContext,
+  selectedRefs: ChatSkillPackRef[] = [],
+  _selection?: SkillPackSelectionResult | null,
+): Promise<{
   tools: Tool[];
   mcpTurnUi: McpTurnUiSnapshot;
   skillsReadCollector: SkillReadStatsCollector;
+  skillsRunCollector: SkillScriptRunStatsCollector;
   disposeMcp: () => Promise<void>;
 }> {
   const native = await loadToolsForChatTurn(ctx);
   const skillsReadCollector = new SkillReadStatsCollector();
+  const skillsRunCollector = new SkillScriptRunStatsCollector();
 
   if (!ctx.assistantId) {
     return {
       tools: native,
       mcpTurnUi: { assistantMissing: true, configs: [] },
       skillsReadCollector,
+      skillsRunCollector,
       disposeMcp: async () => undefined,
     };
   }
 
-  const [skillRefs, bindings] = await Promise.all([
-    loadSkillPackRefsForChatTurn(ctx),
-    loadMcpBindingsForChatTurn(ctx),
-  ]);
+  const bindings = await loadMcpBindingsForChatTurn(ctx);
 
   const skillTools =
-    skillRefs.length > 0 ? await skillPackRefsToReadTools(ctx, skillRefs, skillsReadCollector) : [];
+    selectedRefs.length > 0
+      ? [
+          ...(await skillPackRefsToReadTools(ctx, selectedRefs, skillsReadCollector)),
+          ...(await skillPackRefsToRunTools(ctx, selectedRefs, skillsRunCollector)),
+        ]
+      : [];
 
   let mcpTools: Tool[] = [];
   let mcpTurnUi: McpTurnUiSnapshot = { assistantMissing: false, configs: [] };
@@ -505,18 +654,18 @@ export async function resolveAllToolsForAgent(ctx: ChatTurnCapabilityContext): P
     tools: [...native, ...skillTools, ...mcpTools],
     mcpTurnUi,
     skillsReadCollector,
+    skillsRunCollector,
     disposeMcp,
   };
 }
 
-// TODO 0.1.20: run_skill_script — 沙箱执行 scripts/ 下文件；本期不注册
-
-/** 在基础系统提示上追加技能包文案（若有）。 */
+/** 在基础系统提示上追加已选用技能包文案（若有）。 */
 export async function resolveSystemPromptWithSkills(
   baseSystemPrompt: string,
   ctx: ChatTurnCapabilityContext,
+  selectedRefs?: ChatSkillPackRef[],
 ): Promise<string> {
-  const refs = await loadSkillPackRefsForChatTurn(ctx);
+  const refs = selectedRefs ?? (await loadSkillPackRefsForChatTurn(ctx));
   const extra = await skillRefsToExtraSystemText(ctx, refs);
   const t = extra.trim();
   return t ? `${baseSystemPrompt}\n\n${t}` : baseSystemPrompt;

@@ -11,6 +11,7 @@ import {
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
 import {
   extractSkillMetadataFromFrontmatter,
+  parseAlwaysLoadFromFrontmatter,
   stripSkillMdFrontmatter,
 } from "@/server/skill/pack-frontmatter";
 import {
@@ -206,6 +207,15 @@ export async function createPackFromImport(
   description: string | null,
   entries: Array<{ path: string; content: string }>,
 ): Promise<ImportPackTransactionResult> {
+  let alwaysLoad = false;
+  const skillMd = entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
+  if (skillMd) {
+    const { frontmatter } = stripSkillMdFrontmatter(skillMd.content);
+    if (frontmatter) {
+      alwaysLoad = parseAlwaysLoadFromFrontmatter(frontmatter) ?? false;
+    }
+  }
+
   return ds.transaction(async (em) => {
     const pack = em.getRepository(UserSkillConfig).create({
       id: uuidv4(),
@@ -214,6 +224,7 @@ export async function createPackFromImport(
       description,
       content: null,
       enabled: true,
+      alwaysLoad,
     });
     await em.getRepository(UserSkillConfig).save(pack);
     await insertPackFilesBulk(em, userId, pack.id, entries);

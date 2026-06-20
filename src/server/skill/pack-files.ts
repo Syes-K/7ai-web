@@ -6,6 +6,7 @@ import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
 import { SKILL_PACK_SKILL_MD_PATH } from "@/common/constants";
 import {
   extractSkillMetadataFromFrontmatter,
+  parseAlwaysLoadFromFrontmatter,
   stripSkillMdFrontmatter,
 } from "@/server/skill/pack-frontmatter";
 import { hasScriptsPrefix, isSkillMdPath } from "@/server/skill/pack-path";
@@ -130,6 +131,8 @@ export async function syncPackMetadataFromSkillMd(
   const meta = extractSkillMetadataFromFrontmatter(frontmatter);
   if (meta.name) pack.name = meta.name;
   if (meta.description !== undefined) pack.description = meta.description || null;
+  const always = parseAlwaysLoadFromFrontmatter(frontmatter);
+  if (always !== undefined) pack.alwaysLoad = always;
   return em.getRepository(UserSkillConfig).save(pack);
 }
 

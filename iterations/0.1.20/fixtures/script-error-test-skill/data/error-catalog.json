@@ -1,0 +1,30 @@
+{
+  "scenarios": [
+    {
+      "key": "fail_exit",
+      "script": "scripts/fail_exit.py",
+      "description": "Clean exit with code 42"
+    },
+    {
+      "key": "crash",
+      "script": "scripts/crash.py",
+      "description": "Unhandled ValueError"
+    },
+    {
+      "key": "hang",
+      "script": "scripts/hang.py",
+      "description": "Sleep 120s — use timeoutMs=5000 for quick test"
+    },
+    {
+      "key": "bad_args",
+      "script": "scripts/bad_args.py",
+      "args": [],
+      "description": "Missing required arg — exit 2"
+    },
+    {
+      "key": "fail_sh",
+      "script": "scripts/fail.sh",
+      "description": "bash exit 1"
+    }
+  ]
+}

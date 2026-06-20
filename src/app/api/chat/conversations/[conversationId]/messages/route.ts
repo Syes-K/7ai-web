@@ -33,6 +33,7 @@ import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import type { McpTurnUiSnapshot, SkillsTurnUiSnapshot } from "@/server/chat/turn-capabilities";
+import { normalizeSkillsTurnUi } from "@/common/utils/normalize-skills-turn-ui";
 import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
 
 export const runtime = "nodejs";
@@ -184,70 +185,124 @@ function mcpDetailsFromUi(
   return details;
 }
 
+function shouldEmitSkillsStep(ui: SkillsTurnUiSnapshot): boolean {
+  const n = normalizeSkillsTurnUi(ui);
+  if (n.assistantMissing || n.loadFailed) return true;
+  return (n.mounted?.length ?? 0) > 0;
+}
+
 function skillsSafeMessage(locale: AppLocale, ui: SkillsTurnUiSnapshot): string {
-  if (ui.assistantMissing) return tApiMessage(locale, "turnSafe.skillsNoAssistant");
-  if (ui.loadFailed) return tApiMessage(locale, "turnSafe.skillsLoadSkipped");
-  if (ui.merged.length === 0) return tApiMessage(locale, "turnSafe.skillsNotMounted");
-  const readCount = ui.readFileCount ?? 0;
-  if (readCount > 0) {
-    return tApiMessage(locale, "turnSafe.skillsMergedWithRead", {
-      count: ui.merged.length,
+  const n = normalizeSkillsTurnUi(ui);
+  if (n.assistantMissing) return tApiMessage(locale, "turnSafe.skillsNoAssistant");
+  if (n.loadFailed) return tApiMessage(locale, "turnSafe.skillsLoadSkipped");
+  if (n.mounted.length === 0) return tApiMessage(locale, "turnSafe.skillsNotMounted");
+  const loadedCount = n.loaded.length;
+  const readCount = n.readFileCount ?? 0;
+  const runCount = n.scriptRunCount ?? 0;
+  if (loadedCount === 0 && n.intentSource === "failed_safe") {
+    return tApiMessage(locale, "turnSafe.skillsSelectionFailed");
+  }
+  if (loadedCount === 0) {
+    return tApiMessage(locale, "turnSafe.skillsMountedNotSelected", { mountedCount: n.mounted.length });
+  }
+  if (readCount > 0 && runCount > 0) {
+    return tApiMessage(locale, "turnSafe.skillsLoadedWithReadAndRun", {
+      count: loadedCount,
       readCount,
+      runCount,
     });
   }
-  return tApiMessage(locale, "turnSafe.skillsMerged", { count: ui.merged.length });
+  if (readCount > 0) {
+    return tApiMessage(locale, "turnSafe.skillsLoadedWithRead", { count: loadedCount, readCount });
+  }
+  if (runCount > 0) {
+    return tApiMessage(locale, "turnSafe.skillsLoadedWithRun", { count: loadedCount, runCount });
+  }
+  return tApiMessage(locale, "turnSafe.skillsLoaded", { count: loadedCount });
 }
 
 function skillsDetailsFromUi(
   locale: AppLocale,
   ui: SkillsTurnUiSnapshot,
 ): Array<{ title: string; content: string }> {
+  const n = normalizeSkillsTurnUi(ui);
   const details: Array<{ title: string; content: string }> = [];
-  if (ui.assistantMissing) {
+  if (n.assistantMissing) {
     details.push({
       title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
       content: tApiMessage(locale, "turnSafe.detail.skillsNoAssistantBody"),
     });
     return details;
   }
-  if (ui.merged.length === 0) {
+  if (n.mounted.length === 0) {
     details.push({
       title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
-      content: ui.loadFailed
+      content: n.loadFailed
         ? tApiMessage(locale, "turnSafe.skillsLoadSkipped")
         : tApiMessage(locale, "turnSafe.detail.skillsNotMountedBody"),
     });
     return details;
   }
-  details.push({
-    title: tApiMessage(locale, "turnSafe.detail.skillsMergedTitle"),
-    content: ui.merged
-      .map((m) => tApiMessage(locale, "turnSafe.detail.skillsMergedNameLine", { name: m.name }))
-      .join("\n"),
-  });
-  const readCount = ui.readFileCount ?? 0;
-  if (readCount > 0 && ui.readFileSamples && ui.readFileSamples.length > 0) {
+  if (n.mounted.length > 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsMountedTitle"),
+      content: n.mounted
+        .map((m) => tApiMessage(locale, "turnSafe.detail.skillsLoadedNameLine", { name: m.name }))
+        .join("\n"),
+    });
+  }
+  if (n.loaded.length > 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsLoadedTitle"),
+      content: n.loaded
+        .map((m) => tApiMessage(locale, "turnSafe.detail.skillsLoadedNameLine", { name: m.name }))
+        .join("\n"),
+    });
+  }
+  if (n.skipped && n.skipped.length > 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsSkippedTitle"),
+      content: n.skipped
+        .map((s) =>
+          s.reason
+            ? tApiMessage(locale, "turnSafe.detail.skillsSkippedLine", { name: s.name, reason: s.reason })
+            : tApiMessage(locale, "turnSafe.detail.skillsSkippedLineNoReason", { name: s.name }),
+        )
+        .join("\n"),
+    });
+  }
+  const readCount = n.readFileCount ?? 0;
+  if (readCount > 0 && n.readFileSamples && n.readFileSamples.length > 0) {
     details.push({
       title: tApiMessage(locale, "turnSafe.detail.skillsReadTitle"),
-      content: ui.readFileSamples
+      content: n.readFileSamples
         .map((sample) => {
           const colon = sample.indexOf(":");
           const packName = colon >= 0 ? sample.slice(0, colon) : sample;
-          const path = colon >= 0 ? sample.slice(colon + 1) : "";
-          return tApiMessage(locale, "turnSafe.detail.skillsReadLine", { packName, path });
+          const filePath = colon >= 0 ? sample.slice(colon + 1) : "";
+          return tApiMessage(locale, "turnSafe.detail.skillsReadLine", { packName, path: filePath });
         })
         .join("\n"),
     });
-    const hasScriptsSample = ui.readFileSamples.some((s) => {
-      const path = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
-      return path.startsWith("scripts/") || path === "scripts";
+  }
+  const runCount = n.scriptRunCount ?? 0;
+  if (runCount > 0 && n.scriptRunSamples && n.scriptRunSamples.length > 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsScriptRunTitle"),
+      content: n.scriptRunSamples
+        .map((sample) => {
+          const parts = sample.split(":");
+          const packName = parts[0] ?? sample;
+          const exitCode = parts.length >= 3 ? parts[parts.length - 1] : "-";
+          const filePath = parts.length >= 3 ? parts.slice(1, -1).join(":") : parts.slice(1).join(":");
+          return tApiMessage(locale, "turnSafe.detail.skillsScriptRunLine", {
+            packName,
+            path: filePath,
+            exitCode,
+          });
+        })
+        .join("\n"),
     });
-    if (hasScriptsSample) {
-      details.push({
-        title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
-        content: tApiMessage(locale, "turnSafe.detail.skillsReadOnlyNote"),
-      });
-    }
   }
   return details;
 }
@@ -504,19 +559,24 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           for await (const delta of streamAssistantReply(historyForModel, user.id, {
             user,
             assistantId: conv.assistantId,
+            userMessageText: content,
             onAgentPrepared: async ({ mcpTurnUi, skillsTurnUi }) => {
               mcpUiForTurn = mcpTurnUi;
               skillsUiForTurn = skillsTurnUi;
-              turnState.updateStep("C1b", "completed", {
-                safeMessage: skillsSafeMessage(locale, skillsTurnUi),
-                details: skillsDetailsFromUi(locale, skillsTurnUi),
-              });
+              if (shouldEmitSkillsStep(skillsTurnUi)) {
+                turnState.updateStep("C1b", "completed", {
+                  safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+                  details: skillsDetailsFromUi(locale, skillsTurnUi),
+                });
+              }
               turnState.updateStep("C2", "completed", {
                 safeMessage: mcpSafeMessage(locale, mcpTurnUi),
                 details: mcpDetailsFromUi(locale, mcpTurnUi),
               });
               await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
-              await emitTurnDelta("C1b", "completed");
+              if (shouldEmitSkillsStep(skillsTurnUi)) {
+                await emitTurnDelta("C1b", "completed");
+              }
               await emitTurnDelta("C2", "completed");
               await emitTurnDelta("D1", "running");
               await applyToolEventsToD1("running");
@@ -578,17 +638,21 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
             ],
           });
           const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
-          const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, merged: [] };
-          turnState.updateStep("C1b", "completed", {
-            safeMessage: skillsSafeMessage(locale, skillsUiDone),
-            details: skillsDetailsFromUi(locale, skillsUiDone),
-          });
+          const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, mounted: [], loaded: [] };
+          if (shouldEmitSkillsStep(skillsUiDone)) {
+            turnState.updateStep("C1b", "completed", {
+              safeMessage: skillsSafeMessage(locale, skillsUiDone),
+              details: skillsDetailsFromUi(locale, skillsUiDone),
+            });
+          }
           turnState.updateStep("C2", "completed", {
             safeMessage: mcpSafeMessage(locale, mcpUiDone),
             details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),
           });
           await turnRepo.update({ id: turnId }, { stepsSnapshotJson: serializeTurnSnapshot(turnState.getSnapshot()) });
-          await emitTurnDelta("C1b", "completed");
+          if (shouldEmitSkillsStep(skillsUiDone)) {
+            await emitTurnDelta("C1b", "completed");
+          }
           await emitTurnDelta("C2", "completed");
           await emitTurnDelta("D1", "completed");
 
@@ -716,13 +780,16 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     assistantText = await invokeAssistantReply(historyForModel, user.id, {
       user,
       assistantId: conv.assistantId,
+      userMessageText: content,
       onAgentPrepared: async ({ mcpTurnUi, skillsTurnUi }) => {
         mcpUiForTurn = mcpTurnUi;
         skillsUiForTurn = skillsTurnUi;
-        turnState.updateStep("C1b", "completed", {
-          safeMessage: skillsSafeMessage(locale, skillsTurnUi),
-          details: skillsDetailsFromUi(locale, skillsTurnUi),
-        });
+        if (shouldEmitSkillsStep(skillsTurnUi)) {
+          turnState.updateStep("C1b", "completed", {
+            safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+            details: skillsDetailsFromUi(locale, skillsTurnUi),
+          });
+        }
         turnState.updateStep("C2", "completed", {
           safeMessage: mcpSafeMessage(locale, mcpTurnUi),
           details: mcpDetailsFromUi(locale, mcpTurnUi),
@@ -799,11 +866,13 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
       ],
     });
     const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
-    const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, merged: [] };
-    turnState.updateStep("C1b", "completed", {
-      safeMessage: skillsSafeMessage(locale, skillsUiDone),
-      details: skillsDetailsFromUi(locale, skillsUiDone),
-    });
+    const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, mounted: [], loaded: [] };
+    if (shouldEmitSkillsStep(skillsUiDone)) {
+      turnState.updateStep("C1b", "completed", {
+        safeMessage: skillsSafeMessage(locale, skillsUiDone),
+        details: skillsDetailsFromUi(locale, skillsUiDone),
+      });
+    }
     turnState.updateStep("C2", "completed", {
       safeMessage: mcpSafeMessage(locale, mcpUiDone),
       details: mcpDetailsFromUi(locale, mcpUiDone, toolEvents),

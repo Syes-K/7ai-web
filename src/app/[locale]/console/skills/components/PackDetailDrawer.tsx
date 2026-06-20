@@ -111,6 +111,8 @@ export default function PackDetailDrawer({
   const [nameDraft, setNameDraft] = useState("");
   const [descDraft, setDescDraft] = useState("");
   const [enabledDraft, setEnabledDraft] = useState(true);
+  const [alwaysLoadDraft, setAlwaysLoadDraft] = useState(false);
+  const [alwaysLoadSaving, setAlwaysLoadSaving] = useState(false);
 
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
@@ -207,6 +209,7 @@ export default function PackDetailDrawer({
         setNameDraft(item.name);
         setDescDraft(item.description ?? "");
         setEnabledDraft(item.enabled);
+        setAlwaysLoadDraft(item.alwaysLoad ?? false);
       }
       const paths = sortPackFilePaths((fileData?.files ?? []).map((f) => f.path));
       const first = paths.includes(SKILL_PACK_SKILL_MD_PATH)
@@ -309,6 +312,7 @@ export default function PackDetailDrawer({
         setMeta(data.item);
         setNameDraft(data.item.name);
         setDescDraft(data.item.description ?? "");
+        setAlwaysLoadDraft(data.item.alwaysLoad ?? false);
         if (selectedPath === SKILL_PACK_SKILL_MD_PATH) {
           message.success(t("toast.syncedFromFrontmatter"));
         }
@@ -361,6 +365,7 @@ export default function PackDetailDrawer({
         setMeta(data.item);
         setNameDraft(data.item.name);
         setDescDraft(data.item.description ?? "");
+        setAlwaysLoadDraft(data.item.alwaysLoad ?? false);
       }
       await loadFiles(packId);
       message.success(t("toast.saved"));
@@ -369,6 +374,53 @@ export default function PackDetailDrawer({
       setSaving(false);
     }
   }, [consolePath, dirtyMap, editorContent, loadFiles, locale, message, onSaved, packId, t, tShell]);
+
+  const handleAlwaysLoadChange = useCallback(
+    async (checked: boolean) => {
+      if (!packId) return;
+      setAlwaysLoadSaving(true);
+      const prev = alwaysLoadDraft;
+      setAlwaysLoadDraft(checked);
+      try {
+        const res = await fetch(`/api/console/skill-configs/${packId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ alwaysLoad: checked }),
+        });
+        if (res.status === 401) {
+          redirectToLocaleLogin(locale, consolePath);
+          setAlwaysLoadDraft(prev);
+          return;
+        }
+        if (!res.ok) {
+          message.error(await parseApiError(res, { t: tShell }));
+          setAlwaysLoadDraft(prev);
+          return;
+        }
+        const data = (await res.json()) as { item: SkillPackListItem };
+        setMeta(data.item);
+        setAlwaysLoadDraft(data.item.alwaysLoad ?? checked);
+        message.success(t("toast.alwaysLoadUpdated"));
+        onSaved();
+      } catch {
+        message.error(tShell("errors.networkRetry"));
+        setAlwaysLoadDraft(prev);
+      } finally {
+        setAlwaysLoadSaving(false);
+      }
+    },
+    [
+      alwaysLoadDraft,
+      consolePath,
+      locale,
+      message,
+      onSaved,
+      packId,
+      t,
+      tShell,
+    ],
+  );
 
   const saveMeta = useCallback(async () => {
     if (!packId) return;
@@ -507,8 +559,8 @@ export default function PackDetailDrawer({
           <span>{node.title as string}</span>
           {isSkillMd ? <span className="text-red-400">*</span> : null}
           {isScript && !node.isFolder ? (
-            <Tooltip title={t("alert.scriptsReadOnly.tooltip")}>
-              <Badge count={t("tag.scriptsReadOnly")} style={{ backgroundColor: "#d48806" }} />
+            <Tooltip title={t("fileTree.scriptRunnableTooltip")}>
+              <Badge count={t("fileTree.scriptRunnable")} style={{ backgroundColor: "#389e0d" }} />
             </Tooltip>
           ) : null}
         </span>
@@ -539,6 +591,16 @@ export default function PackDetailDrawer({
         destroyOnClose
         extra={
           <Space>
+            <Tooltip title={t("form.alwaysLoad.extra")}>
+              <Space size={4}>
+                <span className="text-sm text-white/70">{t("form.alwaysLoad.label")}</span>
+                <Switch
+                  checked={alwaysLoadDraft}
+                  loading={alwaysLoadSaving}
+                  onChange={(checked) => void handleAlwaysLoadChange(checked)}
+                />
+              </Space>
+            </Tooltip>
             <Switch
               checked={enabledDraft}
               onChange={setEnabledDraft}
@@ -558,10 +620,10 @@ export default function PackDetailDrawer({
               showIcon
               closable
               className="mb-3"
-              message={t("alert.scriptsReadOnly.message")}
+              message={t("alert.scriptsSandbox.message")}
               description={
                 <span>
-                  {t("alert.scriptsReadOnly.description")}{" "}
+                  {t("alert.scriptsSandbox.description")}{" "}
                   <Button type="link" size="small" className="px-0" onClick={onOpenScriptsHelp}>
                     {t("help.scripts.title")}
                   </Button>

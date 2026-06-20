@@ -18,9 +18,12 @@ type DetailKey =
   | "skillsNote"
   | "skillsNoAssistantBody"
   | "skillsNotMountedBody"
+  | "skillsMountedTitle"
+  | "skillsLoadedTitle"
+  | "skillsSkippedTitle"
   | "skillsMergedTitle"
   | "skillsReadTitle"
-  | "skillsReadOnlyNote";
+  | "skillsScriptRunTitle";
 
 type ChatTranslator = (key: string, values?: Record<string, string | number>) => string;
 
@@ -42,9 +45,12 @@ const DETAIL_KEYS: DetailKey[] = [
   "skillsNote",
   "skillsNoAssistantBody",
   "skillsNotMountedBody",
+  "skillsMountedTitle",
+  "skillsLoadedTitle",
+  "skillsSkippedTitle",
   "skillsMergedTitle",
   "skillsReadTitle",
-  "skillsReadOnlyNote",
+  "skillsScriptRunTitle",
 ];
 
 /** 各 locale 已写入 DB 的详情标题/正文 → 语义 key（兼容历史硬编码中文）。 */
@@ -74,10 +80,18 @@ LEGACY_DETAIL_STRING_TO_KEY.set(
   "助手侧未挂载 MCP 配置，或配置已禁用。",
   "mcpNotMountedBody",
 );
-LEGACY_DETAIL_STRING_TO_KEY.set("已合并技能包", "skillsMergedTitle");
-LEGACY_DETAIL_STRING_TO_KEY.set("Merged Skill Packs", "skillsMergedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("已合并技能包", "skillsLoadedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Merged Skill Packs", "skillsLoadedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("已加载技能包", "skillsLoadedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Loaded Skill Packs", "skillsLoadedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("已挂载", "skillsMountedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Mounted Skill Packs", "skillsMountedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("未选用", "skillsSkippedTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Not selected this turn", "skillsSkippedTitle");
 LEGACY_DETAIL_STRING_TO_KEY.set("已读取文件", "skillsReadTitle");
 LEGACY_DETAIL_STRING_TO_KEY.set("Files read", "skillsReadTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("已运行脚本", "skillsScriptRunTitle");
+LEGACY_DETAIL_STRING_TO_KEY.set("Scripts run", "skillsScriptRunTitle");
 LEGACY_DETAIL_STRING_TO_KEY.set(
   "当前会话未绑定助手，本轮未加载技能包。",
   "skillsNoAssistantBody",

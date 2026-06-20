@@ -18,6 +18,7 @@ import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
 import { AssistantSkillBinding } from "@/server/db/entities/AssistantSkillBinding";
 import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
+import { SkillScriptRun } from "@/server/db/entities/SkillScriptRun";
 
 let dataSource: DataSource | null = null;
 
@@ -54,6 +55,7 @@ export async function getDataSource(): Promise<DataSource> {
       UserSkillConfig,
       AssistantSkillBinding,
       SkillPackFile,
+      SkillScriptRun,
     ],
     synchronize: true,
     logging: process.env.TYPEORM_LOGGING === "1",
@@ -68,5 +70,7 @@ export async function getDataSource(): Promise<DataSource> {
     "@/server/db/migrate-skill-content-to-pack-files"
   );
   await migrateSkillContentToPackFiles(dataSource);
+  const { purgeOldSkillScriptRuns } = await import("@/server/db/purge-skill-script-runs");
+  await purgeOldSkillScriptRuns(dataSource);
   return dataSource;
 }

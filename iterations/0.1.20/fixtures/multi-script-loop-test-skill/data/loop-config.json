@@ -1,0 +1,12 @@
+{
+  "packKey": "multi-script-loop-test",
+  "defaultRounds": 3,
+  "maxRounds": 5,
+  "scripts": {
+    "init": "scripts/init.py",
+    "tick": "scripts/tick.py",
+    "ping": "scripts/ping.sh",
+    "finalize": "scripts/finalize.py"
+  },
+  "notes": "Odd rounds use tick.py (args: total, round). Even rounds use ping.sh (args: round)."
+}

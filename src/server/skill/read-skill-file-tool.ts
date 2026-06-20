@@ -25,7 +25,7 @@ export const READ_SKILL_FILE_TOOL_NAME = "read_skill_file";
 
 /**
  * 构建 read_skill_file LangChain Tool。
- * packId 白名单 = 本 Turn refs；路径经 normalizePackFilePath；仅读 DB，不 exec。
+ * packId 白名单 = 本 Turn loaded refs；路径经 normalizePackFilePath；仅读 DB，不 exec。
  */
 export async function skillPackRefsToReadTools(
   ctx: ChatTurnCapabilityContext,
@@ -45,9 +45,9 @@ export async function skillPackRefsToReadTools(
     .join(", ");
 
   const description =
-    `Read a text file from a Skill Pack mounted on this assistant. ` +
+    `Read a text file from a loaded Skill Pack. ` +
     `Only paths under packs listed below are allowed. ` +
-    `Scripts are read-only; they cannot be executed in this version. ` +
+    `Scripts can be run with run_skill_script when loaded. ` +
     `Available packs: ${packList}`;
 
   const tool = new DynamicStructuredTool({
@@ -115,5 +115,3 @@ export async function skillPackRefsToReadTools(
 
   return [tool as unknown as Tool];
 }
-
-// TODO 0.1.20: run_skill_script — 沙箱执行 scripts/ 下文件；本期不注册

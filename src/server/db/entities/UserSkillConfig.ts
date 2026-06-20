@@ -31,6 +31,10 @@ export class UserSkillConfig {
   @Column({ type: "boolean", default: true })
   enabled!: boolean;
 
+  /** 为 true 时每轮对话无条件合并 SKILL.md（意图路由跳过该 Pack）。 */
+  @Column({ type: "boolean", default: false })
+  alwaysLoad!: boolean;
+
   @CreateDateColumn({ type: "datetime" })
   createdAt!: Date;
 

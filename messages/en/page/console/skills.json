@@ -7,12 +7,12 @@
   "alert": {
     "productScope": {
       "message": "What are Skill Packs?",
-      "description": "Skill Packs are instructions and reference files that teach your assistant how to work. Create or edit them here, or import a zip folder. Compatible with skill directories from tools like Cursor and Claude Code. When mounted on an assistant, the assistant follows SKILL.md in chat and can read other files in the pack on demand. **Scripts in the pack are not run in this version.**"
+      "description": "Import zip folders compatible with `.cursor/skills/`. SKILL.md is applied when a pack is loaded for the turn; other files are read or run on demand. Only packs relevant to your question are loaded (unless marked Always load). Scripts under `scripts/` can be run in a sandbox during chat."
     },
-    "scriptsReadOnly": {
-      "message": "Scripts in this pack are read-only",
-      "description": "The assistant can read files under `scripts/` as reference, but **they are not run** in this version.",
-      "tooltip": "Reference only; not executed"
+    "scriptsSandbox": {
+      "message": "This pack includes runnable scripts",
+      "description": "When this pack is loaded and the skill instructions call for it, the assistant can run scripts under `scripts/` in a sandbox. No outbound network by default. Timeouts and per-turn limits apply.",
+      "tooltip": "Runnable in chat sandbox"
     }
   },
   "toolbar": {
@@ -38,7 +38,8 @@
     "enabled": "Enabled",
     "disabled": "Disabled",
     "hasScripts": "Has scripts",
-    "scriptsReadOnly": "Read-only"
+    "alwaysLoad": "Always load",
+    "scriptsSandbox": "Sandbox"
   },
   "empty": {
     "noSkills": "No Skill Packs yet",
@@ -60,7 +61,9 @@
     "newFolder": "New folder",
     "rename": "Rename",
     "delete": "Delete",
-    "skillMdRequired": "SKILL.md is required"
+    "skillMdRequired": "SKILL.md is required",
+    "scriptRunnable": "Runnable",
+    "scriptRunnableTooltip": "Can be run in sandbox when loaded"
   },
   "modal": {
     "create": { "title": "New Skill Pack" },
@@ -88,6 +91,10 @@
     "enabled": {
       "label": "Enable this Skill Pack"
     },
+    "alwaysLoad": {
+      "label": "Always load",
+      "extra": "Apply this Skill Pack every turn, even when the question seems unrelated."
+    },
     "skillMd": {
       "extra": "Optional YAML header. The body below is provided to the assistant in chat (the header is ignored). Max body {max} characters."
     }
@@ -102,8 +109,8 @@
   },
   "help": {
     "scripts": {
-      "title": "What are scripts in a pack?",
-      "body": "Some Skill Packs include script files (e.g. Python). The assistant can read them as reference, but **they are not executed** in this version. Script execution is planned for a future release."
+      "title": "Scripts in Skill Packs",
+      "body": "1) Read file contents vs run scripts in a sandbox. 2) Only scripts/; .py and .sh. 3) No outbound network. 4) Limits: {perTurn} runs per turn, {perDay} per day. 5) Example: ui-ux-pro-max scripts/search.py."
     }
   },
   "confirm": {
@@ -125,6 +132,7 @@
     "deleted": "Deleted",
     "loadFailed": "Could not load pack details.",
     "imported": "Skill Pack imported",
-    "syncedFromFrontmatter": "Name/description synced from SKILL.md"
+    "syncedFromFrontmatter": "Name, description, and always load synced from SKILL.md",
+    "alwaysLoadUpdated": "Always load setting updated"
   }
 }

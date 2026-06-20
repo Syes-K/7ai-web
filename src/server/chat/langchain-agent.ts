@@ -24,7 +24,8 @@ import type { User } from "@/server/db/entities/User";
 import {
   resolveAllToolsForAgent,
   resolveSystemPromptWithSkills,
-  resolveSkillsTurnUiSnapshot,
+  resolveSkillPackSelectionForTurn,
+  buildSkillsTurnUiFromSelection,
   type McpTurnUiSnapshot,
   type SkillsTurnUiSnapshot,
 } from "@/server/chat/turn-capabilities";
@@ -38,6 +39,8 @@ export type GetChatAssistantAgentOptions = {
    * 传入时经 {@link findReadableAssistant} 解析提示词（无权限或已删除则回退默认提示）。
    */
   assistantId?: string | null;
+  /** 本轮用户消息正文，供技能包意图路由使用 */
+  userMessageText?: string;
 };
 
 /**
@@ -65,28 +68,100 @@ export type GetAssistantAgentResult = {
   mcpTurnUi: McpTurnUiSnapshot;
   skillsTurnUi: SkillsTurnUiSnapshot;
   skillsReadCollector: import("@/server/skill/read-skill-file-tool").SkillReadStatsCollector;
+  skillsRunCollector: import("@/server/skill/run-skill-script-tool").SkillScriptRunStatsCollector;
   disposeMcp: () => Promise<void>;
 };
 
 export async function getAssistantAgent(options: GetChatAssistantAgentOptions): Promise<GetAssistantAgentResult> {
-  const { userId, user, assistantId } = options;
+  const { userId, user, assistantId, userMessageText = "" } = options;
   const model = await getChatRuntimeModel(userId, { user: user ?? undefined });
   const summaryModel = await getChatRuntimeSummarizationModel(userId, { user: user ?? undefined });
   const capCtx = { userId, user, assistantId };
   const baseSystemPrompt = await resolveChatAssistantSystemPrompt({ userId, user, assistantId });
-  const [systemPrompt, toolsRes, skillsTurnUi] = await Promise.all([
-    resolveSystemPromptWithSkills(baseSystemPrompt, capCtx),
-    resolveAllToolsForAgent(capCtx),
-    resolveSkillsTurnUiSnapshot(capCtx),
+
+  if (!assistantId) {
+    const toolsRes = await resolveAllToolsForAgent(capCtx, [], null);
+    const skillsTurnUi = buildSkillsTurnUiFromSelection(
+      {
+        mountedRefs: [],
+        selectedRefs: [],
+        mounted: [],
+        loaded: [],
+        skipped: [],
+        skippedCount: 0,
+        intentSource: "skipped",
+        loadFailed: false,
+      },
+      { readToolEnabled: false, runToolEnabled: false, assistantMissing: true },
+    );
+    const summaryCfg = await getConversationSummaryConfig();
+    const summaryTemplates = await getSummaryPromptTemplates();
+    const summaryPrompt = summaryTemplates.contextSummarySystem.replace(
+      /\{maxChars\}/g,
+      String(summaryCfg.maxChars),
+    );
+    const trigger =
+      summaryCfg.mode === "tokens"
+        ? { tokens: summaryCfg.summaryTriggerTokens }
+        : { messages: summaryCfg.summaryTriggerMessages };
+    const keep =
+      summaryCfg.mode === "tokens"
+        ? { tokens: summaryCfg.summaryKeepTokens }
+        : { messages: summaryCfg.summaryKeepMessages };
+    const agent = createAgent({
+      model,
+      systemPrompt: `${baseSystemPrompt}${CHAT_LANGUAGE_REPLY_SUFFIX}`,
+      tools: toolsRes.tools,
+      middleware: summaryCfg.enabled
+        ? [
+            summarizationMiddleware({
+              model: summaryModel,
+              trigger,
+              keep,
+              summaryPrefix: summaryTemplates.summarySystemPrefix,
+              summaryPrompt,
+            }),
+          ]
+        : [],
+    });
+    return {
+      agent,
+      mcpTurnUi: toolsRes.mcpTurnUi,
+      skillsTurnUi,
+      skillsReadCollector: toolsRes.skillsReadCollector,
+      skillsRunCollector: toolsRes.skillsRunCollector,
+      disposeMcp: toolsRes.disposeMcp,
+    };
+  }
+
+  const selection = await resolveSkillPackSelectionForTurn(capCtx, userMessageText);
+  console.info(
+    JSON.stringify({
+      event: "skills_selection",
+      userId,
+      assistantId,
+      mounted: selection.mounted.length,
+      loaded: selection.loaded.length,
+      skipped: selection.skippedCount,
+      intentSource: selection.intentSource,
+    }),
+  );
+
+  const [systemPrompt, toolsRes] = await Promise.all([
+    resolveSystemPromptWithSkills(baseSystemPrompt, capCtx, selection.selectedRefs),
+    resolveAllToolsForAgent(capCtx, selection.selectedRefs, selection),
   ]);
+  const skillsTurnUi = buildSkillsTurnUiFromSelection(selection, {
+    readToolEnabled: selection.selectedRefs.length > 0,
+    runToolEnabled: selection.selectedRefs.length > 0,
+  });
   const tools = toolsRes.tools;
   const mcpTurnUi = toolsRes.mcpTurnUi;
   const skillsReadCollector = toolsRes.skillsReadCollector;
+  const skillsRunCollector = toolsRes.skillsRunCollector;
   const disposeMcp = toolsRes.disposeMcp;
   const summaryCfg = await getConversationSummaryConfig();
   const summaryTemplates = await getSummaryPromptTemplates();
-  // LangChain summarizationMiddleware 会对 summaryPrompt 执行 .replace("{messages}", 历史正文)，
-  // 模板中必须保留字面量 {messages}。此处仅替换 {maxChars}，不能用 PromptTemplate 一次 format 掉全部占位符。
   const summaryPrompt = summaryTemplates.contextSummarySystem.replace(
     /\{maxChars\}/g,
     String(summaryCfg.maxChars),
@@ -107,7 +182,6 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions): 
     middleware: summaryCfg.enabled
       ? [
           summarizationMiddleware({
-            // 摘要专用模型由 @/server/llm/model 构造，内置 summarization tag。
             model: summaryModel,
             trigger,
             keep,
@@ -117,7 +191,7 @@ export async function getAssistantAgent(options: GetChatAssistantAgentOptions): 
         ]
       : [],
   });
-  return { agent, mcpTurnUi, skillsTurnUi, skillsReadCollector, disposeMcp };
+  return { agent, mcpTurnUi, skillsTurnUi, skillsReadCollector, skillsRunCollector, disposeMcp };
 }
 
 type StreamEventV2 = {

@@ -226,3 +226,20 @@ export const SKILL_PACK_DENIED_EXTENSIONS = new Set([
 export const MCP_LIST_TOOLS_TIMEOUT_MS = 30_000;
 /** 测试连接：同一用户同一配置最短间隔（毫秒），用于简单频控 */
 export const MCP_TEST_CONNECTION_MIN_INTERVAL_MS = 3_000;
+
+/** Skill Pack 意图路由 LLM 调用超时（毫秒）；可被 SKILL_PACK_INTENT_TIMEOUT_MS 覆盖 */
+export const SKILL_PACK_INTENT_TIMEOUT_MS = 15_000;
+/** Skill 脚本默认执行超时（毫秒） */
+export const SKILL_SCRIPT_DEFAULT_TIMEOUT_MS = 30_000;
+/** Skill 脚本 tool 参数允许的最大超时（毫秒） */
+export const SKILL_SCRIPT_MAX_TIMEOUT_MS = 120_000;
+/** 单 Turn 最多 spawn 脚本次数 */
+export const SKILL_SCRIPT_MAX_RUNS_PER_TURN = 5;
+/** 单用户自然日（UTC）最多 spawn 脚本次数 */
+export const SKILL_SCRIPT_MAX_RUNS_PER_USER_DAY = 100;
+/** stdout/stderr 各段最大字符数 */
+export const SKILL_SCRIPT_OUTPUT_MAX_CHARS = 32_000;
+/** LangChain tool 名：沙箱执行 Skill Pack 脚本 */
+export const RUN_SKILL_SCRIPT_TOOL_NAME = "run_skill_script";
+/** LangChain 意图路由模型调用 tag */
+export const SKILL_PACK_INTENT_TAG = "SKILL_PACK_INTENT";

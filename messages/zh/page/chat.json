@@ -187,11 +187,18 @@
       "skillsNote": "说明",
       "skillsNoAssistantBody": "当前会话未绑定助手，本轮未加载技能包。",
       "skillsNotMountedBody": "助手未挂载可用技能包，或技能包已停用。",
-      "skillsMergedTitle": "已合并技能包",
+      "skillsMountedTitle": "已挂载",
+      "skillsLoadedTitle": "本轮已加载",
+      "skillsLoadedNameLine": "· {name}",
+      "skillsSkippedTitle": "未选用",
+      "skillsSkippedLine": "· {name} — {reason}",
+      "skillsSkippedLineNoReason": "· {name}",
+      "skillsMergedTitle": "已加载技能包",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "已读取文件",
       "skillsReadLine": "· {packName}：{path}",
-      "skillsReadOnlyNote": "脚本仅以文本读取，不会执行。"
+      "skillsScriptRunTitle": "已运行脚本",
+      "skillsScriptRunLine": "· {packName}：{path}（退出码 {exitCode}）"
     },
     "a11y": {
       "currentStep": "当前步骤 {stepKey} {status}",

@@ -187,11 +187,18 @@
       "skillsNote": "Note",
       "skillsNoAssistantBody": "This conversation has no assistant; Skill Packs were not loaded for this turn.",
       "skillsNotMountedBody": "The assistant has no active Skill Packs mounted, or they are disabled.",
-      "skillsMergedTitle": "Merged Skill Packs",
+      "skillsMountedTitle": "Mounted Skill Packs",
+      "skillsLoadedTitle": "Loaded this turn",
+      "skillsLoadedNameLine": "· {name}",
+      "skillsSkippedTitle": "Not selected this turn",
+      "skillsSkippedLine": "· {name} — {reason}",
+      "skillsSkippedLineNoReason": "· {name}",
+      "skillsMergedTitle": "Loaded Skill Packs",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "Files read",
       "skillsReadLine": "· {packName}: {path}",
-      "skillsReadOnlyNote": "Scripts are read as text only; not executed."
+      "skillsScriptRunTitle": "Scripts run",
+      "skillsScriptRunLine": "· {packName}: {path} (exit {exitCode})"
     },
     "a11y": {
       "currentStep": "Current step {stepKey} {status}",

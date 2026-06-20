@@ -65,10 +65,6 @@ const TURN_SAFE_MCP_NOT_MOUNTED = new Set([
   enApiMessage.turnSafe.mcpNotMounted,
   zhApiMessage.turnSafe.mcpNotMounted,
 ]);
-const TURN_SAFE_SKILLS_NO_ASSISTANT = new Set([
-  enApiMessage.turnSafe.skillsNoAssistant,
-  zhApiMessage.turnSafe.skillsNoAssistant,
-]);
 const TURN_SAFE_SKILLS_NOT_MOUNTED = new Set([
   enApiMessage.turnSafe.skillsNotMounted,
   zhApiMessage.turnSafe.skillsNotMounted,
@@ -489,6 +485,7 @@ function shouldHideUnboundKnowledgeStep(
   return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
 }
 
+/** C1b：mounted=0 隐藏；无助手、已挂载未选用、已加载等场景展示。 */
 function shouldHideUnboundSkillsStep(
   step: {
     safeMessage: string | null;
@@ -497,16 +494,16 @@ function shouldHideUnboundSkillsStep(
   detailsLabel: string,
 ): boolean {
   const summary = (step.safeMessage ?? "").trim();
-  if (!summary) return false;
   if (
-    TURN_SAFE_SKILLS_NO_ASSISTANT.has(summary) ||
     TURN_SAFE_SKILLS_NOT_MOUNTED.has(summary) ||
-    [...TURN_SAFE_SKILLS_NO_ASSISTANT].some((s) => summary.includes(s)) ||
     [...TURN_SAFE_SKILLS_NOT_MOUNTED].some((s) => summary.includes(s))
   ) {
     return true;
   }
-  return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
+  if (!summary) {
+    return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
+  }
+  return false;
 }
 
 function buildTurnStageItems(turn: TurnUiModel, labels: TurnStepLabels): TurnStageItem[] {

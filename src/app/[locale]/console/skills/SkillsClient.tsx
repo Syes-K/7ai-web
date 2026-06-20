@@ -16,6 +16,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   SKILL_CONFIG_DESCRIPTION_MAX_LENGTH,
   SKILL_CONFIG_NAME_MAX_LENGTH,
+  SKILL_SCRIPT_MAX_RUNS_PER_TURN,
+  SKILL_SCRIPT_MAX_RUNS_PER_USER_DAY,
 } from "@/common/constants";
 import { ErrorCode } from "@/common/enums";
 import { redirectToLocaleLogin } from "@/common/utils/locale-login-redirect";
@@ -46,9 +48,12 @@ function getSkillColumns(t: SkillsT, ctx: SkillColumnsCtx): ProColumns<SkillPack
       width: 180,
       ellipsis: true,
       render: (_, row) => (
-        <Tooltip title={row.name}>
-          <span className="text-white/90">{row.name}</span>
-        </Tooltip>
+        <Space size={4} wrap>
+          <Tooltip title={row.name}>
+            <span className="text-white/90">{row.name}</span>
+          </Tooltip>
+          {row.alwaysLoad ? <Tag color="purple">{t("tag.alwaysLoad")}</Tag> : null}
+        </Space>
       ),
     },
     {
@@ -83,7 +88,7 @@ function getSkillColumns(t: SkillsT, ctx: SkillColumnsCtx): ProColumns<SkillPack
       width: 100,
       render: (_, row) =>
         row.hasScripts ? (
-          <Tooltip title={t("alert.scriptsReadOnly.tooltip")}>
+          <Tooltip title={t("alert.scriptsSandbox.tooltip")}>
             <Tag color="gold">{t("tag.hasScripts")}</Tag>
           </Tooltip>
         ) : (
@@ -501,7 +506,12 @@ export default function SkillsClient() {
         onClose={() => setScriptsHelpOpen(false)}
         width={480}
       >
-        <p className="text-sm text-white/80">{t("help.scripts.body")}</p>
+        <p className="text-sm text-white/80">
+          {t("help.scripts.body", {
+            perTurn: SKILL_SCRIPT_MAX_RUNS_PER_TURN,
+            perDay: SKILL_SCRIPT_MAX_RUNS_PER_USER_DAY,
+          })}
+        </p>
       </Drawer>
     </PageContainer>
   );

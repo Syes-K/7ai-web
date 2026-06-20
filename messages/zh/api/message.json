@@ -198,10 +198,16 @@
     "mcpLoadFailed": "已挂载 {count} 个 MCP，工具加载失败",
     "mcpLoaded": "已加载 {loaded} 个 MCP，共 {toolCount} 个工具",
     "skillsNoAssistant": "未绑定助手，未加载技能包",
-    "skillsNotMounted": "助手未挂载可用技能包",
-    "skillsMerged": "已合并 {count} 个技能包至 system prompt",
-    "skillsMergedWithRead": "已合并 {count} 个技能包；通过 read_skill_file 读取 {readCount} 个文件",
+    "skillsNotMounted": "助手未挂载技能包",
     "skillsLoadSkipped": "技能包未能加载，仅使用基础提示",
+    "skillsLoaded": "已加载 {count} 个技能包。",
+    "skillsLoadedWithRead": "已加载 {count} 个；读取 {readCount} 个文件。",
+    "skillsLoadedWithRun": "已加载 {count} 个；运行 {runCount} 个脚本。",
+    "skillsLoadedWithReadAndRun": "已加载 {count} 个；读取 {readCount} 个文件；运行 {runCount} 个脚本。",
+    "skillsMountedNotSelected": "已挂载 {mountedCount} 个，本轮未选用。",
+    "skillsSelectionFailed": "技能包选用暂不可用，本轮未加载可选包。",
+    "skillsMerged": "已加载 {count} 个技能包。",
+    "skillsMergedWithRead": "已加载 {count} 个；读取 {readCount} 个文件。",
     "detail": {
       "kbMatchedBases": "命中知识库",
       "kbMatchedChunks": "命中片段",
@@ -216,13 +222,20 @@
       "mcpNoToolCalls": "未触发工具调用",
       "mcpUnknownError": "未知错误",
       "skillsNote": "说明",
-      "skillsNoAssistantBody": "本会话未绑定助手，本轮未合并 Skills。",
+      "skillsNoAssistantBody": "当前会话未绑定助手，本轮未加载技能包。",
       "skillsNotMountedBody": "助手未挂载 Skill，或均已停用。",
-      "skillsMergedTitle": "已合并技能包",
+      "skillsMountedTitle": "已挂载",
+      "skillsLoadedTitle": "本轮已加载",
+      "skillsLoadedNameLine": "· {name}",
+      "skillsSkippedTitle": "未选用",
+      "skillsSkippedLine": "· {name} — {reason}",
+      "skillsSkippedLineNoReason": "· {name}",
+      "skillsMergedTitle": "已加载技能包",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "已读取文件",
       "skillsReadLine": "· {packName}：{path}",
-      "skillsReadOnlyNote": "脚本仅以文本读取，不会执行。"
+      "skillsScriptRunTitle": "已运行脚本",
+      "skillsScriptRunLine": "· {packName}：{path}（退出码 {exitCode}）"
     }
   }
 }

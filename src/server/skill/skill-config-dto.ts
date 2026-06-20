@@ -6,6 +6,7 @@ export type SkillConfigListItemJson = {
   name: string;
   description: string | null;
   enabled: boolean;
+  alwaysLoad: boolean;
   fileCount: number;
   hasScripts: boolean;
   createdAt: string;
@@ -23,6 +24,7 @@ export function userSkillConfigToListItemJson(
     name: row.name,
     description: row.description,
     enabled: row.enabled,
+    alwaysLoad: row.alwaysLoad,
     fileCount: aggregate?.fileCount ?? 0,
     hasScripts: aggregate?.hasScripts ?? false,
     createdAt: row.createdAt.toISOString(),

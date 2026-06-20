@@ -33,6 +33,7 @@ type PatchBody = {
   description?: unknown;
   content?: unknown;
   enabled?: unknown;
+  alwaysLoad?: unknown;
 };
 
 async function getOwnedConfigOr404(userId: string, id: string) {
@@ -148,6 +149,10 @@ export const PATCH = withApiWrapper(async (request: Request, ctx: RouteParams) =
   }
   if ("enabled" in body) {
     row.enabled = nextEnabled;
+  }
+
+  if ("alwaysLoad" in body) {
+    row.alwaysLoad = parseBoolean(body.alwaysLoad, row.alwaysLoad);
   }
 
   if (details.length > 0) {

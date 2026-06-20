@@ -16,6 +16,7 @@ export type SkillPackListItem = {
   name: string;
   description: string | null;
   enabled: boolean;
+  alwaysLoad?: boolean;
   fileCount: number;
   hasScripts: boolean;
   createdAt: string;
