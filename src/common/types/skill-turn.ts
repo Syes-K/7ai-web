@@ -1,7 +1,27 @@
+import type { SkillPackSkipReasonCode } from "@/common/enums/skill-pack-skip-reason";
+
 /** 对话 Turn 面板 Skills 步骤展示用 Pack 引用（结构化，不含 locale 文案）。 */
 export type SkillPackUiRef = { id: string; name: string };
 
-export type SkillPackSkippedRef = SkillPackUiRef & { reason?: string };
+export type SkillPackSkippedRef = SkillPackUiRef & {
+  /** 0.1.21+ 结构化 skip 原因；展示走 i18n */
+  reasonCode?: SkillPackSkipReasonCode | null;
+  /** @deprecated 0.1.21+ 新 Turn 不写；仅历史 Turn legacy */
+  reason?: string;
+};
+
+/** P1 可选：C1b details 结构化行（新 Turn 双写 content + lines）。 */
+export type TurnDetailLine =
+  | { type: "loadedName"; name: string }
+  | { type: "skipped"; name: string; reasonCode?: SkillPackSkipReasonCode }
+  | { type: "read"; packName: string; path: string }
+  | { type: "scriptRun"; packName: string; path: string; exitCode: string };
+
+export type TurnDetailBlock = {
+  title: string;
+  content?: string;
+  lines?: TurnDetailLine[];
+};
 
 export type SkillsTurnUiSnapshot = {
   assistantMissing: boolean;
@@ -38,4 +58,15 @@ export type SkillPackSelectionResult = {
   skippedCount: number;
   intentSource: "always_load" | "intent_agent" | "failed_safe" | "skipped";
   loadFailed: boolean;
+};
+
+/** C1b 子步骤快照字段（嵌于 stepsSnapshotJson）。 */
+export type TurnSubStepSnapshot = {
+  label?: string;
+  status?: string;
+  safeMessage?: string;
+  /** 0.1.21+：稳定 i18n key，如 turnSafe.skillsLoaded */
+  safeMessageKey?: string | null;
+  details?: TurnDetailBlock[];
+  reasonTag?: string;
 };

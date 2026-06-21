@@ -77,7 +77,7 @@ export async function runSkillScriptInSandbox(options: {
     await fs.mkdir(workspaceDir, { recursive: true });
 
     const packFiles = await ds.getRepository(SkillPackFile).find({
-      where: { userId, packId } as any,
+      where: { packId } as any,
     });
     const scriptRow = packFiles.find((row) => row.path === scriptPath);
     if (!scriptRow) {

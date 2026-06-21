@@ -198,7 +198,15 @@
       "skillsReadTitle": "已读取文件",
       "skillsReadLine": "· {packName}：{path}",
       "skillsScriptRunTitle": "已运行脚本",
-      "skillsScriptRunLine": "· {packName}：{path}（退出码 {exitCode}）"
+      "skillsScriptRunLine": "· {packName}：{path}（退出码 {exitCode}）",
+      "skillsSkipReason": {
+        "unrelated": "与当前问题无关",
+        "low_confidence": "本轮不需要",
+        "user_small_talk": "寒暄闲聊",
+        "duplicate_coverage": "已由其他包覆盖",
+        "other": "未选用"
+      },
+      "skillsIntentFailedBody": "选用服务暂不可用（超时或解析失败），已跳过可选技能包。"
     },
     "a11y": {
       "currentStep": "当前步骤 {stepKey} {status}",

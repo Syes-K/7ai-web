@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "title": "Skill Packs | Admin",
+    "description": "Import and manage system Skill Packs for assistants."
+  },
+  "title": "Skill Packs",
+  "alert": {
+    "productScope": {
+      "message": "What are Skill Packs?",
+      "description": "Import zip folders compatible with `.cursor/skills/`. Packs are **managed by importing zip only**—edit locally, then re-import. In chat, only packs relevant to each question are loaded (unless marked Always load). Scripts under `scripts/` can run in a sandbox."
+    },
+    "scriptsSandbox": {
+      "message": "This pack includes runnable scripts",
+      "description": "When this pack is loaded and the skill instructions call for it, the assistant can run scripts under `scripts/` in a sandbox. No outbound network by default. Timeouts and per-turn limits apply.",
+      "tooltip": "Runnable in chat sandbox"
+    }
+  },
+  "toolbar": {
+    "import": "Import Zip",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search by name",
+    "search": "Search"
+  },
+  "columns": {
+    "name": "Name",
+    "description": "Description",
+    "fileCount": "Files",
+    "hasScripts": "Scripts",
+    "alwaysLoad": "Always load",
+    "enabled": "Status",
+    "updatedAt": "Updated",
+    "actions": "Actions",
+    "detail": "Details",
+    "reimport": "Re-import",
+    "delete": "Delete"
+  },
+  "tag": {
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "hasScripts": "Has scripts",
+    "alwaysLoad": "Always load",
+    "scriptsSandbox": "Sandbox"
+  },
+  "empty": {
+    "noPacks": "No Skill Packs yet",
+    "importHint": "Import a zip Skill Pack to get started (compatible with Cursor and similar tools).",
+    "noFiles": "No files in this pack"
+  },
+  "drawer": {
+    "title": "Skill Pack details"
+  },
+  "packMeta": {
+    "readOnlyHint": "To change name, description, enabled, or always load, edit SKILL.md frontmatter in your zip and re-import.",
+    "name": "Name",
+    "description": "Description",
+    "enabled": "Status",
+    "alwaysLoad": "Always load",
+    "updatedAt": "Updated"
+  },
+  "preview": {
+    "truncated": "File is large; showing the first portion only.",
+    "loadError": "Could not load file content."
+  },
+  "import": {
+    "title": "Import Skill Pack",
+    "overwriteTitle": "Re-import Skill Pack",
+    "overwriteWarning": "This will **replace all files** in \"{name}\". Pack id and assistant bindings stay the same. Metadata will be re-synced from SKILL.md frontmatter.",
+    "dragHint": "Drop a .zip file here or click to upload",
+    "folderButton": "Select folder",
+    "missingSkillMd": "Root SKILL.md is required",
+    "skippedFiles": "Skipped {count} file(s)",
+    "conflict": "A Skill Pack with this name already exists"
+  },
+  "fileTree": {
+    "skillMdRequired": "SKILL.md is required",
+    "scriptRunnable": "Runnable",
+    "scriptRunnableTooltip": "Runnable in chat sandbox"
+  },
+  "help": {
+    "scripts": {
+      "title": "Scripts in Skill Packs",
+      "body": "1) Read file contents vs run scripts in a sandbox. 2) Only scripts/; .py and .sh. 3) No outbound network. 4) Limits: {perTurn} runs per turn, {perDay} per day. 5) Example: ui-ux-pro-max scripts/search.py."
+    }
+  },
+  "confirm": {
+    "delete": {
+      "title": "Delete this Skill Pack?",
+      "description": "All files will be removed. Unmount from assistants first if still referenced."
+    }
+  },
+  "deleteBlocked": {
+    "title": "Cannot delete",
+    "body": "Still mounted on: {names}. Remove bindings in <assistantsLink>Assistant management</assistantsLink> first."
+  },
+  "link": {
+    "assistants": "Assistant management"
+  },
+  "toast": {
+    "deleted": "Skill Pack deleted",
+    "imported": "Skill Pack imported",
+    "loadFailed": "Could not load pack details."
+  },
+  "modal": {
+    "cancel": "Cancel"
+  },
+  "pagination": {
+    "total": "{count} total"
+  }
+}

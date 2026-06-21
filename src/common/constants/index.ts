@@ -179,6 +179,8 @@ export const SKILL_CONFIG_CONTENT_MAX_LENGTH = 16_000;
 export const SKILL_CONFIG_MAX_PER_USER = 50;
 /** 单用户最多 Skill Pack 数（与 SKILL_CONFIG_MAX_PER_USER 同义） */
 export const SKILL_PACK_MAX_PER_USER = SKILL_CONFIG_MAX_PER_USER;
+/** 0.1.21：系统全局 Skill Pack 总数上限 */
+export const SKILL_PACK_MAX_SYSTEM = 200;
 /** 单助手最多挂载 Skill 数 */
 export const SKILL_CONFIG_MAX_PER_ASSISTANT = 10;
 /** 单轮对话最多加载的不同 Skill 配置数 */

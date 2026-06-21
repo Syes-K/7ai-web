@@ -44,7 +44,6 @@ export async function migrateSkillContentToPackFiles(ds: DataSource): Promise<vo
       fileRepo.create({
         id: uuidv4(),
         packId: row.id,
-        userId: row.userId,
         path: SKILL_PACK_SKILL_MD_PATH,
         content: skillMd,
       }),

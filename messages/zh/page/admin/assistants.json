@@ -94,5 +94,13 @@
   },
   "pagination": {
     "total": "共 {count} 条"
+  },
+  "section": {
+    "skillsMount": "技能包挂载"
+  },
+  "alert": {
+    "noSkillsAdmin": {
+      "description": "请先在<skillsLink>技能包</skillsLink>页导入。"
+    }
   }
 }

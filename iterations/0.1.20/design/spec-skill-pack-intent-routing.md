@@ -4,15 +4,17 @@
 **上游：** `prd.md` §5.1、§5.4、§5.5；`user-stories-skill-pack-intent.md`  
 **相关代码：**
 
-| 模块 | 路径 | 本期变更 |
-| --- | --- | --- |
-| Selection 单入口 | `src/server/chat/turn-capabilities.ts` | 新增 `resolveSkillPackSelectionForTurn` |
-| Agent | `src/server/chat/langchain-agent.ts` | 传入 `userMessageText` |
-| 意图分类 | **新建** `src/server/skill/skill-pack-intent-agent.ts` | 对齐 KB intent |
-| Frontmatter | `src/server/skill/pack-frontmatter.ts` | + `alwaysLoad` |
-| 实体/DTO | `UserSkillConfig`、console API | + `alwaysLoad` 列 |
-| Turn 文案 | `messages/route.ts`、`localize-turn-detail.ts` | 新摘要/details |
-| 控制台 | `SkillsClient.tsx` | Switch + Tag |
+
+| 模块            | 路径                                                   | 本期变更                                  |
+| ------------- | ---------------------------------------------------- | ------------------------------------- |
+| Selection 单入口 | `src/server/chat/turn-capabilities.ts`               | 新增 `resolveSkillPackSelectionForTurn` |
+| Agent         | `src/server/chat/langchain-agent.ts`                 | 传入 `userMessageText`                  |
+| 意图分类          | **新建** `src/server/skill/skill-pack-intent-agent.ts` | 对齐 KB intent                          |
+| Frontmatter   | `src/server/skill/pack-frontmatter.ts`               | + `alwaysLoad`                        |
+| 实体/DTO        | `UserSkillConfig`、console API                        | + `alwaysLoad` 列                      |
+| Turn 文案       | `messages/route.ts`、`localize-turn-detail.ts`        | 新摘要/details                           |
+| 控制台           | `SkillsClient.tsx`                                   | Switch + Tag                          |
+
 
 **参考实现：** `src/server/knowledge-base/knowledge-retrieval-intent-agent.ts`
 
@@ -20,11 +22,13 @@
 
 ## 1. 挂载 vs 加载（心智模型）
 
-| 阶段 | 时机 | 数据 | 用户可见 |
-| --- | --- | --- | --- |
-| **挂载 mounted** | 助手配置 | `AssistantSkillBinding` + `enabled` | 控制台助手页；Turn details「已挂载」 |
-| **选用 loaded** | 每轮 C1b 前 | 意图路由 + `alwaysLoad` | Turn 摘要「已加载」 |
-| **未选用 skipped** | 同上 | mounted − loaded | Turn details「未选用」 |
+
+| 阶段              | 时机       | 数据                                  | 用户可见                     |
+| --------------- | -------- | ----------------------------------- | ------------------------ |
+| **挂载 mounted**  | 助手配置     | `AssistantSkillBinding` + `enabled` | 控制台助手页；Turn details「已挂载」 |
+| **选用 loaded**   | 每轮 C1b 前 | 意图路由 + `alwaysLoad`                 | Turn 摘要「已加载」             |
+| **未选用 skipped** | 同上       | mounted − loaded                    | Turn details「未选用」        |
+
 
 **工具白名单（read / run）：** 仅 **loaded** Pack id 集合。
 
@@ -46,11 +50,13 @@ C2  mcp_tools_resolution
 
 ### 2.2 输入
 
-| 字段 | 来源 | 说明 |
-| --- | --- | --- |
-| `userMessageText` | 本轮用户消息（与 KB 注入同源） | trim 后空 → skipped |
-| `mountedPacks` | DB：`UserSkillConfig` where mounted + enabled | 每项含 `id`、`name`、`description`（表字段）、`alwaysLoad` |
-| `description` | 表字段 | 截断 ≤ **400** 字符（对齐 KB intent） |
+
+| 字段                | 来源                                           | 说明                                              |
+| ----------------- | -------------------------------------------- | ----------------------------------------------- |
+| `userMessageText` | 本轮用户消息（与 KB 注入同源）                            | trim 后空 → skipped                               |
+| `mountedPacks`    | DB：`UserSkillConfig` where mounted + enabled | 每项含 `id`、`name`、`description`（表字段）、`alwaysLoad` |
+| `description`     | 表字段                                          | 截断 ≤ **400** 字符（对齐 KB intent）                   |
+
 
 **Q19 MVP：** **不** 读取 `SKILL.md` 正文或摘要入 intent prompt。
 
@@ -65,10 +71,12 @@ C2  mcp_tools_resolution
 }
 ```
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `selectedIds` | `string[]` | 本轮应 **加载** 的 Pack id（**不含** alwaysLoad 已单独并入） |
-| `reasons` | `Record<string, string>` | 可选；**未选用** Pack 的用户向简短理由（中文优先） |
+
+| 字段            | 类型                       | 说明                                            |
+| ------------- | ------------------------ | --------------------------------------------- |
+| `selectedIds` | `string[]`               | 本轮应 **加载** 的 Pack id（**不含** alwaysLoad 已单独并入） |
+| `reasons`     | `Record<string, string>` | 可选；**未选用** Pack 的用户向简短理由（中文优先）                |
+
 
 解析失败 / 超时 / 非法 JSON → 见 §2.5。
 
@@ -107,12 +115,14 @@ async function resolveSkillPackSelectionForTurn(
 
 **intentSource 赋值：**
 
-| 情况 | `intentSource` |
-| --- | --- |
-| 仅 always 命中、无 intent 调用 | `always_load` |
-| intent LLM 成功 | `intent_agent` |
-| intent 失败（Q2） | `failed_safe`（非 always 不加入） |
-| 无 mounted / 空消息且无 always | `skipped` |
+
+| 情况                       | `intentSource`              |
+| ------------------------ | --------------------------- |
+| 仅 always 命中、无 intent 调用  | `always_load`               |
+| intent LLM 成功            | `intent_agent`              |
+| intent 失败（Q2）            | `failed_safe`（非 always 不加入） |
+| 无 mounted / 空消息且无 always | `skipped`                   |
+
 
 ### 2.5 失败策略（Q2）
 
@@ -133,7 +143,7 @@ async function resolveSkillPackSelectionForTurn(
 
 ### 2.7 SKILL.md 合并（仅 selectedRefs）
 
-`buildSkillsMergeResult(ctx, selectedRefs)` 逻辑与 0.1.19 相同；`merged` 返回值改名为 **`loaded`** 写入快照。
+`buildSkillsMergeResult(ctx, selectedRefs)` 逻辑与 0.1.19 相同；`merged` 返回值改名为 `**loaded`** 写入快照。
 
 单 Pack 缺 SKILL.md → skip 该 Pack（不计入 loaded）；可记入 `skippedCount` 日志，**不进** 用户向 skipped 列表（与 0.1.19 一致）。
 
@@ -143,9 +153,11 @@ async function resolveSkillPackSelectionForTurn(
 
 ### 3.1 数据模型
 
-| 变更 | 说明 |
-| --- | --- |
+
+| 变更                              | 说明                               |
+| ------------------------------- | -------------------------------- |
 | `user_skill_configs.alwaysLoad` | `boolean NOT NULL DEFAULT false` |
+
 
 **权威源：** 表字段。`SKILL.md` frontmatter `alwaysLoad: true|false` 在 **保存 SKILL.md / 导入 zip** 时同步写入表（与 name/description 同策略）。
 
@@ -153,12 +165,14 @@ async function resolveSkillPackSelectionForTurn(
 
 ### 3.2 Console API
 
-| 端点 | 变更 |
-| --- | --- |
-| `GET /api/console/skill-configs` | 列表项 + `alwaysLoad` |
-| `GET /api/console/skill-configs/:id` | + `alwaysLoad` |
-| `PATCH /api/console/skill-configs/:id` | 可写 `alwaysLoad` |
-| 导入 | frontmatter → 表 |
+
+| 端点                                     | 变更                 |
+| -------------------------------------- | ------------------ |
+| `GET /api/console/skill-configs`       | 列表项 + `alwaysLoad` |
+| `GET /api/console/skill-configs/:id`   | + `alwaysLoad`     |
+| `PATCH /api/console/skill-configs/:id` | 可写 `alwaysLoad`    |
+| 导入                                     | frontmatter → 表    |
+
 
 ```typescript
 type SkillPackListItem = {
@@ -171,10 +185,12 @@ type SkillPackListItem = {
 
 **列表 ProTable：**
 
-| 列/位置 | 展示 |
-| --- | --- |
+
+| 列/位置               | 展示                                        |
+| ------------------ | ----------------------------------------- |
 | `name` 列 secondary | 若 `alwaysLoad`：`Tag color="purple"`「始终加载」 |
-| `hasScripts` | 仍显示「含脚本」（文案见 run spec） |
+| `hasScripts`       | 仍显示「含脚本」（文案见 run spec）                    |
+
 
 **详情 Drawer 顶栏（桌面）：**
 
@@ -183,19 +199,23 @@ type SkillPackListItem = {
 [启用 Switch]      沿用 0.1.19
 ```
 
-| 控件 | 规格 |
-| --- | --- |
-| Switch | `checked={alwaysLoad}`；`onChange` → PATCH（或并入保存全部） |
-| 说明 | `form.alwaysLoad.extra`：「每轮对话都会应用此技能包，即使与问题看似无关」 |
+
+| 控件            | 规格                                                                |
+| ------------- | ----------------------------------------------------------------- |
+| Switch        | `checked={alwaysLoad}`；`onChange` → PATCH（或并入保存全部）                |
+| 说明            | `form.alwaysLoad.extra`：「每轮对话都会应用此技能包，即使与问题看似无关」                  |
 | 保存 SKILL.md 后 | 若 frontmatter 含 `alwaysLoad`，Toast 可沿用 `syncedFromFrontmatter` 扩展 |
+
 
 **状态：**
 
-| 状态 | 表现 |
-| --- | --- |
-| 默认 false | Switch 关；列表无 Tag |
-| true | Switch 开；列表 Tag「始终加载」 |
-| 导入 `alwaysLoad: true` | 导入后 Switch 开 |
+
+| 状态                    | 表现                    |
+| --------------------- | --------------------- |
+| 默认 false              | Switch 关；列表无 Tag      |
+| true                  | Switch 开；列表 Tag「始终加载」 |
+| 导入 `alwaysLoad: true` | 导入后 Switch 开          |
+
 
 ### 3.4 助手挂载区（US-D1）
 
@@ -303,8 +323,8 @@ function skillsSafeMessage(locale: AppLocale, ui: SkillsTurnUiSnapshot): string 
 
 扩展 `shouldHideUnboundSkillsStep`：
 
-- **隐藏：** `skillsNoAssistant`、**`skillsNotMounted`**（mounted=0）
-- **不隐藏：** `skillsMountedNotSelected`、`skillsSelectionFailed`、一切 `skillsLoaded*`
+- **隐藏：** `skillsNoAssistant`、`**skillsNotMounted`**（mounted=0）
+- **不隐藏：** `skillsMountedNotSelected`、`skillsSelectionFailed`、一切 `skillsLoaded`*
 
 新增常量集合（或改为基于快照字段判断，长期更稳）：
 
@@ -322,7 +342,7 @@ function skillsSafeMessage(locale: AppLocale, ui: SkillsTurnUiSnapshot): string 
 
 Legacy 映射保留：
 
-- `已合并技能包` / `Merged Skill Packs` → **`skillsLoadedTitle`**（历史 Turn 展示兼容）
+- `已合并技能包` / `Merged Skill Packs` → `**skillsLoadedTitle**`（历史 Turn 展示兼容）
 - `skillsMergedTitle` 别名到 `skillsLoadedTitle`
 
 ---
@@ -348,17 +368,22 @@ Legacy 映射保留：
 
 ## 8. 故事映射
 
-| 故事 | 本节 |
-| --- | --- |
-| US-A1～A5 | §2、§5.2 |
-| US-B1～B2 | §3 |
+
+| 故事       | 本节                      |
+| -------- | ----------------------- |
+| US-A1～A5 | §2、§5.2                 |
+| US-B1～B2 | §3                      |
 | US-C1～C4 | §5、`copy-chat-en-zh.md` |
-| US-D1～D2 | §3.4、§3.5 |
+| US-D1～D2 | §3.4、§3.5               |
+
 
 ---
 
 ## 9. 修订记录
 
-| 日期 | 说明 |
-| --- | --- |
-| 2026-06-19 | 初稿 |
+
+| 日期         | 说明  |
+| ---------- | --- |
+| 2026-06-19 | 初稿  |
+
+

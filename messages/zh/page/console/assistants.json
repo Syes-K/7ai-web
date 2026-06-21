@@ -103,7 +103,7 @@
     },
     "skills": {
       "label": "技能包",
-      "manageLink": "管理技能包…",
+      "manageLinkAdmin": "管理技能包",
       "extra": "可挂载一个或多个技能包。对话中仅加载与问题相关的包（「始终加载」的包除外）。",
       "placeholder": "选择技能包",
       "inactiveSuffix": "（已停用）",
@@ -121,10 +121,10 @@
     "noMcpAction": "请先到 <mcpLink>MCP 管理</mcpLink> 添加配置。",
     "mcpInactive": "部分已挂载的 MCP 已停用",
     "mcpInactiveDesc": "对话中不会加载已停用的 MCP，建议启用或移除。",
-    "noSkills": "暂无可用技能包",
-    "noSkillsAction": "请先在<skillsLink>技能包管理</skillsLink>中添加。",
-    "skillsInactive": "部分已挂载的技能包已停用",
-    "skillsInactiveDesc": "已停用的技能包不会在对话中加载，请启用或移除。"
+    "noSkills": {
+      "message": "暂无可用技能包",
+      "description": "请联系管理员在管理后台导入技能包。"
+    }
   },
   "confirm": {
     "delete": {

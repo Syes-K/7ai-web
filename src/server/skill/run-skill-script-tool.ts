@@ -54,7 +54,7 @@ export async function skillPackRefsToRunTools(
   const allowedIds = new Set(refs.map((r) => r.id));
   const ds = await getDataSource();
   const rows = await ds.getRepository(UserSkillConfig).find({
-    where: { userId: ctx.userId, id: In([...allowedIds]) } as any,
+    where: { id: In([...allowedIds]) } as any,
   });
   const nameById = new Map(rows.map((r) => [r.id, r.name]));
   const packList = refs.map((r) => `${r.id}: ${nameById.get(r.id) ?? r.id}`).join(", ");
@@ -110,7 +110,7 @@ export async function skillPackRefsToRunTools(
         return "Error: path must be under scripts/ and end with .py or .sh";
       }
 
-      const fileRow = await getPackFileContent(ds, ctx.userId, packId, normalized);
+      const fileRow = await getPackFileContent(ds, packId, normalized);
       if (!fileRow) {
         logDenied("not_found");
         return `Error: script not found: ${normalized}`;

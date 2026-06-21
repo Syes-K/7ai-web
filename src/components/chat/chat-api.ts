@@ -27,6 +27,33 @@ export class ChatApiError extends Error {
   }
 }
 
+/** 将 fetch / 网络异常转为用户可读文案（对话发送、加载等复用）。 */
+export function resolveChatSendErrorMessage(
+  e: unknown,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  if (e instanceof ChatApiError) {
+    return e.message || t("toast.sendFailed");
+  }
+  if (e instanceof TypeError) {
+    return t("errors.networkRetry");
+  }
+  if (e instanceof Error) {
+    const lower = e.message.toLowerCase();
+    if (
+      lower.includes("failed to fetch") ||
+      lower.includes("network") ||
+      lower.includes("load failed") ||
+      lower.includes("connection refused") ||
+      lower.includes("networkerror")
+    ) {
+      return t("errors.networkRetry");
+    }
+    return e.message || t("toast.sendFailed");
+  }
+  return t("toast.sendFailed");
+}
+
 async function parseResponse<T>(res: Response): Promise<T> {
   const data = (await res.json()) as
     | T
@@ -208,6 +235,7 @@ export type TurnStep = {
   status: TurnStepStatus;
   reasonTag: string | null;
   safeMessage: string | null;
+  safeMessageKey?: string | null;
   startedAt: string | null;
   endedAt: string | null;
   durationMs: number | null;

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
+import { isAdmin } from "@/server/auth/admin";
 import AssistantsClient from "./AssistantsClient";
 
 type Props = {
@@ -28,5 +29,6 @@ export default async function AssistantsPage({ params }: Props) {
     notFound();
   }
   setRequestLocale(locale);
-  return <AssistantsClient />;
+  const admin = await isAdmin();
+  return <AssistantsClient isAdmin={admin} />;
 }

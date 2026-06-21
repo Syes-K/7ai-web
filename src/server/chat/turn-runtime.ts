@@ -1,3 +1,5 @@
+import type { TurnDetailBlock } from "@/common/types/skill-turn";
+
 export type TurnStepStatus =
   | "pending"
   | "running"
@@ -23,11 +25,13 @@ export type TurnStep = {
   status: TurnStepStatus;
   reasonTag: string | null;
   safeMessage: string | null;
+  /** 0.1.21+ C1b 等子步骤的稳定 i18n key */
+  safeMessageKey?: string | null;
   startedAt: string | null;
   endedAt: string | null;
   durationMs: number | null;
   error: { code: string; message: string } | null;
-  details: Array<{ title: string; content: string }>;
+  details: TurnDetailBlock[];
   seq: number;
 };
 
@@ -128,8 +132,9 @@ export class TurnRuntimeState {
     options?: {
       reasonTag?: string | null;
       safeMessage?: string | null;
+      safeMessageKey?: string | null;
       error?: { code: string; message: string } | null;
-      details?: Array<{ title: string; content: string }>;
+      details?: TurnDetailBlock[];
     },
   ): TurnDeltaPayload {
     const step = this.snapshot.subSteps.find((s) => s.stepKey === stepKey);
@@ -154,6 +159,9 @@ export class TurnRuntimeState {
     step.status = status;
     step.reasonTag = options?.reasonTag ?? step.reasonTag;
     step.safeMessage = options?.safeMessage ?? step.safeMessage;
+    if (options?.safeMessageKey !== undefined) {
+      step.safeMessageKey = options.safeMessageKey;
+    }
     step.error = options?.error ?? step.error;
     step.details = options?.details ?? step.details;
     step.seq = this.seq;

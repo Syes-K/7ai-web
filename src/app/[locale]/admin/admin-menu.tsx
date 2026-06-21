@@ -1,4 +1,5 @@
 import {
+  AppstoreOutlined,
   CloudServerOutlined,
   CommentOutlined,
   FileSearchOutlined,
@@ -29,6 +30,12 @@ export function getAdminMenuRoutes(t: (key: string) => string): MenuDataItem[] {
       name: t("menu.models"),
       key: "models",
       icon: <CloudServerOutlined />,
+    },
+    {
+      path: `${base}/skills`,
+      name: t("menu.skills"),
+      key: "skills",
+      icon: <AppstoreOutlined />,
     },
     {
       path: `${base}/prompts`,

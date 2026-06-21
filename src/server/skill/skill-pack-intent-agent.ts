@@ -1,13 +1,20 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { SKILL_PACK_INTENT_TAG } from "@/common/constants";
+import {
+  SkillPackSkipReasonCode,
+  parseSkillPackSkipReasonCode,
+} from "@/common/enums/skill-pack-skip-reason";
 import { getChatRuntimeModel } from "@/server/chat/llm-runtime";
 import { getSkillPackIntentTimeoutMs } from "@/server/skill/skill-script-env";
 
 const MAX_DESC_CHARS = 400;
 
+const REASON_CODES = Object.values(SkillPackSkipReasonCode).join(", ");
+
 export type SkillPackIntentResult = {
   selectedIds: string[];
-  reasons: Record<string, string>;
+  /** 未选用包的 id → 结构化 reasonCode（非自由文本） */
+  reasons: Record<string, SkillPackSkipReasonCode>;
   intentSource: "intent_agent" | "failed_safe" | "skipped";
 };
 
@@ -30,7 +37,7 @@ function extractJsonObject(raw: string): string | null {
 function parseIntentJson(
   text: string,
   allowedIds: Set<string>,
-): { selectedIds: string[]; reasons: Record<string, string> } | null {
+): { selectedIds: string[]; reasons: Record<string, SkillPackSkipReasonCode> } | null {
   const jsonStr = extractJsonObject(text);
   if (!jsonStr) return null;
   try {
@@ -40,11 +47,12 @@ function parseIntentJson(
       .filter((id): id is string => typeof id === "string" && allowedIds.has(id))
       .map((id) => id.trim())
       .filter(Boolean);
-    const reasons: Record<string, string> = {};
+    const reasons: Record<string, SkillPackSkipReasonCode> = {};
     if (o.reasons && typeof o.reasons === "object" && o.reasons !== null) {
       for (const [k, v] of Object.entries(o.reasons as Record<string, unknown>)) {
-        if (typeof v === "string" && v.trim() && allowedIds.has(k)) {
-          reasons[k] = v.trim();
+        const code = parseSkillPackSkipReasonCode(v);
+        if (code && allowedIds.has(k)) {
+          reasons[k] = code;
         }
       }
     }
@@ -90,8 +98,9 @@ export async function decideSkillPackIntent(options: {
         "需要加载的典型情况：用户问题与某技能包的 name/description 主题明显相关，或用户明确要求使用该技能包。",
         "不需要加载的典型情况：纯寒暄、与所有技能包无关的闲聊、或明显不匹配任何包描述。",
         "只输出一个 JSON 对象，不要输出任何其他文字或 Markdown。格式：",
-        '{"selectedIds":["uuid-1"],"reasons":{"uuid-2":"简短中文理由"}}',
-        "selectedIds 须为输入列表中的 id 子集；reasons 可选，键为未选用包的 id。",
+        `{"selectedIds":["uuid-1"],"reasons":{"uuid-2":"unrelated"}}`,
+        "selectedIds 须为输入列表中的 id 子集。",
+        `reasons 可选，键为未选用包的 id；值必须是以下之一：${REASON_CODES}。`,
       ].join("\n"),
     );
 

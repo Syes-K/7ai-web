@@ -44,7 +44,7 @@ import { Link } from "@/i18n/navigation";
 const API_BASE = "/api/console/assistants";
 const KB_API_BASE = "/api/knowledge-bases";
 const MCP_LIST_API = "/api/console/mcp-configs";
-const SKILL_LIST_API = "/api/console/skill-configs";
+const SKILL_CATALOG_API = "/api/console/skill-catalog";
 
 type McpPickerItem = { id: string; name: string; enabled: boolean; transport: string };
 type SkillPickerItem = {
@@ -59,6 +59,11 @@ const EMPTY_MCP_IDS: string[] = [];
 const EMPTY_SKILL_IDS: string[] = [];
 
 type ModalMode = "create" | "edit" | "view";
+
+type Props = {
+  /** 服务端判定：是否展示管理技能包链接 */
+  isAdmin?: boolean;
+};
 
 type AssistantT = ReturnType<typeof useTranslations<"page.console.assistants">>;
 
@@ -218,7 +223,7 @@ function getAssistantColumns(
   ];
 }
 
-export default function AssistantsClient() {
+export default function AssistantsClient({ isAdmin = false }: Props) {
   const locale = useLocale();
   const t = useTranslations("page.console.assistants");
   const tShell = useTranslations("page.console.shell");
@@ -305,7 +310,7 @@ export default function AssistantsClient() {
   const loadSkillOptions = useCallback(async () => {
     setSkillLoading(true);
     try {
-      const res = await fetch(SKILL_LIST_API, { credentials: "include" });
+      const res = await fetch(SKILL_CATALOG_API, { credentials: "include" });
       if (res.status === 401) {
         redirectToLocaleLogin(locale, consolePath);
         return;
@@ -315,7 +320,13 @@ export default function AssistantsClient() {
         return;
       }
       const data = (await res.json()) as { items: SkillPickerItem[] };
-      setSkillOptions(Array.isArray(data.items) ? data.items : []);
+      setSkillOptions(
+        (Array.isArray(data.items) ? data.items : []).map((i) => ({
+          ...i,
+          // catalog 仅返回 enabled Pack，API 不含 enabled 字段
+          enabled: i.enabled ?? true,
+        })),
+      );
     } finally {
       setSkillLoading(false);
     }
@@ -652,23 +663,6 @@ export default function AssistantsClient() {
   const selectedSkillIdsForPicker = Array.isArray(skillConfigIdsWatch)
     ? skillConfigIdsWatch
     : EMPTY_SKILL_IDS;
-  const hasInactiveMountedSkills = useMemo(
-    () =>
-      selectedSkillIdsForPicker.some((id) => {
-        const o = skillOptions.find((s) => s.id === id);
-        return Boolean(o && !o.enabled);
-      }),
-    [skillOptions, selectedSkillIdsForPicker],
-  );
-
-  const skillsLinkRich = useCallback(
-    (chunks: ReactNode) => (
-      <Link href="/console/skills" className="text-sky-300 hover:text-sky-200">
-        {chunks}
-      </Link>
-    ),
-    [],
-  );
 
   return (
     <PageContainer ghost title={t("title")}>
@@ -939,7 +933,7 @@ export default function AssistantsClient() {
                     tagRender={(props) => {
                       const { label, value, closable, onClose } = props;
                       const row = mcpOptions.find((m) => m.id === value);
-                      const inactive = row && !row.enabled;
+                      const inactive = row && row.enabled === false;
                       return (
                         <Tag
                           color={inactive ? "orange" : "blue"}
@@ -963,17 +957,8 @@ export default function AssistantsClient() {
                     type="info"
                     showIcon
                     className="mb-3"
-                    message={t("alert.noSkills")}
-                    description={t.rich("alert.noSkillsAction", { skillsLink: skillsLinkRich })}
-                  />
-                ) : null}
-                {hasInactiveMountedSkills ? (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    className="mb-3"
-                    message={t("alert.skillsInactive")}
-                    description={t("alert.skillsInactiveDesc")}
+                    message={t("alert.noSkills.message")}
+                    description={t("alert.noSkills.description")}
                   />
                 ) : null}
                 <Form.Item
@@ -981,12 +966,14 @@ export default function AssistantsClient() {
                   label={
                     <span className="flex flex-wrap items-center gap-2">
                       <span>{t("form.skills.label")}</span>
-                      <Link
-                        href="/console/skills"
-                        className="text-xs font-normal text-sky-300 hover:text-sky-200"
-                      >
-                        {t("form.skills.manageLink")}
-                      </Link>
+                      {isAdmin ? (
+                        <Link
+                          href="/admin/skills"
+                          className="text-xs font-normal text-sky-300 hover:text-sky-200"
+                        >
+                          {t("form.skills.manageLinkAdmin")}
+                        </Link>
+                      ) : null}
                     </span>
                   }
                   extra={t("form.skills.extra")}
@@ -1005,7 +992,7 @@ export default function AssistantsClient() {
                       value: s.id,
                       fileCount: s.fileCount ?? 0,
                       hasScripts: s.hasScripts ?? false,
-                      disabled: !s.enabled && !selectedSkillIdsForPicker.includes(s.id),
+                      disabled: s.enabled === false && !selectedSkillIdsForPicker.includes(s.id),
                     }))}
                     optionRender={(option) => {
                       const row = skillOptions.find((s) => s.id === option.value);
@@ -1031,7 +1018,7 @@ export default function AssistantsClient() {
                     tagRender={(props) => {
                       const { label, value, closable, onClose } = props;
                       const row = skillOptions.find((s) => s.id === value);
-                      const inactive = row && !row.enabled;
+                      const inactive = row && row.enabled === false;
                       return (
                         <Tag
                           color={inactive ? "orange" : "purple"}

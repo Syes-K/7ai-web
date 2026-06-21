@@ -103,7 +103,7 @@
     },
     "skills": {
       "label": "Skill Packs",
-      "manageLink": "Manage Skill Packs…",
+      "manageLinkAdmin": "Manage Skill Packs",
       "extra": "Mount one or more Skill Packs. Only packs relevant to each question are loaded in chat (except packs marked Always load).",
       "placeholder": "Select Skill Packs",
       "inactiveSuffix": "(disabled)",
@@ -121,10 +121,10 @@
     "noMcpAction": "Add one in <mcpLink>MCP management</mcpLink> first.",
     "mcpInactive": "Some mounted MCPs are disabled",
     "mcpInactiveDesc": "Disabled MCPs are not loaded in chat. Enable or remove them.",
-    "noSkills": "No Skill Packs available",
-    "noSkillsAction": "Create one in <skillsLink>Skill Packs</skillsLink> first.",
-    "skillsInactive": "Some mounted Skill Packs are disabled",
-    "skillsInactiveDesc": "Disabled packs are not loaded in chat. Enable or remove them."
+    "noSkills": {
+      "message": "No Skill Packs available",
+      "description": "Ask an administrator to import Skill Packs in the admin console."
+    }
   },
   "confirm": {
     "delete": {

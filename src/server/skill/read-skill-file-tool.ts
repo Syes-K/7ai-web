@@ -37,7 +37,7 @@ export async function skillPackRefsToReadTools(
   const allowedIds = new Set(refs.map((r) => r.id));
   const ds = await getDataSource();
   const rows = await ds.getRepository(UserSkillConfig).find({
-    where: { userId: ctx.userId, id: In([...allowedIds]) } as any,
+    where: { id: In([...allowedIds]) } as any,
   });
   const nameById = new Map(rows.map((r) => [r.id, r.name]));
   const packList = refs
@@ -80,7 +80,7 @@ export async function skillPackRefsToReadTools(
         return "Error: invalid path.";
       }
       try {
-        const row = await getPackFileContent(ds, ctx.userId, packId, normalized);
+        const row = await getPackFileContent(ds, packId, normalized);
         if (!row) {
           console.info(
             JSON.stringify({

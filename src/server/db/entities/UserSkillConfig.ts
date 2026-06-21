@@ -7,16 +7,13 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-/** 用户私有 Skill Pack 元数据；正文在 SkillPackFile（path='SKILL.md' 等）。 */
+/** 系统 Skill Pack 元数据；正文在 skill_pack_files。0.1.21 起为平台全局资产，无 userId。 */
 @Entity("user_skill_configs")
-@Index(["userId", "updatedAt"])
-@Index(["userId", "name"], { unique: true })
+@Index(["updatedAt"])
+@Index(["name"], { unique: true })
 export class UserSkillConfig {
   @PrimaryColumn("varchar", { length: 36 })
   id!: string;
-
-  @Column({ type: "varchar", length: 36 })
-  userId!: string;
 
   @Column({ type: "varchar", length: 64 })
   name!: string;

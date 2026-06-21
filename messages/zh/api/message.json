@@ -11,6 +11,8 @@
   "skillConfigNotFound": "Skill 配置不存在",
   "skillConfigNameConflict": "名称已存在",
   "skillConfigReferencedByAssistant": "无法删除：仍被助手引用，请先在助手管理中解除 Skills 挂载。",
+  "skillConfigConsoleDeprecated": "技能包管理已迁移至管理端。",
+  "skillConfigWriteDisabled": "技能包内容仅能通过导入 zip 变更。",
   "skillPackFileNotFound": "技能包文件不存在",
   "skillPackFilePathConflict": "目标路径已存在文件",
   "mcpCredentialsEncryptionUnavailable": "服务端未配置 MCP 凭证加密主密钥（MCP_CREDENTIALS_MASTER_KEY），无法保存密钥。",
@@ -230,6 +232,14 @@
       "skillsSkippedTitle": "未选用",
       "skillsSkippedLine": "· {name} — {reason}",
       "skillsSkippedLineNoReason": "· {name}",
+      "skillsSkipReason": {
+        "unrelated": "与当前问题无关",
+        "low_confidence": "本轮不需要",
+        "user_small_talk": "寒暄闲聊",
+        "duplicate_coverage": "已由其他包覆盖",
+        "other": "未选用"
+      },
+      "skillsIntentFailedBody": "选用服务暂不可用（超时或解析失败），已跳过可选技能包。",
       "skillsMergedTitle": "已加载技能包",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "已读取文件",

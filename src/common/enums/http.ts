@@ -8,6 +8,8 @@ export enum HttpStatus {
   UNAUTHORIZED = 401,
   FORBIDDEN = 403,
   NOT_FOUND = 404,
+  /** 资源已永久移除（如 console skill-configs 废弃） */
+  GONE = 410,
   /** 资源状态冲突（如删除时被引用） */
   CONFLICT = 409,
   UNPROCESSABLE_ENTITY = 422,
@@ -72,4 +74,8 @@ export enum ErrorCode {
   SKILL_PACK_FILE_NOT_FOUND = "SKILL_PACK_FILE_NOT_FOUND",
   /** 移动/重命名时目标路径已存在 */
   SKILL_PACK_FILE_PATH_CONFLICT = "SKILL_PACK_FILE_PATH_CONFLICT",
+  /** Console skill-configs API 已废弃 */
+  SKILL_CONFIG_CONSOLE_DEPRECATED = "SKILL_CONFIG_CONSOLE_DEPRECATED",
+  /** Admin 禁止在线编辑 Skill Pack（仅 import） */
+  SKILL_CONFIG_WRITE_DISABLED = "SKILL_CONFIG_WRITE_DISABLED",
 }

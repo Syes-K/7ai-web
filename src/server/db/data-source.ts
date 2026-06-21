@@ -21,21 +21,21 @@ import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
 import { SkillScriptRun } from "@/server/db/entities/SkillScriptRun";
 
 let dataSource: DataSource | null = null;
+/** 并发请求共享同一次初始化，避免重复 create/initialize 导致 driver.prepare 报错。 */
+let initPromise: Promise<DataSource> | null = null;
 
-/**
- * SQLite + TypeORM 单例；供 Route Handler 与 Server Components 复用。
- */
-export async function getDataSource(): Promise<DataSource> {
-  if (dataSource?.isInitialized) {
-    return dataSource;
-  }
-
+async function initializeDataSource(): Promise<DataSource> {
   const dbFile =
     process.env.SQLITE_PATH ?? path.join(process.cwd(), "data", "app.db");
   const dir = path.dirname(dbFile);
   fs.mkdirSync(dir, { recursive: true });
 
-  dataSource = new DataSource({
+  const { migrateSystemSkillPacks } = await import(
+    "@/server/db/migrations/0.1.21-system-skill-packs"
+  );
+  await migrateSystemSkillPacks(dbFile);
+
+  const ds = new DataSource({
     type: "better-sqlite3",
     database: dbFile,
     entities: [
@@ -61,16 +61,38 @@ export async function getDataSource(): Promise<DataSource> {
     logging: process.env.TYPEORM_LOGGING === "1",
   });
 
-  await dataSource.initialize();
+  await ds.initialize();
   const { migrateKnowledgeBaseMcpToAssistantMcp } = await import(
     "@/server/db/migrate-kb-mcp-to-assistant-mcp"
   );
-  await migrateKnowledgeBaseMcpToAssistantMcp(dataSource);
+  await migrateKnowledgeBaseMcpToAssistantMcp(ds);
   const { migrateSkillContentToPackFiles } = await import(
     "@/server/db/migrate-skill-content-to-pack-files"
   );
-  await migrateSkillContentToPackFiles(dataSource);
+  await migrateSkillContentToPackFiles(ds);
   const { purgeOldSkillScriptRuns } = await import("@/server/db/purge-skill-script-runs");
-  await purgeOldSkillScriptRuns(dataSource);
-  return dataSource;
+  await purgeOldSkillScriptRuns(ds);
+  return ds;
+}
+
+/**
+ * SQLite + TypeORM 单例；供 Route Handler 与 Server Components 复用。
+ */
+export async function getDataSource(): Promise<DataSource> {
+  if (dataSource?.isInitialized) {
+    return dataSource;
+  }
+  if (!initPromise) {
+    initPromise = initializeDataSource()
+      .then((ds) => {
+        dataSource = ds;
+        return ds;
+      })
+      .catch((err) => {
+        initPromise = null;
+        dataSource = null;
+        throw err;
+      });
+  }
+  return initPromise;
 }

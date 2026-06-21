@@ -23,7 +23,8 @@ type DetailKey =
   | "skillsSkippedTitle"
   | "skillsMergedTitle"
   | "skillsReadTitle"
-  | "skillsScriptRunTitle";
+  | "skillsScriptRunTitle"
+  | "skillsIntentFailedBody";
 
 type ChatTranslator = (key: string, values?: Record<string, string | number>) => string;
 
@@ -51,6 +52,7 @@ const DETAIL_KEYS: DetailKey[] = [
   "skillsMergedTitle",
   "skillsReadTitle",
   "skillsScriptRunTitle",
+  "skillsIntentFailedBody",
 ];
 
 /** 各 locale 已写入 DB 的详情标题/正文 → 语义 key（兼容历史硬编码中文）。 */
@@ -101,6 +103,92 @@ LEGACY_DETAIL_STRING_TO_KEY.set(
   "skillsNotMountedBody",
 );
 
+const SKIP_REASON_LEGACY_TO_CODE: Record<string, string> = {
+  [enApiMessage.turnSafe.detail.skillsSkipReason.unrelated]: "unrelated",
+  [zhApiMessage.turnSafe.detail.skillsSkipReason.unrelated]: "unrelated",
+  [enApiMessage.turnSafe.detail.skillsSkipReason.low_confidence]: "low_confidence",
+  [zhApiMessage.turnSafe.detail.skillsSkipReason.low_confidence]: "low_confidence",
+  [enApiMessage.turnSafe.detail.skillsSkipReason.user_small_talk]: "user_small_talk",
+  [zhApiMessage.turnSafe.detail.skillsSkipReason.user_small_talk]: "user_small_talk",
+  [enApiMessage.turnSafe.detail.skillsSkipReason.duplicate_coverage]: "duplicate_coverage",
+  [zhApiMessage.turnSafe.detail.skillsSkipReason.duplicate_coverage]: "duplicate_coverage",
+  [enApiMessage.turnSafe.detail.skillsSkipReason.other]: "other",
+  [zhApiMessage.turnSafe.detail.skillsSkipReason.other]: "other",
+  "与当前问题无关": "unrelated",
+  "本轮不需要": "low_confidence",
+  "寒暄闲聊": "user_small_talk",
+  "已由其他包覆盖": "duplicate_coverage",
+  "未选用": "other",
+  "not relevant to this question": "unrelated",
+  "not needed this turn": "low_confidence",
+  "small talk": "user_small_talk",
+  "already covered by another pack": "duplicate_coverage",
+};
+
+function localizeDetailLine(line: string, t: ChatTranslator): string {
+  const trimmed = line.trim();
+  if (!trimmed) return line;
+
+  const loadedNameEn = enApiMessage.turnSafe.detail.skillsLoadedNameLine.replace("{name}", "(.+)");
+  const loadedNameZh = zhApiMessage.turnSafe.detail.skillsLoadedNameLine.replace("{name}", "(.+)");
+  const loadedMatch =
+    trimmed.match(new RegExp(`^${loadedNameEn}$`)) ??
+    trimmed.match(new RegExp(`^${loadedNameZh}$`)) ??
+    trimmed.match(/^·\s*(.+)$/);
+  if (loadedMatch?.[1]) {
+    return t("turn.detail.skillsLoadedNameLine", { name: loadedMatch[1].trim() });
+  }
+
+  const skippedParts = trimmed.split(/\s*—\s*|\s+-\s+/);
+  if (skippedParts.length >= 1) {
+    const namePart = skippedParts[0]!.replace(/^·\s*/, "").trim();
+    const reasonPart = skippedParts[1]?.trim();
+    if (namePart && reasonPart) {
+      const code = SKIP_REASON_LEGACY_TO_CODE[reasonPart];
+      const reasonLabel = code
+        ? t(`turn.detail.skillsSkipReason.${code}`)
+        : reasonPart;
+      return t("turn.detail.skillsSkippedLine", { name: namePart, reason: reasonLabel });
+    }
+    if (namePart.startsWith("·")) {
+      return t("turn.detail.skillsSkippedLineNoReason", {
+        name: namePart.replace(/^·\s*/, "").trim(),
+      });
+    }
+  }
+
+  const readColon = trimmed.match(/^·\s*(.+?)[:：]\s*(.+)$/);
+  if (readColon && !readColon[2]!.includes("退出码") && !readColon[2]!.includes("exit")) {
+    return t("turn.detail.skillsReadLine", {
+      packName: readColon[1]!.trim(),
+      path: readColon[2]!.trim(),
+    });
+  }
+
+  const runMatch =
+    trimmed.match(/^·\s*(.+?)[:：]\s*(.+?)\s*[（(]退出码\s*(\d+)[）)]$/) ??
+    trimmed.match(/^·\s*(.+?):\s*(.+?)\s*\(exit\s*(\d+)\)$/i);
+  if (runMatch) {
+    return t("turn.detail.skillsScriptRunLine", {
+      packName: runMatch[1]!.trim(),
+      path: runMatch[2]!.trim(),
+      exitCode: runMatch[3]!,
+    });
+  }
+
+  return localizeDetailString(trimmed, t);
+}
+
+function localizeDetailContent(content: string, t: ChatTranslator): string {
+  if (!content.includes("\n")) {
+    return localizeDetailLine(content, t);
+  }
+  return content
+    .split("\n")
+    .map((line) => localizeDetailLine(line, t))
+    .join("\n");
+}
+
 const MCP_TOOLS_PREFIXES = ["Tools · ", "工具 · "] as const;
 const MCP_LOAD_FAILED_PREFIXES = ["Load failed · ", "加载失败 · "] as const;
 
@@ -141,7 +229,7 @@ export function localizeDetailBlock(
 ): { title: string; content: string } {
   return {
     title: localizeDetailString(block.title, t),
-    content: localizeDetailString(block.content, t),
+    content: localizeDetailContent(block.content, t),
   };
 }
 

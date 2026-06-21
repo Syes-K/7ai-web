@@ -94,5 +94,13 @@
   },
   "pagination": {
     "total": "{count} total"
+  },
+  "section": {
+    "skillsMount": "Skill Pack mount"
+  },
+  "alert": {
+    "noSkillsAdmin": {
+      "description": "Import Skill Packs from the <skillsLink>Skill Packs</skillsLink> page first."
+    }
   }
 }

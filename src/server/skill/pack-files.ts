@@ -7,6 +7,7 @@ import { SKILL_PACK_SKILL_MD_PATH } from "@/common/constants";
 import {
   extractSkillMetadataFromFrontmatter,
   parseAlwaysLoadFromFrontmatter,
+  parseEnabledFromFrontmatter,
   stripSkillMdFrontmatter,
 } from "@/server/skill/pack-frontmatter";
 import { hasScriptsPrefix, isSkillMdPath } from "@/server/skill/pack-path";
@@ -36,9 +37,9 @@ function sortPackPaths(paths: string[]): string[] {
   });
 }
 
+/** 批量加载 Pack 文件聚合（fileCount / hasScripts / totalBytes）。 */
 export async function loadPackAggregatesByPackIds(
   ds: DataSource,
-  userId: string,
   packIds: string[],
 ): Promise<Map<string, PackFileAggregate>> {
   const map = new Map<string, PackFileAggregate>();
@@ -47,7 +48,7 @@ export async function loadPackAggregatesByPackIds(
     map.set(id, { fileCount: 0, totalBytes: 0, hasScripts: false });
   }
   const rows = await ds.getRepository(SkillPackFile).find({
-    where: { userId, packId: In(packIds) } as any,
+    where: { packId: In(packIds) } as any,
   });
   for (const row of rows) {
     const agg = map.get(row.packId);
@@ -59,21 +60,29 @@ export async function loadPackAggregatesByPackIds(
   return map;
 }
 
-export async function getOwnedPackOrNull(
+/** 按 id 查询系统 Skill Pack；不存在返回 null。 */
+export async function getPackById(
   ds: DataSource,
-  userId: string,
   packId: string,
 ): Promise<UserSkillConfig | null> {
-  return ds.getRepository(UserSkillConfig).findOne({ where: { id: packId, userId } });
+  return ds.getRepository(UserSkillConfig).findOne({ where: { id: packId } });
+}
+
+/** @deprecated 0.1.21 使用 getPackById */
+export async function getOwnedPackOrNull(
+  ds: DataSource,
+  _userId: string,
+  packId: string,
+): Promise<UserSkillConfig | null> {
+  return getPackById(ds, packId);
 }
 
 export async function listPackFilesMeta(
   ds: DataSource,
-  userId: string,
   packId: string,
 ): Promise<{ files: SkillPackFileMeta[]; totalBytes: number; fileCount: number }> {
   const rows = await ds.getRepository(SkillPackFile).find({
-    where: { userId, packId },
+    where: { packId },
     order: { path: "ASC" },
   });
   let totalBytes = 0;
@@ -92,35 +101,29 @@ export async function listPackFilesMeta(
 
 export async function getPackFileContent(
   ds: DataSource,
-  userId: string,
   packId: string,
   path: string,
 ): Promise<SkillPackFile | null> {
-  return ds.getRepository(SkillPackFile).findOne({ where: { userId, packId, path } });
+  return ds.getRepository(SkillPackFile).findOne({ where: { packId, path } });
 }
 
 /** 读取 SKILL.md 正文（去 frontmatter）；缺失或空返回 null。 */
 export async function loadSkillMdBodyForPack(
   ds: DataSource,
-  userId: string,
   packId: string,
 ): Promise<string | null> {
-  const row = await getPackFileContent(ds, userId, packId, SKILL_PACK_SKILL_MD_PATH);
+  const row = await getPackFileContent(ds, packId, SKILL_PACK_SKILL_MD_PATH);
   if (!row) return null;
   const body = skillMdBodyFromContent(row.content);
   return body.length > 0 ? body : null;
 }
 
-export async function assertSkillMdPresent(
-  ds: DataSource,
-  userId: string,
-  packId: string,
-): Promise<boolean> {
-  const body = await loadSkillMdBodyForPack(ds, userId, packId);
+export async function assertSkillMdPresent(ds: DataSource, packId: string): Promise<boolean> {
+  const body = await loadSkillMdBodyForPack(ds, packId);
   return body !== null;
 }
 
-/** 保存 SKILL.md 后同步 frontmatter → 主表 name/description（同一事务）。 */
+/** import 事务内：从 SKILL.md frontmatter 同步主表 name/description/enabled/alwaysLoad。 */
 export async function syncPackMetadataFromSkillMd(
   em: EntityManager,
   pack: UserSkillConfig,
@@ -133,6 +136,8 @@ export async function syncPackMetadataFromSkillMd(
   if (meta.description !== undefined) pack.description = meta.description || null;
   const always = parseAlwaysLoadFromFrontmatter(frontmatter);
   if (always !== undefined) pack.alwaysLoad = always;
+  const enabled = parseEnabledFromFrontmatter(frontmatter);
+  if (enabled !== undefined) pack.enabled = enabled;
   return em.getRepository(UserSkillConfig).save(pack);
 }
 
@@ -145,19 +150,17 @@ export type UpsertPackFileResult = {
 /** 创建或覆盖单文件（调用方须已校验 path/content/配额）。 */
 export async function upsertPackFile(
   ds: DataSource,
-  userId: string,
   pack: UserSkillConfig,
   path: string,
   content: string,
 ): Promise<UpsertPackFileResult> {
   return ds.transaction(async (em) => {
     const repo = em.getRepository(SkillPackFile);
-    let row = await repo.findOne({ where: { userId, packId: pack.id, path } });
+    let row = await repo.findOne({ where: { packId: pack.id, path } });
     const created = !row;
     if (!row) {
       row = repo.create({
         id: uuidv4(),
-        userId,
         packId: pack.id,
         path,
         content,
@@ -189,24 +192,22 @@ export async function upsertPackFile(
 
 export async function deletePackFile(
   ds: DataSource,
-  userId: string,
   packId: string,
   path: string,
 ): Promise<boolean> {
-  const res = await ds.getRepository(SkillPackFile).delete({ userId, packId, path });
+  const res = await ds.getRepository(SkillPackFile).delete({ packId, path });
   return (res.affected ?? 0) > 0;
 }
 
 export async function movePackFile(
   ds: DataSource,
-  userId: string,
   packId: string,
   oldPath: string,
   newPath: string,
 ): Promise<SkillPackFile | null> {
   return ds.transaction(async (em) => {
     const repo = em.getRepository(SkillPackFile);
-    const row = await repo.findOne({ where: { userId, packId, path: oldPath } });
+    const row = await repo.findOne({ where: { packId, path: oldPath } });
     if (!row) return null;
     row.path = newPath;
     await repo.save(row);
@@ -214,17 +215,12 @@ export async function movePackFile(
   });
 }
 
-export async function deleteAllPackFiles(
-  ds: DataSource,
-  userId: string,
-  packId: string,
-): Promise<void> {
-  await ds.getRepository(SkillPackFile).delete({ userId, packId });
+export async function deleteAllPackFiles(ds: DataSource, packId: string): Promise<void> {
+  await ds.getRepository(SkillPackFile).delete({ packId });
 }
 
 export async function batchUpsertPackFiles(
   ds: DataSource,
-  userId: string,
   pack: UserSkillConfig,
   entries: Array<{ path: string; content: string }>,
 ): Promise<{ pack: UserSkillConfig; savedCount: number }> {
@@ -235,12 +231,11 @@ export async function batchUpsertPackFiles(
     let skillMdContent: string | null = null;
     for (const entry of entries) {
       let row = await repo.findOne({
-        where: { userId, packId: pack.id, path: entry.path },
+        where: { packId: pack.id, path: entry.path },
       });
       if (!row) {
         row = repo.create({
           id: uuidv4(),
-          userId,
           packId: pack.id,
           path: entry.path,
           content: entry.content,
@@ -271,7 +266,6 @@ export async function batchUpsertPackFiles(
 
 export async function insertPackFilesBulk(
   em: EntityManager,
-  userId: string,
   packId: string,
   entries: Array<{ path: string; content: string }>,
 ): Promise<void> {
@@ -280,7 +274,6 @@ export async function insertPackFilesBulk(
     await repo.save(
       repo.create({
         id: uuidv4(),
-        userId,
         packId,
         path: entry.path,
         content: entry.content,

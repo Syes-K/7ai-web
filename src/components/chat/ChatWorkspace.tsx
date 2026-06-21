@@ -34,6 +34,7 @@ import {
   fetchMessages,
   fetchTurns,
   finalizeStepsSnapshotForClient,
+  resolveChatSendErrorMessage,
   sendMessage,
   sendMessageStream,
   type ConversationListItem,
@@ -46,31 +47,19 @@ import {
 } from "./chat-api";
 import { BrandMark } from "@/components/brand/BrandMark";
 import type { AssistantListItem } from "@/common/types";
-import enApiMessage from "../../../messages/en/api/message.json";
-import zhApiMessage from "../../../messages/zh/api/message.json";
+import {
+  localizeTurnSafeSummary,
+  matchesTurnSafeMarker,
+  MCP_DISABLED_MARKERS,
+  TURN_SAFE_KB_MISS_MARKERS,
+  TURN_SAFE_MCP_NO_ASSISTANT_MARKERS,
+  TURN_SAFE_MCP_NOT_MOUNTED_MARKERS,
+  TURN_SAFE_SKILLS_NOT_MOUNTED_MARKERS,
+} from "@/common/chat/turn-safe-message-keys";
 import {
   localizeConversationTitle,
   localizeDetailBlock,
 } from "@/common/chat/localize-turn-detail";
-
-const TURN_SAFE_KB_MISS = new Set([
-  enApiMessage.turnSafe.kbMiss,
-  zhApiMessage.turnSafe.kbMiss,
-]);
-const TURN_SAFE_MCP_NO_ASSISTANT = new Set([
-  enApiMessage.turnSafe.mcpNoAssistant,
-  zhApiMessage.turnSafe.mcpNoAssistant,
-]);
-const TURN_SAFE_MCP_NOT_MOUNTED = new Set([
-  enApiMessage.turnSafe.mcpNotMounted,
-  zhApiMessage.turnSafe.mcpNotMounted,
-]);
-const TURN_SAFE_SKILLS_NOT_MOUNTED = new Set([
-  enApiMessage.turnSafe.skillsNotMounted,
-  zhApiMessage.turnSafe.skillsNotMounted,
-]);
-/** MCP 详情块历史数据可能为另一 locale，展示层会映射为当前语言 */
-const MCP_DISABLED_MARKERS = ["未启用 MCP", "MCP not enabled"] as const;
 
 /** 侧栏宽度：原 300px 缩小 30% */
 const SIDEBAR_WIDTH = "lg:w-[210px]";
@@ -454,10 +443,8 @@ function shouldHideUnboundMcpStep(
   const summary = (step.safeMessage ?? "").trim();
   if (!summary) return false;
   if (
-    TURN_SAFE_MCP_NO_ASSISTANT.has(summary) ||
-    TURN_SAFE_MCP_NOT_MOUNTED.has(summary) ||
-    [...TURN_SAFE_MCP_NO_ASSISTANT].some((s) => summary.includes(s)) ||
-    [...TURN_SAFE_MCP_NOT_MOUNTED].some((s) => summary.includes(s))
+    matchesTurnSafeMarker(summary, TURN_SAFE_MCP_NO_ASSISTANT_MARKERS) ||
+    matchesTurnSafeMarker(summary, TURN_SAFE_MCP_NOT_MOUNTED_MARKERS)
   ) {
     return true;
   }
@@ -481,7 +468,7 @@ function shouldHideUnboundKnowledgeStep(
   detailsLabel: string,
 ): boolean {
   const summary = (step.safeMessage ?? "").trim();
-  if (!TURN_SAFE_KB_MISS.has(summary)) return false;
+  if (!matchesTurnSafeMarker(summary, TURN_SAFE_KB_MISS_MARKERS)) return false;
   return stepDetailsToBlocks(step.details, detailsLabel).length === 0;
 }
 
@@ -494,10 +481,7 @@ function shouldHideUnboundSkillsStep(
   detailsLabel: string,
 ): boolean {
   const summary = (step.safeMessage ?? "").trim();
-  if (
-    TURN_SAFE_SKILLS_NOT_MOUNTED.has(summary) ||
-    [...TURN_SAFE_SKILLS_NOT_MOUNTED].some((s) => summary.includes(s))
-  ) {
+  if (matchesTurnSafeMarker(summary, TURN_SAFE_SKILLS_NOT_MOUNTED_MARKERS)) {
     return true;
   }
   if (!summary) {
@@ -651,9 +635,17 @@ function resolveSubStepForStageItem(
 
 function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel }) {
   const t = useTranslations("page.chat");
+  const tApi = useTranslations("api.message");
   const [open, setOpen] = useState(false);
   const rawStep = resolveSubStepForStageItem(turn, item);
   const stepRecord = rawStep != null ? (rawStep as Record<string, unknown>) : undefined;
+  const safeMessageKey =
+    typeof stepRecord?.safeMessageKey === "string" ? stepRecord.safeMessageKey : null;
+  const summaryDisplay =
+    localizeTurnSafeSummary(
+      { safeMessage: item.summary, safeMessageKey },
+      (key, values) => tApi(key, values),
+    ) ?? item.summary;
   const detailsRaw = stepRecord?.details ?? stepRecord?.Details;
   const detailsLabel = t("turn.stage.details");
   let fromSnapshot = stepDetailsToBlocks(detailsRaw, detailsLabel);
@@ -664,7 +656,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
   const hasBody =
     item.details.length > 0 ||
     detailBlocks.length > 0 ||
-    Boolean(item.summary?.trim());
+    Boolean(summaryDisplay?.trim());
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/70">
       <button
@@ -684,7 +676,7 @@ function TurnStageFold({ item, turn }: { item: TurnStageItem; turn: TurnUiModel 
               aria-label="loading"
             />
           ) : null}
-          {item.summary ? ` · ${item.summary}` : ""}
+          {summaryDisplay ? ` · ${summaryDisplay}` : ""}
         </span>
         {hasBody ? (
           <span className="shrink-0 font-mono text-[10px] text-zinc-500" aria-hidden>
@@ -1251,6 +1243,21 @@ export function ChatWorkspace({
       return next;
     });
 
+    /** 发送失败：移除乐观用户消息、恢复输入框、提示用户。 */
+    const failSend = (err: unknown, restoreDraft = true) => {
+      setStreamText("");
+      setStreaming(false);
+      const pendingId = pendingLocalUserMessageIdRef.current;
+      if (pendingId) {
+        setMessages((prev) => prev.filter((m) => m.id !== pendingId));
+        pendingLocalUserMessageIdRef.current = null;
+      }
+      if (restoreDraft) {
+        setDrafts((prev) => ({ ...prev, [conversationId]: text }));
+      }
+      showToast({ type: "err", text: resolveChatSendErrorMessage(err, t) });
+    };
+
     try {
       await sendMessageStream(
         conversationId,
@@ -1333,6 +1340,7 @@ export function ChatWorkspace({
           setStreamText("");
           setStreaming(false);
           const errText = msg.trim() || t("errors.sseUnknown");
+          showToast({ type: "err", text: errText });
           try {
             const pendingId = pendingLocalUserMessageIdRef.current;
             const [{ items }, turnsResp] = await Promise.all([
@@ -1392,37 +1400,27 @@ export function ChatWorkspace({
           setStreaming(false);
           void loadConversationList();
         } catch (fallbackErr) {
-          const fallbackMsg =
-            fallbackErr instanceof Error ? fallbackErr.message : t("toast.sendFailed");
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `__assistant_error__${Date.now()}`,
-              role: MessageRole.Assistant,
-              content: `${t("turn.card.failurePrefix")}${fallbackMsg}`,
-              createdAt: new Date().toISOString(),
-            },
-          ]);
+          failSend(fallbackErr);
         }
       } else {
-        setStreamText("");
-        setStreaming(false);
-        const errMsg = e instanceof Error ? e.message : t("toast.sendFailed");
-        try {
-          const pendingId = pendingLocalUserMessageIdRef.current;
-          const [{ items }, turnsResp] = await Promise.all([
-            fetchMessages(conversationId),
-            fetchTurns(conversationId),
-          ]);
-          setMessages((prev) => mergeServerMessagesWithPendingLocal(prev, items, pendingId));
-          const map: Record<string, TurnUiModel> = {};
-          for (const turn of turnsResp.items) {
-            map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+        failSend(e);
+        // 后台尝试与服务端对齐（不阻塞用户提示）
+        void (async () => {
+          try {
+            const [{ items }, turnsResp] = await Promise.all([
+              fetchMessages(conversationId),
+              fetchTurns(conversationId),
+            ]);
+            setMessages(items);
+            const map: Record<string, TurnUiModel> = {};
+            for (const turn of turnsResp.items) {
+              map[turn.turnId] = normalizeTurnFromSnapshot(turn, "non_stream_snapshot");
+            }
+            setTurnHistoryMap(map);
+          } catch {
+            /* 网络仍不可达时忽略 */
           }
-          setTurnHistoryMap(map);
-        } catch {
-          showToast({ type: "err", text: errMsg });
-        }
+        })();
       }
     } finally {
       sendInFlightRef.current = false;
@@ -1623,7 +1621,7 @@ export function ChatWorkspace({
 
       {toast && (
         <div
-          className={`chat-toast-enter fixed left-1/2 top-4 z-[60] rounded-lg border px-4 py-2 font-mono text-sm shadow-xl sm:top-6 ${toast.type === "ok"
+          className={`chat-toast-enter fixed left-1/2 top-4 z-[60] -translate-x-1/2 rounded-lg border px-4 py-2 font-mono text-sm shadow-xl sm:top-6 ${toast.type === "ok"
             ? "border-emerald-500/40 bg-emerald-950/90 text-emerald-200"
             : "border-rose-500/40 bg-rose-950/90 text-rose-100"
             }`}

@@ -20,6 +20,7 @@ import type {
   SkillPackUiRef,
   SkillsTurnUiSnapshot,
 } from "@/common/types/skill-turn";
+import type { SkillPackIntentResult } from "@/server/skill/skill-pack-intent-agent";
 import type { User } from "@/server/db/entities/User";
 import { UserMcpConfig } from "@/server/db/entities/UserMcpConfig";
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
@@ -120,7 +121,7 @@ async function resolveSkillIdsForChatTurn(ctx: ChatTurnCapabilityContext): Promi
   if (skillIds.length === 0) return [];
 
   const configs = await ds.getRepository(UserSkillConfig).find({
-    where: { userId: ctx.userId, id: In(skillIds), enabled: true } as any,
+    where: { id: In(skillIds), enabled: true } as any,
   });
   const allowed = new Set(configs.map((c) => c.id));
   return skillIds.filter((id) => allowed.has(id)).slice(0, SKILL_CONFIG_MAX_BINDINGS_PER_CHAT_TURN);
@@ -138,10 +139,10 @@ async function buildSkillsMergeResult(
   const ids = refs.map((r) => r.id);
   const [packRows, skillMdRows] = await Promise.all([
     ds.getRepository(UserSkillConfig).find({
-      where: { userId: ctx.userId, id: In(ids) } as any,
+      where: { id: In(ids) } as any,
     }),
     ds.getRepository(SkillPackFile).find({
-      where: { userId: ctx.userId, packId: In(ids), path: SKILL_PACK_SKILL_MD_PATH } as any,
+      where: { packId: In(ids), path: SKILL_PACK_SKILL_MD_PATH } as any,
     }),
   ]);
   const rowById = new Map(packRows.map((r) => [r.id, r]));
@@ -465,7 +466,7 @@ export async function resolveSkillPackSelectionForTurn(
   const ds = await getDataSource();
   const ids = mountedRefs.map((r) => r.id);
   const packRows = await ds.getRepository(UserSkillConfig).find({
-    where: { userId: ctx.userId, id: In(ids) } as any,
+    where: { id: In(ids) } as any,
   });
   const rowById = new Map(packRows.map((r) => [r.id, r]));
   const mounted: SkillPackUiRef[] = mountedRefs
@@ -479,7 +480,7 @@ export async function resolveSkillPackSelectionForTurn(
   const candidateRows = packRows.filter((p) => p.enabled && !alwaysIds.includes(p.id));
 
   let intentSelectedIds: string[] = [];
-  let reasons: Record<string, string> = {};
+  let reasons: SkillPackIntentResult["reasons"] = {};
   let intentSource: SkillPackSelectionResult["intentSource"] = "skipped";
 
   if (candidateRows.length === 0) {
@@ -507,7 +508,10 @@ export async function resolveSkillPackSelectionForTurn(
   const skipped: SkillPackSkippedRef[] = mounted
     .filter((m) => !loadedIdSet.has(m.id))
     .slice(0, 5)
-    .map((m) => ({ ...m, reason: reasons[m.id] }));
+    .map((m) => {
+      const reasonCode = reasons[m.id];
+      return reasonCode ? { ...m, reasonCode } : { ...m };
+    });
 
   return {
     mountedRefs,

@@ -198,7 +198,15 @@
       "skillsReadTitle": "Files read",
       "skillsReadLine": "· {packName}: {path}",
       "skillsScriptRunTitle": "Scripts run",
-      "skillsScriptRunLine": "· {packName}: {path} (exit {exitCode})"
+      "skillsScriptRunLine": "· {packName}: {path} (exit {exitCode})",
+      "skillsSkipReason": {
+        "unrelated": "Unrelated to this question",
+        "low_confidence": "Not needed for this turn",
+        "user_small_talk": "Small talk",
+        "duplicate_coverage": "Covered by another pack",
+        "other": "Not selected"
+      },
+      "skillsIntentFailedBody": "Selection service was unavailable (timeout or parse error). Optional packs were skipped this turn."
     },
     "a11y": {
       "currentStep": "Current step {stepKey} {status}",

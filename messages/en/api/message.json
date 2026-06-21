@@ -11,6 +11,8 @@
   "skillConfigNotFound": "Skill configuration not found.",
   "skillConfigNameConflict": "A Skill with this name already exists.",
   "skillConfigReferencedByAssistant": "Cannot delete: this Skill is still mounted on one or more assistants. Remove it from Assistant management first.",
+  "skillConfigConsoleDeprecated": "Skill Pack management has moved to the admin console.",
+  "skillConfigWriteDisabled": "Changes to Skill Packs are only allowed by importing a zip.",
   "skillPackFileNotFound": "Pack file not found.",
   "skillPackFilePathConflict": "A file already exists at the target path.",
   "mcpCredentialsEncryptionUnavailable": "Server is not configured with MCP_CREDENTIALS_MASTER_KEY; credentials cannot be saved.",
@@ -230,6 +232,14 @@
       "skillsSkippedTitle": "Not selected this turn",
       "skillsSkippedLine": "· {name} — {reason}",
       "skillsSkippedLineNoReason": "· {name}",
+      "skillsSkipReason": {
+        "unrelated": "not relevant to this question",
+        "low_confidence": "not needed this turn",
+        "user_small_talk": "small talk",
+        "duplicate_coverage": "already covered by another pack",
+        "other": "Not selected"
+      },
+      "skillsIntentFailedBody": "Selection service was unavailable (timeout or parse error). Optional packs were skipped this turn.",
       "skillsMergedTitle": "Loaded Skill Packs",
       "skillsMergedNameLine": "· {name}",
       "skillsReadTitle": "Files read",

@@ -3,9 +3,9 @@
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ActionType } from "@ant-design/pro-components";
 import { PageContainer, ProTable } from "@ant-design/pro-components";
-import { App, Button, Form, Input, Modal, Select } from "antd";
+import { App, Button, Divider, Form, Input, Modal, Select, Tag, Alert } from "antd";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ASSISTANT_ICON_MAX_LENGTH,
   ASSISTANT_NAME_MAX_LENGTH,
@@ -15,10 +15,23 @@ import {
 } from "@/common/constants";
 import type { AssistantListItem } from "@/common/types";
 import { parseApiError } from "@/common/utils/parse-api-error";
+import { Link } from "@/i18n/navigation";
 import { handleAdminApiAuthStatus } from "../admin-api-guards";
 import { getAdminAssistantColumns } from "./admin-assistant-columns";
 
 const API_BASE = "/api/admin/assistants";
+const SKILL_CATALOG_API = "/api/console/skill-catalog";
+const SKILL_BIND_API_BASE = "/api/console/assistants";
+
+type SkillPickerItem = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description?: string | null;
+  fileCount?: number;
+  hasScripts?: boolean;
+};
+const EMPTY_SKILL_IDS: string[] = [];
 
 type ModalMode = "create" | "edit";
 
@@ -26,6 +39,7 @@ type ModalMode = "create" | "edit";
 export default function AssistantsClient() {
   const locale = useLocale();
   const t = useTranslations("page.admin.assistants");
+  const tSkills = useTranslations("page.console.assistants");
   const tShell = useTranslations("page.admin.shell");
   const { message } = App.useApp();
   const actionRef = useRef<ActionType>(null);
@@ -35,6 +49,7 @@ export default function AssistantsClient() {
     icon?: string;
     openingMessage?: string;
     tags?: string[];
+    skillConfigIds?: string[];
   }>();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,15 +62,63 @@ export default function AssistantsClient() {
   const [keyword, setKeyword] = useState("");
   const [keywordDraft, setKeywordDraft] = useState("");
 
+  const [skillOptions, setSkillOptions] = useState<SkillPickerItem[]>([]);
+  const [skillLoading, setSkillLoading] = useState(false);
+  const skillConfigIdsWatch = Form.useWatch("skillConfigIds", form);
+
   const returnPath = `/${locale}/admin/assistants`;
+
+  const loadSkillOptions = useCallback(async () => {
+    setSkillLoading(true);
+    try {
+      const res = await fetch(SKILL_CATALOG_API, { credentials: "include" });
+      if (handleAdminApiAuthStatus(res.status, locale, returnPath)) {
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res, { t: tShell }));
+        return;
+      }
+      const data = (await res.json()) as { items: SkillPickerItem[] };
+      setSkillOptions(
+        (Array.isArray(data.items) ? data.items : []).map((i) => ({
+          ...i,
+          enabled: i.enabled ?? true,
+        })),
+      );
+    } finally {
+      setSkillLoading(false);
+    }
+  }, [locale, message, returnPath, tShell]);
+
+  const loadAssistantSkillConfigs = useCallback(
+    async (assistantId: string) => {
+      const res = await fetch(`${SKILL_BIND_API_BASE}/${assistantId}/skill-configs`, {
+        credentials: "include",
+      });
+      if (handleAdminApiAuthStatus(res.status, locale, returnPath)) {
+        return;
+      }
+      if (!res.ok) {
+        message.error(await parseApiError(res, { t: tShell }));
+        return;
+      }
+      const data = (await res.json()) as { skillConfigIds: string[] };
+      form.setFieldsValue({
+        skillConfigIds: Array.isArray(data.skillConfigIds) ? data.skillConfigIds : [],
+      });
+    },
+    [form, locale, message, returnPath, tShell],
+  );
 
   const openCreate = useCallback(() => {
     setModalMode("create");
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ tags: [] });
+    form.setFieldsValue({ tags: [], skillConfigIds: [] });
     setModalOpen(true);
-  }, [form]);
+    void loadSkillOptions();
+  }, [form, loadSkillOptions]);
 
   const openEdit = useCallback(
     (row: AssistantListItem) => {
@@ -67,10 +130,13 @@ export default function AssistantsClient() {
         icon: row.icon ?? "",
         openingMessage: row.openingMessage ?? "",
         tags: row.tags?.length ? [...row.tags] : [],
+        skillConfigIds: [],
       });
       setModalOpen(true);
+      void loadSkillOptions();
+      void loadAssistantSkillConfigs(row.id);
     },
-    [form],
+    [form, loadAssistantSkillConfigs, loadSkillOptions],
   );
 
   const closeModal = useCallback(() => {
@@ -89,6 +155,7 @@ export default function AssistantsClient() {
     setSubmitting(true);
     try {
       const tags = Array.isArray(v.tags) ? v.tags : [];
+      const skillConfigIds = Array.isArray(v.skillConfigIds) ? v.skillConfigIds : [];
       const iconTrim = (v.icon ?? "").trim();
       const openingTrim = (v.openingMessage ?? "").trim();
       const payload = {
@@ -113,6 +180,19 @@ export default function AssistantsClient() {
           message.error(await parseApiError(res, { t: tShell }));
           return;
         }
+        const data = (await res.json()) as { item?: { id?: string } };
+        const assistantId = data?.item?.id;
+        if (assistantId && skillConfigIds.length > 0) {
+          const skillRes = await fetch(`${SKILL_BIND_API_BASE}/${assistantId}/skill-configs`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({ skillConfigIds }),
+          });
+          if (!skillRes.ok) {
+            message.warning(tSkills("toast.skillsBindFailedOnCreate"));
+          }
+        }
         message.success(t("toast.created"));
         closeModal();
         await actionRef.current?.reload?.();
@@ -133,13 +213,22 @@ export default function AssistantsClient() {
         message.error(await parseApiError(res, { t: tShell }));
         return;
       }
+      const skillRes = await fetch(`${SKILL_BIND_API_BASE}/${editing.id}/skill-configs`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ skillConfigIds }),
+      });
+      if (!skillRes.ok) {
+        message.warning(tSkills("toast.skillsBindFailedOnSave"));
+      }
       message.success(t("toast.saved"));
       closeModal();
       await actionRef.current?.reload?.();
     } finally {
       setSubmitting(false);
     }
-  }, [closeModal, editing, form, locale, message, modalMode, returnPath, t, tShell]);
+  }, [closeModal, editing, form, locale, message, modalMode, returnPath, t, tShell, tSkills]);
 
   const handleDelete = useCallback(
     async (row: AssistantListItem) => {
@@ -180,6 +269,19 @@ export default function AssistantsClient() {
   const columns = useMemo(
     () => getAdminAssistantColumns(t, { deletingId, handleDelete, openEdit }),
     [deletingId, handleDelete, openEdit, t],
+  );
+
+  const selectedSkillIdsForPicker = Array.isArray(skillConfigIdsWatch)
+    ? skillConfigIdsWatch
+    : EMPTY_SKILL_IDS;
+
+  const skillsLinkRich = useCallback(
+    (chunks: ReactNode) => (
+      <Link href="/admin/skills" className="text-sky-300 hover:text-sky-200">
+        {chunks}
+      </Link>
+    ),
+    [],
   );
 
   return (
@@ -360,6 +462,77 @@ export default function AssistantsClient() {
                 mode="tags"
                 placeholder={t("form.tags.placeholder")}
                 style={{ width: "100%" }}
+              />
+            </Form.Item>
+
+            <Divider className="my-3">{tSkills("section.skillsMount")}</Divider>
+            {skillOptions.length === 0 && !skillLoading ? (
+              <Alert
+                type="info"
+                showIcon
+                className="mb-3"
+                message={tSkills("alert.noSkills.message")}
+                description={t.rich("alert.noSkillsAdmin.description", {
+                  skillsLink: skillsLinkRich,
+                })}
+              />
+            ) : null}
+            <Form.Item
+              name="skillConfigIds"
+              label={tSkills("form.skills.label")}
+              extra={tSkills("form.skills.extra")}
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder={tSkills("form.skills.placeholder")}
+                loading={skillLoading}
+                disabled={skillOptions.length === 0 && !skillLoading}
+                optionFilterProp="label"
+                showSearch
+                maxTagCount="responsive"
+                options={skillOptions.map((s) => ({
+                  label: s.name,
+                  value: s.id,
+                  disabled: s.enabled === false && !selectedSkillIdsForPicker.includes(s.id),
+                }))}
+                optionRender={(option) => {
+                  const row = skillOptions.find((s) => s.id === option.value);
+                  if (!row) return <span>{option.label}</span>;
+                  const fileCount = row.fileCount ?? 0;
+                  return (
+                    <span className="flex flex-wrap items-center gap-1">
+                      <span>
+                        {fileCount > 0
+                          ? tSkills("form.skills.optionFiles", { name: row.name, count: fileCount })
+                          : row.name}
+                      </span>
+                      {row.hasScripts ? (
+                        <Tag color="gold" className="m-0 text-[10px]">
+                          {tSkills("form.skills.scriptsTag")}
+                        </Tag>
+                      ) : null}
+                    </span>
+                  );
+                }}
+                tagRender={(props) => {
+                  const { label, value, closable, onClose } = props;
+                  const row = skillOptions.find((s) => s.id === value);
+                  const inactive = row && row.enabled === false;
+                  return (
+                    <Tag
+                      color={inactive ? "orange" : "purple"}
+                      closable={closable}
+                      onClose={onClose}
+                      className="m-0 max-w-[220px]"
+                    >
+                      <span className="inline-block max-w-[160px] truncate align-bottom">
+                        {row?.name ?? String(label)}
+                      </span>
+                      {inactive ? tSkills("form.skills.inactiveSuffix") : ""}
+                    </Tag>
+                  );
+                }}
               />
             </Form.Item>
           </Form>

@@ -34,6 +34,11 @@ import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import type { McpTurnUiSnapshot, SkillsTurnUiSnapshot } from "@/server/chat/turn-capabilities";
 import { normalizeSkillsTurnUi } from "@/common/utils/normalize-skills-turn-ui";
+import {
+  resolveSkillsSafeMessageKey,
+  type TurnSafeMessageKey,
+} from "@/common/chat/turn-safe-message-keys";
+import type { TurnDetailBlock } from "@/common/types/skill-turn";
 import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
 
 export const runtime = "nodejs";
@@ -191,42 +196,41 @@ function shouldEmitSkillsStep(ui: SkillsTurnUiSnapshot): boolean {
   return (n.mounted?.length ?? 0) > 0;
 }
 
-function skillsSafeMessage(locale: AppLocale, ui: SkillsTurnUiSnapshot): string {
+function skillsSafeMessage(
+  locale: AppLocale,
+  ui: SkillsTurnUiSnapshot,
+): { text: string; key: TurnSafeMessageKey } {
   const n = normalizeSkillsTurnUi(ui);
-  if (n.assistantMissing) return tApiMessage(locale, "turnSafe.skillsNoAssistant");
-  if (n.loadFailed) return tApiMessage(locale, "turnSafe.skillsLoadSkipped");
-  if (n.mounted.length === 0) return tApiMessage(locale, "turnSafe.skillsNotMounted");
+  const key = resolveSkillsSafeMessageKey(n);
   const loadedCount = n.loaded.length;
   const readCount = n.readFileCount ?? 0;
   const runCount = n.scriptRunCount ?? 0;
-  if (loadedCount === 0 && n.intentSource === "failed_safe") {
-    return tApiMessage(locale, "turnSafe.skillsSelectionFailed");
+  let text: string;
+  switch (key) {
+    case "turnSafe.skillsMountedNotSelected":
+      text = tApiMessage(locale, key, { mountedCount: n.mounted.length });
+      break;
+    case "turnSafe.skillsLoaded":
+      text = tApiMessage(locale, key, { count: loadedCount });
+      break;
+    case "turnSafe.skillsLoadedWithRead":
+      text = tApiMessage(locale, key, { count: loadedCount, readCount });
+      break;
+    case "turnSafe.skillsLoadedWithRun":
+      text = tApiMessage(locale, key, { count: loadedCount, runCount });
+      break;
+    case "turnSafe.skillsLoadedWithReadAndRun":
+      text = tApiMessage(locale, key, { count: loadedCount, readCount, runCount });
+      break;
+    default:
+      text = tApiMessage(locale, key);
   }
-  if (loadedCount === 0) {
-    return tApiMessage(locale, "turnSafe.skillsMountedNotSelected", { mountedCount: n.mounted.length });
-  }
-  if (readCount > 0 && runCount > 0) {
-    return tApiMessage(locale, "turnSafe.skillsLoadedWithReadAndRun", {
-      count: loadedCount,
-      readCount,
-      runCount,
-    });
-  }
-  if (readCount > 0) {
-    return tApiMessage(locale, "turnSafe.skillsLoadedWithRead", { count: loadedCount, readCount });
-  }
-  if (runCount > 0) {
-    return tApiMessage(locale, "turnSafe.skillsLoadedWithRun", { count: loadedCount, runCount });
-  }
-  return tApiMessage(locale, "turnSafe.skillsLoaded", { count: loadedCount });
+  return { text, key };
 }
 
-function skillsDetailsFromUi(
-  locale: AppLocale,
-  ui: SkillsTurnUiSnapshot,
-): Array<{ title: string; content: string }> {
+function skillsDetailsFromUi(locale: AppLocale, ui: SkillsTurnUiSnapshot): TurnDetailBlock[] {
   const n = normalizeSkillsTurnUi(ui);
-  const details: Array<{ title: string; content: string }> = [];
+  const details: TurnDetailBlock[] = [];
   if (n.assistantMissing) {
     details.push({
       title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
@@ -260,15 +264,32 @@ function skillsDetailsFromUi(
     });
   }
   if (n.skipped && n.skipped.length > 0) {
+    const lineEntries = n.skipped.map((s) => {
+      const reasonLabel = s.reasonCode
+        ? tApiMessage(locale, `turnSafe.detail.skillsSkipReason.${s.reasonCode}`)
+        : null;
+      const contentLine = reasonLabel
+        ? tApiMessage(locale, "turnSafe.detail.skillsSkippedLine", { name: s.name, reason: reasonLabel })
+        : tApiMessage(locale, "turnSafe.detail.skillsSkippedLineNoReason", { name: s.name });
+      return {
+        contentLine,
+        line: {
+          type: "skipped" as const,
+          name: s.name,
+          ...(s.reasonCode ? { reasonCode: s.reasonCode } : {}),
+        },
+      };
+    });
     details.push({
       title: tApiMessage(locale, "turnSafe.detail.skillsSkippedTitle"),
-      content: n.skipped
-        .map((s) =>
-          s.reason
-            ? tApiMessage(locale, "turnSafe.detail.skillsSkippedLine", { name: s.name, reason: s.reason })
-            : tApiMessage(locale, "turnSafe.detail.skillsSkippedLineNoReason", { name: s.name }),
-        )
-        .join("\n"),
+      content: lineEntries.map((l) => l.contentLine).join("\n"),
+      lines: lineEntries.map((l) => l.line),
+    });
+  }
+  if (n.intentSource === "failed_safe" && n.mounted.length > 0 && n.loaded.length === 0) {
+    details.push({
+      title: tApiMessage(locale, "turnSafe.detail.skillsNote"),
+      content: tApiMessage(locale, "turnSafe.detail.skillsIntentFailedBody"),
     });
   }
   const readCount = n.readFileCount ?? 0;
@@ -564,8 +585,10 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
               mcpUiForTurn = mcpTurnUi;
               skillsUiForTurn = skillsTurnUi;
               if (shouldEmitSkillsStep(skillsTurnUi)) {
+                const skillsSafe = skillsSafeMessage(locale, skillsTurnUi);
                 turnState.updateStep("C1b", "completed", {
-                  safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+                  safeMessage: skillsSafe.text,
+                  safeMessageKey: skillsSafe.key,
                   details: skillsDetailsFromUi(locale, skillsTurnUi),
                 });
               }
@@ -640,8 +663,10 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
           const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
           const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, mounted: [], loaded: [] };
           if (shouldEmitSkillsStep(skillsUiDone)) {
+            const skillsSafe = skillsSafeMessage(locale, skillsUiDone);
             turnState.updateStep("C1b", "completed", {
-              safeMessage: skillsSafeMessage(locale, skillsUiDone),
+              safeMessage: skillsSafe.text,
+              safeMessageKey: skillsSafe.key,
               details: skillsDetailsFromUi(locale, skillsUiDone),
             });
           }
@@ -785,8 +810,10 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
         mcpUiForTurn = mcpTurnUi;
         skillsUiForTurn = skillsTurnUi;
         if (shouldEmitSkillsStep(skillsTurnUi)) {
+          const skillsSafe = skillsSafeMessage(locale, skillsTurnUi);
           turnState.updateStep("C1b", "completed", {
-            safeMessage: skillsSafeMessage(locale, skillsTurnUi),
+            safeMessage: skillsSafe.text,
+            safeMessageKey: skillsSafe.key,
             details: skillsDetailsFromUi(locale, skillsTurnUi),
           });
         }
@@ -868,8 +895,10 @@ export const POST = withApiWrapper(async (req: Request, ctx: RouteParams) => {
     const mcpUiDone = mcpUiForTurn ?? { assistantMissing: true, configs: [] };
     const skillsUiDone = skillsUiForTurn ?? { assistantMissing: true, mounted: [], loaded: [] };
     if (shouldEmitSkillsStep(skillsUiDone)) {
+      const skillsSafe = skillsSafeMessage(locale, skillsUiDone);
       turnState.updateStep("C1b", "completed", {
-        safeMessage: skillsSafeMessage(locale, skillsUiDone),
+        safeMessage: skillsSafe.text,
+        safeMessageKey: skillsSafe.key,
         details: skillsDetailsFromUi(locale, skillsUiDone),
       });
     }

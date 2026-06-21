@@ -2,16 +2,18 @@ import AdmZip from "adm-zip";
 import { v4 as uuidv4 } from "uuid";
 import type { DataSource } from "typeorm";
 import {
-  SKILL_CONFIG_MAX_PER_USER,
+  SKILL_CONFIG_DESCRIPTION_MAX_LENGTH,
   SKILL_PACK_IMPORT_ZIP_MAX_BYTES,
   SKILL_PACK_MAX_FILES,
   SKILL_PACK_MAX_TOTAL_BYTES,
   SKILL_PACK_SKILL_MD_PATH,
 } from "@/common/constants";
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
+import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
 import {
   extractSkillMetadataFromFrontmatter,
   parseAlwaysLoadFromFrontmatter,
+  parseEnabledFromFrontmatter,
   stripSkillMdFrontmatter,
 } from "@/server/skill/pack-frontmatter";
 import {
@@ -20,7 +22,11 @@ import {
   isPackFileExtensionAllowed,
   normalizePackFilePath,
 } from "@/server/skill/pack-path";
-import { insertPackFilesBulk } from "@/server/skill/pack-files";
+import {
+  deleteAllPackFiles,
+  insertPackFilesBulk,
+  syncPackMetadataFromSkillMd,
+} from "@/server/skill/pack-files";
 import { skillMdBodyFromContent } from "@/server/skill/skill-pack-file-validation";
 
 export type ImportSkippedEntry = { path: string; reason: string };
@@ -183,6 +189,36 @@ export function resolveImportPackName(
   return "Imported Skill Pack";
 }
 
+/**
+ * P1：frontmatter description 为空时的回退策略。
+ * 顺序：frontmatter → SKILL.md 正文首行 → zip/文件夹名。
+ */
+export function resolveImportDescription(
+  parsed: ParsedImportFiles,
+  entries: Array<{ path: string; content: string }>,
+  zipBaseName: string | null,
+  folderRootName: string | null,
+): string | null {
+  if (parsed.suggestedDescription?.trim()) {
+    return parsed.suggestedDescription.trim().slice(0, SKILL_CONFIG_DESCRIPTION_MAX_LENGTH);
+  }
+  const skillMd = entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
+  if (skillMd) {
+    const body = skillMdBodyFromContent(skillMd.content);
+    for (const line of body.split("\n")) {
+      const t = line.trim();
+      if (t && !t.startsWith("#")) {
+        return t.slice(0, 400);
+      }
+    }
+  }
+  const folderName = folderRootName?.trim() || zipBaseName?.trim();
+  if (folderName) {
+    return folderName.slice(0, SKILL_CONFIG_DESCRIPTION_MAX_LENGTH);
+  }
+  return null;
+}
+
 /** 校验 import 结果是否可落库（须含非空 SKILL.md）。 */
 export function validateImportEntries(parsed: ParsedImportFiles): string | null {
   const skillMd = parsed.entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
@@ -199,39 +235,85 @@ export type ImportPackTransactionResult = {
   importedFileCount: number;
 };
 
-/** 事务内创建 Pack + 批量插入 files。 */
-export async function createPackFromImport(
-  ds: DataSource,
-  userId: string,
-  name: string,
-  description: string | null,
-  entries: Array<{ path: string; content: string }>,
-): Promise<ImportPackTransactionResult> {
+function metadataFromSkillMd(entries: Array<{ path: string; content: string }>): {
+  alwaysLoad: boolean;
+  enabled: boolean;
+} {
   let alwaysLoad = false;
+  let enabled = true;
   const skillMd = entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
   if (skillMd) {
     const { frontmatter } = stripSkillMdFrontmatter(skillMd.content);
     if (frontmatter) {
       alwaysLoad = parseAlwaysLoadFromFrontmatter(frontmatter) ?? false;
+      enabled = parseEnabledFromFrontmatter(frontmatter) ?? true;
     }
   }
+  return { alwaysLoad, enabled };
+}
+
+/** 事务内创建系统 Pack + 批量插入 files。 */
+export async function createPackFromImport(
+  ds: DataSource,
+  name: string,
+  description: string | null,
+  entries: Array<{ path: string; content: string }>,
+): Promise<ImportPackTransactionResult> {
+  const { alwaysLoad, enabled } = metadataFromSkillMd(entries);
 
   return ds.transaction(async (em) => {
     const pack = em.getRepository(UserSkillConfig).create({
       id: uuidv4(),
-      userId,
       name,
       description,
       content: null,
-      enabled: true,
+      enabled,
       alwaysLoad,
     });
     await em.getRepository(UserSkillConfig).save(pack);
-    await insertPackFilesBulk(em, userId, pack.id, entries);
-    return { pack, importedFileCount: entries.length };
+    await insertPackFilesBulk(em, pack.id, entries);
+    const skillMd = entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
+    if (skillMd) {
+      await syncPackMetadataFromSkillMd(em, pack, skillMd.content);
+    }
+    const saved = await em.getRepository(UserSkillConfig).findOneOrFail({ where: { id: pack.id } });
+    return { pack: saved, importedFileCount: entries.length };
   });
 }
 
-export async function countUserPacks(ds: DataSource, userId: string): Promise<number> {
-  return ds.getRepository(UserSkillConfig).count({ where: { userId } });
+/**
+ * 覆盖导入：保留 Pack id 与助手绑定；先删旧 files 再 bulk INSERT，并同步 frontmatter 元数据。
+ */
+export async function overwritePackFromImport(
+  ds: DataSource,
+  packId: string,
+  entries: Array<{ path: string; content: string }>,
+): Promise<ImportPackTransactionResult> {
+  return ds.transaction(async (em) => {
+    const packRepo = em.getRepository(UserSkillConfig);
+    const pack = await packRepo.findOne({ where: { id: packId } });
+    if (!pack) {
+      throw new Error("PACK_NOT_FOUND");
+    }
+    await em.getRepository(SkillPackFile).delete({ packId });
+    await insertPackFilesBulk(em, packId, entries);
+    const skillMd = entries.find((e) => e.path === SKILL_PACK_SKILL_MD_PATH);
+    if (skillMd) {
+      await syncPackMetadataFromSkillMd(em, pack, skillMd.content);
+    }
+    pack.updatedAt = new Date();
+    await packRepo.save(pack);
+    const saved = await packRepo.findOneOrFail({ where: { id: packId } });
+    return { pack: saved, importedFileCount: entries.length };
+  });
+}
+
+/** 系统全局 Pack 总数。 */
+export async function countSystemPacks(ds: DataSource): Promise<number> {
+  return ds.getRepository(UserSkillConfig).count();
+}
+
+/** @deprecated 0.1.21 使用 countSystemPacks */
+export async function countUserPacks(ds: DataSource, _userId: string): Promise<number> {
+  return countSystemPacks(ds);
 }

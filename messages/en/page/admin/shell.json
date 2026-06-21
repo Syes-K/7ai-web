@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Admin | 7ai-web",
-    "description": "System administration: users, configuration, models, prompts, and assistants."
+    "description": "System administration: users, configuration, models, skill packs, prompts, and assistants."
   },
   "title": "Admin",
   "skipToMain": "Skip to main content",
@@ -11,6 +11,7 @@
     "config": "Configuration",
     "users": "Users",
     "models": "Models",
+    "skills": "Skill Packs",
     "prompts": "Prompt templates",
     "logs": "Logs",
     "assistants": "System assistants"

@@ -1,7 +1,6 @@
 import {
   ApiOutlined,
   BookOutlined,
-  BulbOutlined,
   CloudServerOutlined,
   RobotOutlined,
   UserOutlined,
@@ -41,12 +40,6 @@ export function getConsoleMenuRoutes(t: (key: string) => string): MenuDataItem[]
       name: t("menu.mcp"),
       key: "mcp",
       icon: <CloudServerOutlined />,
-    },
-    {
-      path: `${base}/skills`,
-      name: t("menu.skills"),
-      key: "skills",
-      icon: <BulbOutlined />,
     },
   ];
 }

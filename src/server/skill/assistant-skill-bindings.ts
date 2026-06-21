@@ -1,6 +1,7 @@
 import type { DataSource } from "typeorm";
 import { In } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
+import { Assistant } from "@/server/db/entities/Assistant";
 import { AssistantSkillBinding } from "@/server/db/entities/AssistantSkillBinding";
 import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
 
@@ -26,12 +27,31 @@ export async function listSkillConfigIdsByAssistantIds(
   return map;
 }
 
+/** 全局查询仍挂载该 Pack 的助手（含用户助手与系统助手）。 */
+export async function listAssistantsReferencingSkill(
+  ds: DataSource,
+  skillConfigId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const raw = await ds
+    .getRepository(AssistantSkillBinding)
+    .createQueryBuilder("b")
+    .innerJoin(Assistant, "a", "a.id = b.assistantId")
+    .select("a.id", "id")
+    .addSelect("a.name", "name")
+    .where("b.skillConfigId = :sid", { sid: skillConfigId })
+    .orderBy("a.name", "ASC")
+    .getRawMany<{ id: string; name: string }>();
+  return raw;
+}
+
+/** @deprecated 0.1.21 使用 listAssistantsReferencingSkill */
 export async function countAssistantsReferencingSkill(
   ds: DataSource,
-  userId: string,
+  _userId: string,
   skillConfigId: string,
 ): Promise<number> {
-  return ds.getRepository(AssistantSkillBinding).count({ where: { userId, skillConfigId } as any });
+  const list = await listAssistantsReferencingSkill(ds, skillConfigId);
+  return list.length;
 }
 
 export type ReplaceAssistantSkillBindingsResult =
@@ -40,7 +60,7 @@ export type ReplaceAssistantSkillBindingsResult =
 
 /**
  * 整表替换助手与 Skill 的挂载集合。
- * 无效 id（非当前用户或未存在）统一返回 INVALID_SKILL_CONFIG_IDS，避免泄露存在性。
+ * 无效 id（不存在于系统库）统一返回 INVALID_SKILL_CONFIG_IDS，避免泄露存在性。
  */
 export async function replaceAssistantSkillBindings(
   ds: DataSource,
@@ -51,7 +71,7 @@ export async function replaceAssistantSkillBindings(
   const unique = [...new Set(skillConfigIds)];
   if (unique.length > 0) {
     const n = await ds.getRepository(UserSkillConfig).count({
-      where: { userId, id: In(unique) } as any,
+      where: { id: In(unique) } as any,
     });
     if (n !== unique.length) {
       return { ok: false, reason: "INVALID_SKILL_CONFIG_IDS" };
