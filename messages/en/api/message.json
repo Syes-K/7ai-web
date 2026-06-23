@@ -184,7 +184,8 @@
   "limitParamInvalid": "Invalid limit parameter.",
   "retryTargetNotFound": "The message to retry could not be found.",
   "chat": {
-    "defaultConversationTitle": "New chat"
+    "defaultConversationTitle": "New chat",
+    "defaultAssistantOpeningMessage": "Hi, I'm your assistant. How can I help?"
   },
   "turnSafe": {
     "retryReused": "Retrying with the original user message.",

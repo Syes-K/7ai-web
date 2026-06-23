@@ -184,7 +184,8 @@
   "limitParamInvalid": "limit 参数无效",
   "retryTargetNotFound": "重试目标用户消息不存在",
   "chat": {
-    "defaultConversationTitle": "新对话"
+    "defaultConversationTitle": "新对话",
+    "defaultAssistantOpeningMessage": "你好，我是你的助手。需要什么帮助？"
   },
   "turnSafe": {
     "retryReused": "已复用原用户消息重试",

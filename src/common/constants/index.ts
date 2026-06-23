@@ -44,7 +44,7 @@ export const CHAT_TITLE_FROM_USER_MAX_CHARS = 32;
 /** 新建或无用户消息时的默认会话标题 */
 export const CHAT_DEFAULT_CONVERSATION_TITLE = "新对话";
 
-/** 绑定助手但开场白为空时，首条助手消息固定文案（与 design 0.1.2 §6.1 一致） */
+/** @deprecated 使用 {@link defaultAssistantOpeningMessage}（按 locale 从 api/message 读取） */
 export const CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE = "你好，我是你的助手。需要什么帮助？";
 
 /** 控制台助手列表默认页码 */

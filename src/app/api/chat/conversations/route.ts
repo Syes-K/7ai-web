@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Brackets, In } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import {
-  CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE,
   CHAT_CONVERSATION_LIST_DEFAULT_LIMIT,
   CHAT_CONVERSATION_LIST_MAX_LIMIT,
 } from "@/common/constants";
@@ -20,6 +19,7 @@ import { Conversation } from "@/server/db/entities/Conversation";
 import { Message } from "@/server/db/entities/Message";
 import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { defaultConversationTitle } from "@/server/chat/default-conversation-title";
+import { defaultAssistantOpeningMessage } from "@/server/chat/default-assistant-opening-message";
 
 export const runtime = "nodejs";
 
@@ -233,7 +233,7 @@ export const POST = withApiWrapper(async (req: Request) => {
 
     const openingRaw = asst.openingMessage?.trim() ?? "";
     const openingContent =
-      openingRaw.length > 0 ? openingRaw : CHAT_ASSISTANT_DEFAULT_OPENING_MESSAGE;
+      openingRaw.length > 0 ? openingRaw : defaultAssistantOpeningMessage(locale);
 
     const convId = uuidv4();
     const msgId = uuidv4();
