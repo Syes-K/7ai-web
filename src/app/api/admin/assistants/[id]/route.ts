@@ -128,9 +128,7 @@ export const PATCH = withApiWrapper([withAdminApi], async (_admin: User, request
 
   if (body.prompt !== undefined) {
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    if (!prompt) {
-      details.push({ field: "prompt", message: tApiMessage(locale, "validation.required") });
-    } else if (prompt.length > ASSISTANT_PROMPT_MAX_LENGTH) {
+    if (prompt.length > ASSISTANT_PROMPT_MAX_LENGTH) {
       details.push({
         field: "prompt",
         message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_PROMPT_MAX_LENGTH }),

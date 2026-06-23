@@ -191,9 +191,7 @@ export const POST = withApiWrapper(async (request: Request) => {
   }
 
   const promptRaw = typeof body.prompt === "string" ? body.prompt.trim() : "";
-  if (!promptRaw) {
-    details.push({ field: "prompt", message: tApiMessage(locale, "validation.required") });
-  } else if (promptRaw.length > ASSISTANT_PROMPT_MAX_LENGTH) {
+  if (promptRaw.length > ASSISTANT_PROMPT_MAX_LENGTH) {
     details.push({
       field: "prompt",
       message: tApiMessage(locale, "validation.maxLength", { max: ASSISTANT_PROMPT_MAX_LENGTH }),

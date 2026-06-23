@@ -208,7 +208,12 @@ export const SKILL_PACK_ALLOWED_EXTENSIONS = new Set([
   ".py",
   ".sh",
   ".js",
+  ".cjs",
+  ".mjs",
   ".ts",
+  ".html",
+  ".htm",
+  ".css",
 ]);
 /** 明确拒绝的扩展名 */
 export const SKILL_PACK_DENIED_EXTENSIONS = new Set([

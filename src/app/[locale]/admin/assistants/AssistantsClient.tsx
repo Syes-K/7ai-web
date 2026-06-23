@@ -409,7 +409,6 @@ export default function AssistantsClient() {
               name="prompt"
               label={t("form.prompt.label")}
               rules={[
-                { required: true, message: t("form.prompt.rules.required") },
                 {
                   max: ASSISTANT_PROMPT_MAX_LENGTH,
                   message: t("form.prompt.rules.max", { max: ASSISTANT_PROMPT_MAX_LENGTH }),
