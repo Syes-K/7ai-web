@@ -7,7 +7,7 @@ export function assistantToListItem(row: Assistant): AssistantListItem {
     id: row.id,
     scope: row.scope,
     name: row.name,
-    prompt: row.prompt,
+    prompt: row.prompt ?? "",
     icon: row.icon,
     openingMessage: row.openingMessage,
     tags: normalizeStoredAssistantTags(row.tags),

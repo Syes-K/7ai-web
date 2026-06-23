@@ -126,7 +126,7 @@ export default function AssistantsClient() {
       setEditing(row);
       form.setFieldsValue({
         name: row.name,
-        prompt: row.prompt,
+        prompt: row.prompt ?? "",
         icon: row.icon ?? "",
         openingMessage: row.openingMessage ?? "",
         tags: row.tags?.length ? [...row.tags] : [],
@@ -160,7 +160,7 @@ export default function AssistantsClient() {
       const openingTrim = (v.openingMessage ?? "").trim();
       const payload = {
         name: v.name.trim(),
-        prompt: v.prompt.trim(),
+        prompt: (v.prompt ?? "").trim(),
         icon: iconTrim.length > 0 ? iconTrim : null,
         openingMessage: openingTrim.length > 0 ? openingTrim : null,
         tags,
