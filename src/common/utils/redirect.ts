@@ -1,26 +1,68 @@
-/**
- * 登录/注册成功后的 redirect：仅允许本站 path 且落在白名单（含 `/admin/**` 管理后台）。
- */
-const ALLOWED_EXACT = new Set(["/", "/chat", "/console", "/admin"]);
+import { isAppLocale } from "@/common/constants/i18n";
 
-function isLocalePrefixedPath(pathOnly: string): boolean {
+/**
+ * 登录/注册成功后的 redirect：仅允许本站 path 且落在白名单（含 locale 前缀与 /admin/**）。
+ */
+
+const ALLOWED_LEGACY_EXACT = new Set([
+  "/",
+  "/chat",
+  "/console",
+  "/admin",
+  "/knowledge",
+]);
+
+/** 无 locale 前缀的旧路径：允许子路径 */
+const ALLOWED_LEGACY_PREFIXES = ["/admin/", "/console/", "/chat/", "/knowledge/"];
+
+/** /{locale}/... 中 locale 后的首段应用路由 */
+const ALLOWED_LOCALE_SEGMENTS = new Set([
+  "chat",
+  "console",
+  "admin",
+  "knowledge",
+  "login",
+  "register",
+]);
+
+function stripLocalePrefix(pathOnly: string): { locale: string | null; rest: string } {
   const m = pathOnly.match(/^\/(en|zh)(\/.*)?$/);
-  if (!m) return false;
+  if (!m) {
+    return { locale: null, rest: pathOnly };
+  }
+  const locale = m[1]!;
+  if (!isAppLocale(locale)) {
+    return { locale: null, rest: pathOnly };
+  }
   const rest = m[2] ?? "";
-  if (rest === "" || rest === "/") return true;
-  if (rest === "/chat" || rest.startsWith("/chat/")) return true;
-  if (rest === "/login" || rest.startsWith("/login/")) return true;
-  if (rest === "/register" || rest.startsWith("/register/")) return true;
-  return false;
+  return { locale, rest: rest === "" ? "/" : rest };
+}
+
+function isAllowedLocaleRest(rest: string): boolean {
+  if (rest === "/") {
+    return true;
+  }
+  const seg = rest.split("/").filter(Boolean)[0];
+  if (!seg) {
+    return false;
+  }
+  return ALLOWED_LOCALE_SEGMENTS.has(seg);
 }
 
 function isAllowedRedirectPath(pathOnly: string): boolean {
-  if (ALLOWED_EXACT.has(pathOnly)) return true;
-  if (pathOnly.startsWith("/admin/")) {
-    return !pathOnly.includes("..");
+  if (pathOnly.includes("..")) {
+    return false;
   }
-  if (isLocalePrefixedPath(pathOnly)) return true;
-  return false;
+
+  const { locale, rest } = stripLocalePrefix(pathOnly);
+  if (locale) {
+    return isAllowedLocaleRest(rest);
+  }
+
+  if (ALLOWED_LEGACY_EXACT.has(pathOnly)) {
+    return true;
+  }
+  return ALLOWED_LEGACY_PREFIXES.some((prefix) => pathOnly.startsWith(prefix));
 }
 
 export function safeRedirectUrl(
@@ -67,5 +109,25 @@ export function safeRedirectUrl(
     return `${baseOrigin}${pathPart.startsWith("/") ? pathPart : `/${pathPart}`}`;
   } catch {
     return `${baseOrigin}/`;
+  }
+}
+
+/** API 返回的 redirectUrl → 客户端可用的同源 path（含 search） */
+export function authRedirectPathForClient(
+  redirectUrl: string | null | undefined,
+  fallback = "/",
+): string {
+  const raw = redirectUrl?.trim() || fallback;
+  try {
+    if (raw.includes("://")) {
+      const u = new URL(raw);
+      if (typeof window !== "undefined" && u.origin !== window.location.origin) {
+        return fallback;
+      }
+      return u.pathname + u.search || fallback;
+    }
+    return raw.startsWith("/") ? raw : `/${raw}`;
+  } catch {
+    return fallback;
   }
 }

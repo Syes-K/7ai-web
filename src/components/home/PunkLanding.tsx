@@ -3,13 +3,15 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { PunkHomeHeader } from "./PunkHomeHeader";
 import "./punk-home.css";
 
-const FEATURE_KEYS = ["01", "02", "03", "04"] as const;
+const FEATURE_KEYS = ["01", "02", "03", "04", "05", "06"] as const;
 
 const FEATURE_INDEX_COLORS: Record<(typeof FEATURE_KEYS)[number], string> = {
   "01": "text-cyan-500/90",
   "02": "text-fuchsia-500/90",
   "03": "text-emerald-500/90",
   "04": "text-violet-400/90",
+  "05": "text-amber-400/90",
+  "06": "text-sky-400/90",
 };
 
 export async function PunkLanding() {
@@ -66,7 +68,7 @@ export async function PunkLanding() {
       <main className="relative z-10 flex min-h-[calc(100dvh-56px)] flex-col px-4 pb-6 pt-4 sm:px-6 sm:pb-8">
         <div className="flex flex-1 flex-col items-center justify-center py-4 sm:py-6">
           <p
-            className={`punk-tag-breathe mb-6 inline-flex items-center gap-2 rounded-full border border-fuchsia-500/35 bg-fuchsia-950/30 px-4 py-1.5 font-mono text-[10px] tracking-[0.2em] text-fuchsia-200/90 sm:text-xs${isEn ? " punk-hero-tag" : ""}`}
+            className={`punk-tag-breathe mb-4 inline-flex items-center gap-2 rounded-full border border-fuchsia-500/35 bg-fuchsia-950/30 px-4 py-1.5 font-mono text-[10px] tracking-[0.2em] text-fuchsia-200/90 sm:mb-5 sm:text-xs${isEn ? " punk-hero-tag" : ""}`}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-fuchsia-400 shadow-[0_0_8px_#e879f9]" />
             {t("hero.tag")}
@@ -86,7 +88,7 @@ export async function PunkLanding() {
                 {t("hero.title")}
               </span>
             </h1>
-            <p className="punk-hero-subtitle mt-3 font-mono text-sm text-cyan-500/80 sm:text-base md:text-lg">
+            <p className="punk-hero-subtitle mt-5 font-mono text-sm text-cyan-500/80 sm:mt-6 sm:text-base md:text-lg">
               {t("hero.subtitle")}
             </p>
           </div>
@@ -111,7 +113,7 @@ export async function PunkLanding() {
           </div>
         </div>
 
-        <ul className="punk-feature-grid mx-auto mt-auto w-full max-w-3xl shrink-0 grid grid-cols-1 gap-3 font-mono text-[11px] text-zinc-500 sm:grid-cols-2 sm:text-xs lg:grid-cols-4">
+        <ul className="punk-feature-grid mx-auto mt-auto w-full max-w-4xl shrink-0 grid grid-cols-1 gap-3 font-mono text-[11px] text-zinc-500 sm:grid-cols-2 sm:text-xs lg:grid-cols-3">
           {FEATURE_KEYS.map((key) => (
             <li
               key={key}

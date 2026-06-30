@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -10,6 +10,7 @@ import {
   mapRegisterApiError,
   type RegisterFieldErrors,
 } from "./map-api-errors";
+import { navigateAfterAuth } from "./navigate-after-auth";
 
 const inputBase =
   "mt-1.5 h-11 w-full rounded-lg border px-3 text-[#E8EAEF] outline-none focus:ring-2 focus:ring-[rgba(0,245,255,0.25)]";
@@ -23,7 +24,6 @@ const inputError =
  */
 export function RegisterForm() {
   const t = useTranslations("page.register");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") ?? "";
 
@@ -96,10 +96,8 @@ export function RegisterForm() {
         return;
       }
       setSuccess(t("form.success"));
-      const next = data.redirectUrl ?? "/";
       redirectTimerRef.current = window.setTimeout(() => {
-        router.push(next);
-        router.refresh();
+        navigateAfterAuth(data.redirectUrl);
       }, 2000);
     } catch {
       setErrors({ general: t("errors.networkRetry") });

@@ -37,7 +37,9 @@
     "01": "Streaming & models",
     "02": "Prompts & configs",
     "03": "Knowledge & routing",
-    "04": "Assistant & personas"
+    "04": "Assistant & personas",
+    "05": "MCP & tools",
+    "06": "Skills & packs"
   },
   "footer": {
     "sysLine": "SYS://local · learning mode · no warranty",

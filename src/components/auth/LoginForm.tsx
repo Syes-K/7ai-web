@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CaptchaField, type CaptchaLabels } from "./CaptchaField";
@@ -9,6 +9,7 @@ import {
   mapLoginApiError,
   type LoginFieldErrors,
 } from "./map-api-errors";
+import { navigateAfterAuth } from "./navigate-after-auth";
 
 const inputBase =
   "mt-1.5 h-11 w-full rounded-lg border px-3 text-[#E8EAEF] outline-none focus:ring-2 focus:ring-[rgba(0,245,255,0.25)]";
@@ -22,7 +23,6 @@ const inputError =
  */
 export function LoginForm() {
   const t = useTranslations("page.login");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") ?? "";
 
@@ -76,9 +76,7 @@ export function LoginForm() {
         );
         return;
       }
-      const next = data.redirectUrl ?? "/";
-      router.push(next);
-      router.refresh();
+      navigateAfterAuth(data.redirectUrl);
     } catch {
       setErrors({ general: t("errors.networkRetry") });
     } finally {
