@@ -97,6 +97,27 @@ export function IconClear({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGEle
   );
 }
 
+/** 清空内容（橡皮擦）；与 IconTrash 删除会话区分 */
+export function IconEraser({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      aria-hidden
+      {...rest}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M7 21l-3.5-3.5a2.12 2.12 0 010-3L12.5 5.5a2.12 2.12 0 013 0l5 5a2.12 2.12 0 010 3L11 21M22 21H7"
+      />
+    </svg>
+  );
+}
+
 export function IconTrash({ className = "h-4 w-4", ...rest }: SVGProps<SVGSVGElement>) {
   return (
     <svg

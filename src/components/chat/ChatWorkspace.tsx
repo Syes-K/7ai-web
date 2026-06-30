@@ -18,6 +18,7 @@ import {
   IconConfig,
   IconDots,
   IconEmptyState,
+  IconEraser,
   IconMenu,
   IconPlus,
   IconSend,
@@ -1580,8 +1581,20 @@ export function ChatWorkspace({
                     </div>
                   </div>
                 </button>
-                <div className="group/more relative flex shrink-0 self-start pr-1 pt-2">
-                  <div className="relative flex h-7 w-7 items-center justify-center">
+                <div className="group/more flex shrink-0 self-center pr-1">
+                  <button
+                    type="button"
+                    title={t("sidebar.deleteConversation.title")}
+                    aria-label={t("sidebar.deleteConversation.ariaLabel")}
+                    className="flex h-9 w-9 items-center justify-center rounded-md text-rose-400/90 transition hover:bg-rose-950/35 hover:text-rose-300 lg:hidden"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDeleteConversation(item.id);
+                    }}
+                  >
+                    <IconTrash className="h-4 w-4" />
+                  </button>
+                  <div className="relative hidden h-7 w-7 items-center justify-center lg:flex">
                     <span className="flex items-center justify-center text-zinc-500 transition group-hover/more:pointer-events-none group-hover/more:opacity-0">
                       <IconDots />
                     </span>
@@ -1736,64 +1749,65 @@ export function ChatWorkspace({
         </div>
       </ModalShell>
 
-      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:flex-row">
+      <header className="relative z-20 box-border flex h-14 min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-cyan-500/15 bg-black/30 px-4 backdrop-blur-md">
+        <div className="flex min-w-0 items-center gap-2">
+          {!isDesktop ? (
+            <>
+              <button
+                type="button"
+                aria-label={t("sidebar.drawer.openHistory.title")}
+                title={t("sidebar.drawer.openHistory.label")}
+                onClick={() => setDrawerOpen(true)}
+                className={`${HEADER_ACTION_ICON_CLASS} text-zinc-300 hover:text-cyan-200/90`}
+              >
+                <IconMenu />
+              </button>
+              <button
+                type="button"
+                title={t("sidebar.newChat.title")}
+                aria-label={t("sidebar.newChat.ariaLabel")}
+                onClick={() => void handleNewConversation()}
+                className={`${HEADER_ACTION_ICON_CLASS} text-cyan-300/90 hover:bg-cyan-500/15 hover:text-cyan-200`}
+              >
+                <IconPlus />
+              </button>
+            </>
+          ) : null}
+          <BrandMark className="text-xs sm:text-sm" wordmarkClassName="!tracking-[0.35em]" />
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <LanguageSwitcher namespace="page.chat" variant="shell" />
+          <Link
+            href="/console/profile"
+            title={t("header.console.title")}
+            aria-label={t("header.console.ariaLabel")}
+            className={`${HEADER_ACTION_ICON_CLASS} text-zinc-400 hover:text-cyan-200/90`}
+          >
+            <IconConfig />
+          </Link>
+          <button
+            type="button"
+            title={t("header.clearMessages.title")}
+            aria-label={t("header.clearMessages.ariaLabel")}
+            onClick={handleClear}
+            disabled={!selectedId}
+            className={`${HEADER_ACTION_ICON_CLASS} text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 disabled:opacity-40`}
+          >
+            <IconEraser />
+          </button>
+        </div>
+      </header>
+
+      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden p-3 sm:p-4 lg:flex-row lg:gap-4">
         {isDesktop ? (
           <aside
             className={`mb-0 flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl border border-cyan-500/20 bg-zinc-950/70 shadow-[0_0_40px_-12px_rgba(34,211,238,0.25)] lg:max-h-full ${SIDEBAR_WIDTH}`}
           >
             {sidebarInner}
           </aside>
-        ) : (
-          <div className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-cyan-500/20 bg-zinc-950/70 px-2 py-2">
-            <button
-              type="button"
-              aria-label={t("sidebar.drawer.openHistory.title")}
-              title={t("sidebar.drawer.openHistory.label")}
-              onClick={() => setDrawerOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-600 bg-zinc-900 p-2 text-zinc-200"
-            >
-              <IconMenu />
-            </button>
-            <button
-              type="button"
-              title={t("sidebar.newChat.title")}
-              aria-label={t("sidebar.newChat.ariaLabel")}
-              onClick={() => void handleNewConversation()}
-              className="inline-flex items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/15 p-2 text-cyan-200"
-            >
-              <IconPlus />
-            </button>
-          </div>
-        )}
+        ) : null}
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-fuchsia-500/15 bg-zinc-950/80 shadow-[0_0_48px_-16px_rgba(192,38,211,0.2)] lg:min-h-0">
-          <div className="chat-header flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800/80 px-3 py-2">
-            <div className="min-w-0 shrink">
-              <BrandMark className="text-left text-sm" />
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <LanguageSwitcher namespace="page.chat" variant="shell" />
-              <Link
-                href="/console/profile"
-                title={t("header.console.title")}
-                aria-label={t("header.console.ariaLabel")}
-                className={`${HEADER_ACTION_ICON_CLASS} text-zinc-400 hover:text-cyan-200/90`}
-              >
-                <IconConfig />
-              </Link>
-              <button
-                type="button"
-                title={t("header.clearMessages.title")}
-                aria-label={t("header.clearMessages.ariaLabel")}
-                onClick={handleClear}
-                disabled={!selectedId}
-                className={`${HEADER_ACTION_ICON_CLASS} text-rose-200/90 hover:bg-rose-950/35 disabled:opacity-40`}
-              >
-                <IconTrash />
-              </button>
-            </div>
-          </div>
-
           <div className="chat-scroll chat-messages-area min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-5">
             {selectedId && selectedConv?.assistantUnavailable && (
               <div
