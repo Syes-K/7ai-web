@@ -45,9 +45,9 @@ export function PunkHomeHeader() {
   return (
     <header className="relative z-20 box-border flex h-14 min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-cyan-500/15 bg-black/30 px-4 backdrop-blur-md">
       <BrandMark className="text-xs sm:text-sm" wordmarkClassName="!tracking-[0.35em]" />
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
         <nav
-          className="flex flex-wrap items-center justify-end gap-2 sm:gap-3"
+          className="hidden items-center gap-2 sm:flex sm:gap-3"
           aria-label={t("nav.ariaLabel")}
         >
           <Link
@@ -85,9 +85,10 @@ export function PunkHomeHeader() {
           <Link
             href={`/login?redirect=${loginRedirect}`}
             className={`${HEADER_ACTION_LINK_CLASS} text-white/80 hover:text-white`}
+            aria-label={t("nav.signIn")}
           >
             <IconLogin className="h-4 w-4 shrink-0 text-current" />
-            {t("nav.signIn")}
+            <span className="hidden sm:inline">{t("nav.signIn")}</span>
           </Link>
         )}
       </div>

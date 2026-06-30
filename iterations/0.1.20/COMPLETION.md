@@ -78,6 +78,7 @@
 | --- | --- | --- |
 | **Skills 治理模型** | 用户级 vs 系统级 / 混合目录；run 权限 | 产品定 |
 | **Intent 失败 UX** | Turn 详情展示 timeout / parse 原因 | P2 |
+| **Intent 快模型** | 意图专用 mini 模型，降低延迟与超时 | P2 |
 | **沙箱加固** | 容器 / 硬无网络 | P2 |
 | **ui-ux-pro-max frontmatter** | 导入后 description 为空影响分类 | P3 |
 | **审计 UI** | `skill_script_runs` 控制台 | P3 |
