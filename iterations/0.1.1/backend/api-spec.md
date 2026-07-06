@@ -60,13 +60,13 @@
 
 #### 请求体
 
-| 字段 | 类型 | 规则 |
-| --- | --- | --- |
-| `name` | string | 必填；trim 后非空；max 64 |
-| `prompt` | string | 必填；trim 后非空；max 建议 8000 |
-| `icon` | string \| null | 可选；max 16 |
-| `openingMessage` | string \| null | 可选；max 2000 |
-| `tags` | string[] | 可选；服务端 normalize |
+| 字段　　　　　　 | 类型　　 | 规则　　　　　　　　　　　　　　　| 　　　　　　　 |
+| ------------------| ----------| -----------------------------------| ----------------|
+| `name`　　　　　 | string　 | 必填；trim 后非空；max 64　　　　 | 　　　　　　　 |
+| `prompt`　　　　 | string　 | 必填；trim 后非空；max 建议 20000 | 　　　　　　　 |
+| `icon`　　　　　 | string \ | null　　　　　　　　　　　　　　　| 可选；max 16　 |
+| `openingMessage` | string \ | null　　　　　　　　　　　　　　　| 可选；max 2000 |
+| `tags`　　　　　 | string[] | 可选；服务端 normalize　　　　　　| 　　　　　　　 |
 
 #### 响应 201
 

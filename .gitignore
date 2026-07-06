@@ -1,5 +1,6 @@
 .specstory
 .vscode
+.private
 
 # Dependencies & build
 node_modules/
