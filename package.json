@@ -2,6 +2,9 @@
   "name": "7ai-web",
   "version": "0.0.1",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0 <21"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:host": "next dev --hostname 127.0.0.1 --port 3000",
