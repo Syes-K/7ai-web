@@ -27,6 +27,7 @@ import {
   resolvePostgresUrl,
   resolveSqlitePath,
 } from "@/server/db/db-config";
+import { logger } from "@/server/logs";
 
 const ENTITIES = [
   User,
@@ -52,16 +53,43 @@ let dataSource: DataSource | null = null;
 /** 并发请求共享同一次初始化，避免重复 create/initialize 导致 driver.prepare 报错。 */
 let initPromise: Promise<DataSource> | null = null;
 
+/** 日志用连接摘要（不含密码）。 */
+function describeDataSourceForLog(options: DataSourceOptions): Record<string, unknown> {
+  if (options.type === "postgres") {
+    const url = typeof options.url === "string" ? options.url : "";
+    try {
+      const parsed = new URL(url);
+      return {
+        driver: "postgres",
+        host: parsed.hostname,
+        port: parsed.port || "5432",
+        database: parsed.pathname.replace(/^\//, ""),
+        user: parsed.username || undefined,
+        ssl: options.ssl != null,
+      };
+    } catch {
+      return { driver: "postgres", urlParse: "failed" };
+    }
+  }
+
+  return {
+    driver: "better-sqlite3",
+    database: "database" in options ? options.database : undefined,
+  };
+}
+
 function buildDataSourceOptions(): DataSourceOptions {
   const logging = process.env.TYPEORM_LOGGING === "1";
   const driver = resolveDbDriver();
+
+  let options: DataSourceOptions;
 
   if (driver === "postgres") {
     const ssl = isPostgresSslEnabled()
       ? { rejectUnauthorized: isPostgresSslRejectUnauthorized() }
       : undefined;
 
-    return {
+    options = {
       type: "postgres",
       url: resolvePostgresUrl(),
       ssl,
@@ -69,16 +97,19 @@ function buildDataSourceOptions(): DataSourceOptions {
       synchronize: true,
       logging,
     };
+  } else {
+    const dbFile = resolveSqlitePath();
+    options = {
+      type: "better-sqlite3",
+      database: dbFile,
+      entities: ENTITIES,
+      synchronize: true,
+      logging,
+    };
   }
 
-  const dbFile = resolveSqlitePath();
-  return {
-    type: "better-sqlite3",
-    database: dbFile,
-    entities: ENTITIES,
-    synchronize: true,
-    logging,
-  };
+  logger.info("db.datasource.options", describeDataSourceForLog(options));
+  return options;
 }
 
 async function initializeDataSource(): Promise<DataSource> {
