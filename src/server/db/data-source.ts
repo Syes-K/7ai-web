@@ -20,6 +20,8 @@ import { AssistantSkillBinding } from "@/server/db/entities/AssistantSkillBindin
 import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
 import { SkillScriptRun } from "@/server/db/entities/SkillScriptRun";
 import {
+  isPostgresSslEnabled,
+  isPostgresSslRejectUnauthorized,
   isSqliteDriver,
   resolveDbDriver,
   resolvePostgresUrl,
@@ -55,10 +57,9 @@ function buildDataSourceOptions(): DataSourceOptions {
   const driver = resolveDbDriver();
 
   if (driver === "postgres") {
-    const ssl =
-      process.env.DATABASE_SSL === "1"
-        ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "0" }
-        : undefined;
+    const ssl = isPostgresSslEnabled()
+      ? { rejectUnauthorized: isPostgresSslRejectUnauthorized() }
+      : undefined;
 
     return {
       type: "postgres",

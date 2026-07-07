@@ -36,7 +36,7 @@ start_pm2() {
   if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
     pm2 reload "$PM2_NAME" --update-env
   else
-    pm2 start npm --name "$PM2_NAME" -- start
+    pm2 start npm --name "$PM2_NAME" --cwd "$ROOT" -- start
   fi
   pm2 save
 }
