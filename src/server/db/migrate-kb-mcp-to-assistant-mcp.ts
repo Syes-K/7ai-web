@@ -8,10 +8,10 @@ import { AssistantMcpBinding } from "@/server/db/entities/AssistantMcpBinding";
  * 仅在旧表存在时执行；幂等：对已存在的 (assistantId, mcpConfigId) 跳过。
  */
 export async function migrateKnowledgeBaseMcpToAssistantMcp(ds: DataSource): Promise<void> {
-  const tables = (await ds.query(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_base_mcp_bindings'`,
-  )) as Array<{ name: string }>;
-  if (!tables?.length) return;
+  const queryRunner = ds.createQueryRunner();
+  const hasLegacyTable = await queryRunner.hasTable("knowledge_base_mcp_bindings");
+  await queryRunner.release();
+  if (!hasLegacyTable) return;
 
   type OldRow = { userId: string; knowledgeBaseId: string; mcpConfigId: string };
   const oldBindings = (await ds.query(

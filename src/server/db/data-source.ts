@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import fs from "fs";
 import path from "path";
-import { DataSource } from "typeorm";
+import { DataSource, type DataSourceOptions } from "typeorm";
 import { CaptchaChallenge } from "./entities/CaptchaChallenge";
 import { Conversation } from "./entities/Conversation";
 import { Message } from "./entities/Message";
@@ -19,49 +19,82 @@ import { UserSkillConfig } from "@/server/db/entities/UserSkillConfig";
 import { AssistantSkillBinding } from "@/server/db/entities/AssistantSkillBinding";
 import { SkillPackFile } from "@/server/db/entities/SkillPackFile";
 import { SkillScriptRun } from "@/server/db/entities/SkillScriptRun";
+import {
+  isSqliteDriver,
+  resolveDbDriver,
+  resolvePostgresUrl,
+  resolveSqlitePath,
+} from "@/server/db/db-config";
+
+const ENTITIES = [
+  User,
+  Session,
+  CaptchaChallenge,
+  Conversation,
+  Message,
+  UserModelConfig,
+  Assistant,
+  KnowledgeBase,
+  KnowledgeBaseVectorChunk,
+  AssistantKnowledgeBase,
+  ChatTurn,
+  UserMcpConfig,
+  AssistantMcpBinding,
+  UserSkillConfig,
+  AssistantSkillBinding,
+  SkillPackFile,
+  SkillScriptRun,
+];
 
 let dataSource: DataSource | null = null;
 /** 并发请求共享同一次初始化，避免重复 create/initialize 导致 driver.prepare 报错。 */
 let initPromise: Promise<DataSource> | null = null;
 
-async function initializeDataSource(): Promise<DataSource> {
-  const dbFile =
-    process.env.SQLITE_PATH ?? path.join(process.cwd(), "data", "app.db");
-  const dir = path.dirname(dbFile);
-  fs.mkdirSync(dir, { recursive: true });
+function buildDataSourceOptions(): DataSourceOptions {
+  const logging = process.env.TYPEORM_LOGGING === "1";
+  const driver = resolveDbDriver();
 
-  const { migrateSystemSkillPacks } = await import(
-    "@/server/db/migrations/0.1.21-system-skill-packs"
-  );
-  await migrateSystemSkillPacks(dbFile);
+  if (driver === "postgres") {
+    const ssl =
+      process.env.DATABASE_SSL === "1"
+        ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "0" }
+        : undefined;
 
-  const ds = new DataSource({
+    return {
+      type: "postgres",
+      url: resolvePostgresUrl(),
+      ssl,
+      entities: ENTITIES,
+      synchronize: true,
+      logging,
+    };
+  }
+
+  const dbFile = resolveSqlitePath();
+  return {
     type: "better-sqlite3",
     database: dbFile,
-    entities: [
-      User,
-      Session,
-      CaptchaChallenge,
-      Conversation,
-      Message,
-      UserModelConfig,
-      Assistant,
-      KnowledgeBase,
-      KnowledgeBaseVectorChunk,
-      AssistantKnowledgeBase,
-      ChatTurn,
-      UserMcpConfig,
-      AssistantMcpBinding,
-      UserSkillConfig,
-      AssistantSkillBinding,
-      SkillPackFile,
-      SkillScriptRun,
-    ],
+    entities: ENTITIES,
     synchronize: true,
-    logging: process.env.TYPEORM_LOGGING === "1",
-  });
+    logging,
+  };
+}
 
+async function initializeDataSource(): Promise<DataSource> {
+  if (isSqliteDriver()) {
+    const dbFile = resolveSqlitePath();
+    const dir = path.dirname(dbFile);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const { migrateSystemSkillPacks } = await import(
+      "@/server/db/migrations/0.1.21-system-skill-packs"
+    );
+    await migrateSystemSkillPacks(dbFile);
+  }
+
+  const ds = new DataSource(buildDataSourceOptions());
   await ds.initialize();
+
   const { migrateKnowledgeBaseMcpToAssistantMcp } = await import(
     "@/server/db/migrate-kb-mcp-to-assistant-mcp"
   );
@@ -76,7 +109,7 @@ async function initializeDataSource(): Promise<DataSource> {
 }
 
 /**
- * SQLite + TypeORM 单例；供 Route Handler 与 Server Components 复用。
+ * TypeORM 单例：本地默认 SQLite；生产设置 DATABASE_URL 后使用 PostgreSQL。
  */
 export async function getDataSource(): Promise<DataSource> {
   if (dataSource?.isInitialized) {

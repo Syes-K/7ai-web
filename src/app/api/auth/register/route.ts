@@ -20,8 +20,6 @@ import { withApiWrapper } from "@/server/http/with-api-wrapper";
 import { resolveRequestLocale } from "@/server/i18n/resolve-request-locale";
 import { tApiMessage } from "@/server/i18n/t-api-message";
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/server/auth/session-user";
-import { isAdminEmail } from "@/server/auth/admin";
 
 export const runtime = "nodejs";
 
@@ -30,22 +28,6 @@ export const runtime = "nodejs";
  */
 export const POST = withApiWrapper(async (req: Request) => {
   const locale = resolveRequestLocale(req);
-
-  const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return jsonError(
-      ErrorCode.UNAUTHORIZED,
-      tApiMessage(locale, "authAdminLoginRequired"),
-      HttpStatus.UNAUTHORIZED,
-    );
-  }
-  if (!isAdminEmail(currentUser.email)) {
-    return jsonError(
-      ErrorCode.FORBIDDEN,
-      tApiMessage(locale, "authAdminOnly"),
-      HttpStatus.FORBIDDEN,
-    );
-  }
 
   if (!allowRate(`register:${clientIp(req)}`, 20, 60_000)) {
     return jsonError(

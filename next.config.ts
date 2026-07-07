@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3", "typeorm"],
+  serverExternalPackages: ["better-sqlite3", "pg", "typeorm"],
   async redirects() {
     return [
       {

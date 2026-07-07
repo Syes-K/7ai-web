@@ -2,12 +2,10 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { hasLocale } from "next-intl";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { routing } from "@/i18n/routing";
-import { getCurrentUser } from "@/server/auth/session-user";
-import { isAdminEmail } from "@/server/auth/admin";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -32,8 +30,6 @@ export default async function RegisterPage({ params }: Props) {
   }
   setRequestLocale(locale);
 
-  await gateRegisterPage(locale);
-
   const t = await getTranslations("page.register");
 
   return (
@@ -47,14 +43,4 @@ export default async function RegisterPage({ params }: Props) {
       </Suspense>
     </AuthShell>
   );
-}
-
-async function gateRegisterPage(locale: string) {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect(`/${locale}/login?redirect=/register`);
-  }
-  if (!isAdminEmail(user.email)) {
-    redirect(`/${locale}/login`);
-  }
 }
