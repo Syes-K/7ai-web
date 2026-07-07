@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /** 系统 Skill Pack 元数据；正文在 skill_pack_files。0.1.21 起为平台全局资产，无 userId。 */
 @Entity("user_skill_configs")
@@ -32,9 +33,9 @@ export class UserSkillConfig {
   @Column({ type: "boolean", default: false })
   alwaysLoad!: boolean;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

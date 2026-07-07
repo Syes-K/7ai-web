@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /**
  * 用户侧 AI 对话会话；消息见 {@link Message}。
@@ -43,16 +44,16 @@ export class Conversation {
   contextSummary!: string | null;
 
   /** 滚动摘要最后一次成功写入时间。 */
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   contextSummaryUpdatedAt!: Date | null;
 
   /** 当前滚动摘要已覆盖到的最后一条消息序号（sortOrder）。 */
   @Column({ type: "integer", nullable: true })
   contextSummaryCutoffSortOrder!: number | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

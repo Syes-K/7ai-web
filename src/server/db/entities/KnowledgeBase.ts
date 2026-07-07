@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 export type KnowledgeBaseContentFormat = "markdown" | "plain";
 export type KnowledgeBaseSourceType = "text" | "file";
@@ -42,10 +43,10 @@ export class KnowledgeBase {
   @Column({ type: "varchar", length: 16 })
   vectorStatus!: KnowledgeBaseVectorStatus;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   vectorUpdatedAt!: Date | null;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   vectorLastStartedAt!: Date | null;
 
   /** 当前 content 的版本 hash，用于防止旧分片混入 */
@@ -56,10 +57,10 @@ export class KnowledgeBase {
   @Column({ type: "varchar", length: 500, nullable: true })
   vectorError!: string | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }
 

@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryColumn } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /**
  * 服务端会话：Cookie 中存放 session id，与浏览器绑定。
@@ -11,9 +12,9 @@ export class Session {
   @Column("varchar", { length: 36 })
   userId!: string;
 
-  @Column({ type: "datetime" })
+  @Column(timestampColumn())
   expiresAt!: Date;
 
-  @Column({ type: "datetime" })
+  @Column(timestampColumn())
   createdAt!: Date;
 }

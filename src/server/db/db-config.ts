@@ -45,8 +45,31 @@ export function resolvePostgresUrl(): string {
   return url;
 }
 
+function isLocalPostgresHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+/**
+ * 是否启用 PG SSL。DATABASE_SSL=1 时生效，但本机 127.0.0.1/localhost 默认不启 SSL
+ *（ECS 同机 PostgreSQL 通常未配置 TLS，强开会连不上）。
+ */
 export function isPostgresSslEnabled(): boolean {
-  return readRuntimeEnv("DATABASE_SSL") === "1";
+  if (readRuntimeEnv("DATABASE_SSL") !== "1") {
+    return false;
+  }
+  const url = readRuntimeEnv("DATABASE_URL");
+  if (!url) {
+    return false;
+  }
+  try {
+    if (isLocalPostgresHost(new URL(url).hostname)) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 export function isPostgresSslRejectUnauthorized(): boolean {

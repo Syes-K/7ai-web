@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 @Entity("chat_turns")
 @Index(["conversationId", "createdAt"])
@@ -37,10 +38,10 @@ export class ChatTurn {
   @Column({ type: "integer", default: 0 })
   reasoningVisibilityLevel!: number;
 
-  @Column({ type: "datetime" })
+  @Column(timestampColumn())
   startedAt!: Date;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   endedAt!: Date | null;
 
   @Column({ type: "integer", nullable: true })
@@ -49,9 +50,9 @@ export class ChatTurn {
   @Column({ type: "text" })
   stepsSnapshotJson!: string;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

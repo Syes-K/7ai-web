@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /** 助手与用户 Skill 配置的多对多挂载。 */
 @Entity("assistant_skill_bindings")
@@ -18,6 +19,6 @@ export class AssistantSkillBinding {
   @Column({ type: "varchar", length: 36 })
   skillConfigId!: string;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }

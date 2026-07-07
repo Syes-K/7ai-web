@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 import { AssistantScope } from "@/common/enums";
 
 /**
@@ -40,9 +41,9 @@ export class Assistant {
   @Column({ type: "simple-json", nullable: true })
   tags!: string[] | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

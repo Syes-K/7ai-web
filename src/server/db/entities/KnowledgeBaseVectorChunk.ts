@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 @Entity("knowledge_base_vector_chunks")
 @Index(["knowledgeBaseId", "vectorContentHash"])
@@ -38,7 +39,7 @@ export class KnowledgeBaseVectorChunk {
   @Column({ type: "simple-json" })
   embedding!: number[];
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }
 

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 @Entity("assistant_mcp_bindings")
 @Index(["userId", "mcpConfigId"])
@@ -17,6 +18,6 @@ export class AssistantMcpBinding {
   @Column({ type: "varchar", length: 36 })
   mcpConfigId!: string;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }

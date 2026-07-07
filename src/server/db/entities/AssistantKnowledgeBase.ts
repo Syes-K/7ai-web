@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 @Entity("assistant_knowledge_bases")
 @Index(["assistantId", "knowledgeBaseId"], { unique: true })
@@ -22,7 +23,7 @@ export class AssistantKnowledgeBase {
   @Column({ type: "varchar", length: 36 })
   knowledgeBaseId!: string;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }
 

@@ -5,6 +5,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { floatColumn, timestampColumn } from "@/server/db/column-types";
 
 /**
  * 注册用户：登录账号为 email；telNo 可选且唯一（SQLite 允许多条 NULL）。
@@ -46,7 +47,7 @@ export class User {
   preferredKnowledgeTopK!: number | null;
 
   /** 知识库检索默认阈值（未设置时回退到系统默认值） */
-  @Column({ type: "float", nullable: true })
+  @Column(floatColumn({ nullable: true }))
   preferredKnowledgeThreshold!: number | null;
 
   /** 知识库分片默认 chunkSize（未设置时回退到系统默认值） */
@@ -57,9 +58,9 @@ export class User {
   @Column({ type: "int", nullable: true })
   preferredKnowledgeChunkOverlap!: number | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

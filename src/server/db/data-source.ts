@@ -124,19 +124,39 @@ async function initializeDataSource(): Promise<DataSource> {
     await migrateSystemSkillPacks(dbFile);
   }
 
-  const ds = new DataSource(buildDataSourceOptions());
-  await ds.initialize();
+  const driver = resolveDbDriver();
+  let ds: DataSource;
+  try {
+    ds = new DataSource(buildDataSourceOptions());
+    await ds.initialize();
+    logger.info("db.datasource.initialized", { driver });
+  } catch (err) {
+    logger.error("db.datasource.initialize.failed", {
+      driver,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 
-  const { migrateKnowledgeBaseMcpToAssistantMcp } = await import(
-    "@/server/db/migrate-kb-mcp-to-assistant-mcp"
-  );
-  await migrateKnowledgeBaseMcpToAssistantMcp(ds);
-  const { migrateSkillContentToPackFiles } = await import(
-    "@/server/db/migrate-skill-content-to-pack-files"
-  );
-  await migrateSkillContentToPackFiles(ds);
-  const { purgeOldSkillScriptRuns } = await import("@/server/db/purge-skill-script-runs");
-  await purgeOldSkillScriptRuns(ds);
+  try {
+    const { migrateKnowledgeBaseMcpToAssistantMcp } = await import(
+      "@/server/db/migrate-kb-mcp-to-assistant-mcp"
+    );
+    await migrateKnowledgeBaseMcpToAssistantMcp(ds);
+    const { migrateSkillContentToPackFiles } = await import(
+      "@/server/db/migrate-skill-content-to-pack-files"
+    );
+    await migrateSkillContentToPackFiles(ds);
+    const { purgeOldSkillScriptRuns } = await import("@/server/db/purge-skill-script-runs");
+    await purgeOldSkillScriptRuns(ds);
+  } catch (err) {
+    logger.error("db.datasource.migrate.failed", {
+      driver,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+
   return ds;
 }
 

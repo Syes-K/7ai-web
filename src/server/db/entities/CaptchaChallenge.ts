@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryColumn } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /**
  * 图形验证码挑战：答案仅存哈希，校验成功即标记 consumed。
@@ -12,9 +13,9 @@ export class CaptchaChallenge {
   @Column({ type: "varchar", length: 64 })
   answerHash!: string;
 
-  @Column({ type: "datetime" })
+  @Column(timestampColumn())
   expiresAt!: Date;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   consumedAt!: Date | null;
 }

@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 import type { McpLastCheckStatus, McpTransport } from "@/common/enums";
 
 @Entity("user_mcp_configs")
@@ -37,13 +38,13 @@ export class UserMcpConfig {
   @Column({ type: "text", nullable: true })
   credentialsCipher!: string | null;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   credentialsUpdatedAt!: Date | null;
 
   @Column({ type: "boolean", default: true })
   enabled!: boolean;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column(timestampColumn({ nullable: true }))
   lastCheckedAt!: Date | null;
 
   @Column({ type: "varchar", length: 16, default: "never" })
@@ -52,9 +53,9 @@ export class UserMcpConfig {
   @Column({ type: "varchar", length: 500, nullable: true })
   lastErrorSummary!: string | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

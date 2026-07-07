@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /**
  * 会话内一条消息；与 {@link Conversation} 级联删除由业务清空或未来删会话策略处理。
@@ -39,6 +40,6 @@ export class Message {
   @Column({ type: "integer" })
   sortOrder!: number;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }

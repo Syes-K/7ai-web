@@ -6,6 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /** Skill Pack 内单文件行；路径已归一化为 POSIX 相对路径。0.1.21 起按 packId 隔离，无 userId。 */
 @Entity("skill_pack_files")
@@ -25,9 +26,9 @@ export class SkillPackFile {
   @Column({ type: "text" })
   content!: string;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn(timestampColumn())
   updatedAt!: Date;
 }

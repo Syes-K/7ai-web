@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from "typeorm";
+import { timestampColumn } from "@/server/db/column-types";
 
 /** Skill Pack 脚本沙箱执行审计（保留 90 天）。 */
 @Entity("skill_script_runs")
@@ -34,6 +35,6 @@ export class SkillScriptRun {
   @Column({ type: "varchar", length: 500, nullable: true })
   errorSummary!: string | null;
 
-  @CreateDateColumn({ type: "datetime" })
+  @CreateDateColumn(timestampColumn())
   createdAt!: Date;
 }
