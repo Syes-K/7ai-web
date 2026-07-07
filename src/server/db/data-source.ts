@@ -129,7 +129,6 @@ async function initializeDataSource(): Promise<DataSource> {
   try {
     ds = new DataSource(buildDataSourceOptions());
     await ds.initialize();
-    logger.info("db.datasource.initialized", { driver });
   } catch (err) {
     logger.error("db.datasource.initialize.failed", {
       driver,
